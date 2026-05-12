@@ -1,0 +1,6 @@
+# images/hermes-agent/.dockerignore
+**/__pycache__
+**/*.pyc
+**/.venv
+**/.uv-cache
+README.md

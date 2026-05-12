@@ -1,0 +1,20 @@
+# images/hermes-agent/pyproject.toml
+#
+# uv project that pins hermes-agent + its runtime extras for reproducible image builds.
+# The package list and version are bumped via `make agent-image-relock` whenever a new
+# upstream release is shipped through the operator's matrix workflow.
+
+[project]
+name = "hermes-agent-runtime"
+version = "0.0.0"
+description = "uv project pinning hermes-agent for the operator-published runtime image"
+requires-python = ">=3.11"
+dependencies = [
+    # Upstream package. Version is overridden at build time by the HERMES_VERSION build-arg
+    # via `uv add hermes-agent==${HERMES_VERSION}` before `uv sync --frozen`.
+    "hermes-agent",
+]
+
+[tool.uv]
+# Refuse to silently mutate the lockfile during image builds.
+frozen = true
