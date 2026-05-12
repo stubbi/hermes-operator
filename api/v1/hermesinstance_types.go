@@ -125,6 +125,22 @@ type HermesInstanceSpec struct {
 	// +optional
 	Suspended bool `json:"suspended,omitempty"`
 
+	// Backup controls scheduled and on-delete PVC snapshot behaviour.
+	// +optional
+	Backup BackupSpec `json:"backup,omitempty"`
+
+	// RestoreFrom names a backup snapshot to restore from on next boot.
+	// +optional
+	RestoreFrom string `json:"restoreFrom,omitempty"`
+
+	// AutoUpdate controls opt-in OCI-registry polling for newer agent images.
+	// +optional
+	AutoUpdate AutoUpdateSpec `json:"autoUpdate,omitempty"`
+
+	// Migration is a one-shot migration source (set on initial create only).
+	// +optional
+	Migration MigrationSpec `json:"migration,omitempty"`
+
 	// Runtime controls the agent's Python toolchain and OS-level dependencies.
 	// All fields default to the values that match the operator's published
 	// ghcr.io/stubbi/hermes-agent image.
@@ -754,6 +770,146 @@ type SelfConfigureSpec struct {
 	ProtectedKeys []string `json:"protectedKeys,omitempty"`
 }
 
+// BackupSpec controls S3-compatible PVC snapshots for this instance.
+type BackupSpec struct {
+	// +optional
+	S3 *BackupS3Spec `json:"s3,omitempty"`
+
+	// +optional
+	Schedule string `json:"schedule,omitempty"`
+
+	// +kubebuilder:default=false
+	// +optional
+	OnDelete bool `json:"onDelete,omitempty"`
+
+	// +kubebuilder:default=true
+	// +optional
+	PreUpdate *bool `json:"preUpdate,omitempty"`
+
+	// +kubebuilder:default=30
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=10000
+	// +optional
+	HistoryLimit *int32 `json:"historyLimit,omitempty"`
+
+	// +kubebuilder:default=3
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=1000
+	// +optional
+	FailedHistoryLimit *int32 `json:"failedHistoryLimit,omitempty"`
+
+	// +optional
+	Image string `json:"image,omitempty"`
+}
+
+// BackupS3Spec configures the S3-compatible remote target.
+type BackupS3Spec struct {
+	Bucket   string `json:"bucket"`
+	Endpoint string `json:"endpoint"`
+	// +optional
+	Region string `json:"region,omitempty"`
+	// +optional
+	PathPrefix           string               `json:"pathPrefix,omitempty"`
+	CredentialsSecretRef LocalObjectReference `json:"credentialsSecretRef"`
+}
+
+// LocalObjectReference is a same-namespace reference by name.
+type LocalObjectReference struct {
+	Name string `json:"name"`
+}
+
+// AutoUpdateSpec controls opt-in OCI-registry polling for newer agent images.
+type AutoUpdateSpec struct {
+	// +kubebuilder:default=false
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// +optional
+	Source AutoUpdateSourceSpec `json:"source,omitempty"`
+
+	// +kubebuilder:default="1h"
+	// +optional
+	PollInterval string `json:"pollInterval,omitempty"`
+
+	// +kubebuilder:default=true
+	// +optional
+	BackupBeforeUpdate *bool `json:"backupBeforeUpdate,omitempty"`
+
+	// +optional
+	Rollback AutoUpdateRollbackSpec `json:"rollback,omitempty"`
+}
+
+// AutoUpdateSourceSpec is the OCI registry source for the channel.
+type AutoUpdateSourceSpec struct {
+	// +optional
+	Registry string `json:"registry,omitempty"`
+
+	// +optional
+	Channel string `json:"channel,omitempty"`
+}
+
+// AutoUpdateRollbackSpec configures the rollback path.
+type AutoUpdateRollbackSpec struct {
+	// +kubebuilder:default=true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// +kubebuilder:default=3
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=100
+	// +optional
+	ProbeFailureThreshold int32 `json:"probeFailureThreshold,omitempty"`
+}
+
+// MigrationSpec is a one-shot migration source (immutable once status.migration.completed is true).
+type MigrationSpec struct {
+	// +optional
+	FromOpenClaw *MigrationFromOpenClawSpec `json:"fromOpenClaw,omitempty"`
+}
+
+// MigrationFromOpenClawSpec describes an OpenClaw source.
+type MigrationFromOpenClawSpec struct {
+	Source MigrationFromOpenClawSource `json:"source"`
+
+	// +kubebuilder:default=copy
+	// +kubebuilder:validation:Enum=copy;move
+	// +optional
+	Mode string `json:"mode,omitempty"`
+
+	// +optional
+	Image string `json:"image,omitempty"`
+}
+
+// MigrationFromOpenClawSource is exactly-one-of (validated by webhook).
+type MigrationFromOpenClawSource struct {
+	// +optional
+	OpenClawInstanceRef *NamespacedObjectReference `json:"openclawInstanceRef,omitempty"`
+
+	// +optional
+	BackupRef *MigrationBackupRef `json:"backupRef,omitempty"`
+}
+
+// NamespacedObjectReference is a name+namespace pointer.
+type NamespacedObjectReference struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+// MigrationBackupRef points at an OpenClaw backup snapshot in S3.
+type MigrationBackupRef struct {
+	S3 MigrationBackupS3 `json:"s3"`
+}
+
+// MigrationBackupS3 mirrors BackupS3Spec but adds an explicit Key.
+type MigrationBackupS3 struct {
+	Bucket   string `json:"bucket"`
+	Endpoint string `json:"endpoint"`
+	// +optional
+	Region               string               `json:"region,omitempty"`
+	Key                  string               `json:"key"`
+	CredentialsSecretRef LocalObjectReference `json:"credentialsSecretRef"`
+}
+
 // HermesInstanceStatus reflects the observed state of HermesInstance.
 type HermesInstanceStatus struct {
 	// ObservedGeneration is the most recent generation observed by the controller.
@@ -780,6 +936,66 @@ type HermesInstanceStatus struct {
 	// ReadyReplicas is the latest observed ready-replica count.
 	// +optional
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	// RestoredFrom records the snapshot ID used in the last restore.
+	// +optional
+	RestoredFrom string `json:"restoredFrom,omitempty"`
+
+	// Backup reflects the most recent backup state.
+	// +optional
+	Backup BackupStatus `json:"backup,omitempty"`
+
+	// AutoUpdate reflects the current auto-update state.
+	// +optional
+	AutoUpdate AutoUpdateStatus `json:"autoUpdate,omitempty"`
+
+	// Migration reflects the one-shot migration state.
+	// +optional
+	Migration MigrationStatus `json:"migration,omitempty"`
+}
+
+// BackupStatus reflects the most recent backup outcomes.
+type BackupStatus struct {
+	// +optional
+	LastSuccessTime *metav1.Time `json:"lastSuccessTime,omitempty"`
+	// +optional
+	LastSuccessSnapshotID string `json:"lastSuccessSnapshotID,omitempty"`
+	// +optional
+	LastFailureTime *metav1.Time `json:"lastFailureTime,omitempty"`
+	// +optional
+	LastFailureReason string `json:"lastFailureReason,omitempty"`
+	// +optional
+	FinalBackupJobName string `json:"finalBackupJobName,omitempty"`
+}
+
+// AutoUpdateStatus reflects the current auto-update rollout state.
+type AutoUpdateStatus struct {
+	// +optional
+	LastCheckTime *metav1.Time `json:"lastCheckTime,omitempty"`
+	// +optional
+	CurrentTag string `json:"currentTag,omitempty"`
+	// +optional
+	TargetTag string `json:"targetTag,omitempty"`
+	// +optional
+	LastSuccessTag string `json:"lastSuccessTag,omitempty"`
+	// +optional
+	LastFailedTag string `json:"lastFailedTag,omitempty"`
+	// +optional
+	PreUpdateSnapshot string `json:"preUpdateSnapshot,omitempty"`
+	// +optional
+	ProbeFailures int32 `json:"probeFailures,omitempty"`
+	// +optional
+	RolloutDeadline *metav1.Time `json:"rolloutDeadline,omitempty"`
+}
+
+// MigrationStatus reflects the one-shot migration outcome.
+type MigrationStatus struct {
+	// +optional
+	Completed bool `json:"completed,omitempty"`
+	// +optional
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty"`
+	// +optional
+	SourceVersion string `json:"sourceVersion,omitempty"`
 }
 
 // Condition type constants. Centralised so Plan 4-6 and docs/conditions.md stay aligned.
@@ -796,6 +1012,16 @@ const (
 	ConditionTypeIngressReady        = "IngressReady"
 	ConditionTypeServiceMonitorReady = "ServiceMonitorReady"
 	ConditionTypePrometheusRuleReady = "PrometheusRuleReady"
+
+	ConditionBackupReady          = "BackupReady"
+	ConditionRestoreApplied       = "RestoreApplied"
+	ConditionAutoUpdated          = "AutoUpdated"
+	ConditionAutoUpdateRolledBack = "AutoUpdateRolledBack"
+	ConditionMigrationCompleted   = "MigrationCompleted"
+
+	FinalizerBackupOnDelete    = "hermes.agent/backup-on-delete"
+	AnnotationAutoUpdateTarget = "hermes.agent/autoupdate-target"
+	AnnotationSkipFinalBackup  = "hermes.agent/skip-final-backup"
 )
 
 // +kubebuilder:object:root=true

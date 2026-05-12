@@ -55,6 +55,42 @@ spec:
           spec:
             description: spec defines the desired state of HermesInstance
             properties:
+              autoUpdate:
+                description: AutoUpdate controls opt-in OCI-registry polling for newer
+                  agent images.
+                properties:
+                  backupBeforeUpdate:
+                    default: true
+                    type: boolean
+                  enabled:
+                    default: false
+                    type: boolean
+                  pollInterval:
+                    default: 1h
+                    type: string
+                  rollback:
+                    description: AutoUpdateRollbackSpec configures the rollback path.
+                    properties:
+                      enabled:
+                        default: true
+                        type: boolean
+                      probeFailureThreshold:
+                        default: 3
+                        format: int32
+                        maximum: 100
+                        minimum: 1
+                        type: integer
+                    type: object
+                  source:
+                    description: AutoUpdateSourceSpec is the OCI registry source for
+                      the channel.
+                    properties:
+                      channel:
+                        type: string
+                      registry:
+                        type: string
+                    type: object
+                type: object
               availability:
                 description: Availability sets PDB, HPA, and topology-spread constraints.
                 properties:
@@ -403,6 +439,59 @@ spec:
                       - whenUnsatisfiable
                       type: object
                     type: array
+                type: object
+              backup:
+                description: Backup controls scheduled and on-delete PVC snapshot
+                  behaviour.
+                properties:
+                  failedHistoryLimit:
+                    default: 3
+                    format: int32
+                    maximum: 1000
+                    minimum: 0
+                    type: integer
+                  historyLimit:
+                    default: 30
+                    format: int32
+                    maximum: 10000
+                    minimum: 1
+                    type: integer
+                  image:
+                    type: string
+                  onDelete:
+                    default: false
+                    type: boolean
+                  preUpdate:
+                    default: true
+                    type: boolean
+                  s3:
+                    description: BackupS3Spec configures the S3-compatible remote
+                      target.
+                    properties:
+                      bucket:
+                        type: string
+                      credentialsSecretRef:
+                        description: LocalObjectReference is a same-namespace reference
+                          by name.
+                        properties:
+                          name:
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      endpoint:
+                        type: string
+                      pathPrefix:
+                        type: string
+                      region:
+                        type: string
+                    required:
+                    - bucket
+                    - credentialsSecretRef
+                    - endpoint
+                    type: object
+                  schedule:
+                    type: string
                 type: object
               config:
                 description: |-
@@ -4092,6 +4181,76 @@ spec:
                   - name
                   type: object
                 type: array
+              migration:
+                description: Migration is a one-shot migration source (set on initial
+                  create only).
+                properties:
+                  fromOpenClaw:
+                    description: MigrationFromOpenClawSpec describes an OpenClaw source.
+                    properties:
+                      image:
+                        type: string
+                      mode:
+                        default: copy
+                        enum:
+                        - copy
+                        - move
+                        type: string
+                      source:
+                        description: MigrationFromOpenClawSource is exactly-one-of
+                          (validated by webhook).
+                        properties:
+                          backupRef:
+                            description: MigrationBackupRef points at an OpenClaw
+                              backup snapshot in S3.
+                            properties:
+                              s3:
+                                description: MigrationBackupS3 mirrors BackupS3Spec
+                                  but adds an explicit Key.
+                                properties:
+                                  bucket:
+                                    type: string
+                                  credentialsSecretRef:
+                                    description: LocalObjectReference is a same-namespace
+                                      reference by name.
+                                    properties:
+                                      name:
+                                        type: string
+                                    required:
+                                    - name
+                                    type: object
+                                  endpoint:
+                                    type: string
+                                  key:
+                                    type: string
+                                  region:
+                                    type: string
+                                required:
+                                - bucket
+                                - credentialsSecretRef
+                                - endpoint
+                                - key
+                                type: object
+                            required:
+                            - s3
+                            type: object
+                          openclawInstanceRef:
+                            description: NamespacedObjectReference is a name+namespace
+                              pointer.
+                            properties:
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                        type: object
+                    required:
+                    - source
+                    type: object
+                type: object
               networking:
                 description: Networking exposes the agent via Service / Ingress.
                 properties:
@@ -4961,6 +5120,10 @@ spec:
                     description: Requests is the resource-requests map.
                     type: object
                 type: object
+              restoreFrom:
+                description: RestoreFrom names a backup snapshot to restore from on
+                  next boot.
+                type: string
               runtime:
                 description: |-
                   Runtime controls the agent's Python toolchain and OS-level dependencies.
@@ -8298,6 +8461,45 @@ spec:
           status:
             description: status defines the observed state of HermesInstance
             properties:
+              autoUpdate:
+                description: AutoUpdate reflects the current auto-update state.
+                properties:
+                  currentTag:
+                    type: string
+                  lastCheckTime:
+                    format: date-time
+                    type: string
+                  lastFailedTag:
+                    type: string
+                  lastSuccessTag:
+                    type: string
+                  preUpdateSnapshot:
+                    type: string
+                  probeFailures:
+                    format: int32
+                    type: integer
+                  rolloutDeadline:
+                    format: date-time
+                    type: string
+                  targetTag:
+                    type: string
+                type: object
+              backup:
+                description: Backup reflects the most recent backup state.
+                properties:
+                  finalBackupJobName:
+                    type: string
+                  lastFailureReason:
+                    type: string
+                  lastFailureTime:
+                    format: date-time
+                    type: string
+                  lastSuccessSnapshotID:
+                    type: string
+                  lastSuccessTime:
+                    format: date-time
+                    type: string
+                type: object
               conditions:
                 description: |-
                   Conditions reflect subsystem readiness. Plan 2 emits:
@@ -8362,6 +8564,17 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              migration:
+                description: Migration reflects the one-shot migration state.
+                properties:
+                  completed:
+                    type: boolean
+                  finishedAt:
+                    format: date-time
+                    type: string
+                  sourceVersion:
+                    type: string
+                type: object
               observedGeneration:
                 description: ObservedGeneration is the most recent generation observed
                   by the controller.
@@ -8379,6 +8592,10 @@ spec:
                 description: Replicas is the latest observed StatefulSet replica count.
                 format: int32
                 type: integer
+              restoredFrom:
+                description: RestoredFrom records the snapshot ID used in the last
+                  restore.
+                type: string
             type: object
         required:
         - spec
