@@ -6737,6 +6737,16 @@ spec:
                       AllowedActions is the set of permitted action categories Plan 4 will
                       enforce: skills, config, envVars, workspaceFiles, profiles.
                     items:
+                      description: |-
+                        SelfConfigAction names a category of mutation. Used by
+                        HermesInstance.spec.selfConfigure.allowedActions to gate what the agent
+                        may request via HermesSelfConfig.
+                      enum:
+                      - skills
+                      - config
+                      - envVars
+                      - workspaceFiles
+                      - profiles
                       type: string
                     type: array
                     x-kubernetes-list-type: set
@@ -8182,6 +8192,11 @@ spec:
                     source:
                       description: Source is the uv/pip-compatible install source.
                       minLength: 1
+                      type: string
+                    version:
+                      description: |-
+                        Version optionally pins the install version. Mirrors SelfConfigSkill.Version
+                        so HermesSelfConfig can carry the field through SSA without truncation.
                       type: string
                   required:
                   - source

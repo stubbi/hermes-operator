@@ -55,7 +55,8 @@ func buildSkillsPatch(parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfCo
 	p := newPartialInstance(parent)
 	for _, s := range sc.Spec.AddSkills {
 		p.Spec.Skills = append(p.Spec.Skills, hermesv1.InstanceSkill{
-			Source: s.Source,
+			Source:  s.Source,
+			Version: s.Version,
 		})
 	}
 	return p

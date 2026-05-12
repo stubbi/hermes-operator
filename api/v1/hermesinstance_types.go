@@ -725,6 +725,11 @@ type InstanceSkill struct {
 	// Source is the uv/pip-compatible install source.
 	// +kubebuilder:validation:MinLength=1
 	Source string `json:"source"`
+
+	// Version optionally pins the install version. Mirrors SelfConfigSkill.Version
+	// so HermesSelfConfig can carry the field through SSA without truncation.
+	// +optional
+	Version string `json:"version,omitempty"`
 }
 
 // SelfConfigureSpec is the allowlist policy for HermesSelfConfig mutations.

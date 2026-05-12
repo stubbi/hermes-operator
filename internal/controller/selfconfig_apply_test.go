@@ -31,7 +31,7 @@ func TestBuildSkillsPatch_ContainsOnlySkills(t *testing.T) {
 			InstanceRef: "my-hermes",
 			AddSkills: []hermesv1.SelfConfigSkill{
 				{Source: "git+https://github.com/foo/skill@v1"},
-				{Source: "git+https://github.com/bar/other@v2"},
+				{Source: "git+https://github.com/bar/other@v2", Version: "2.0"},
 			},
 		},
 	}
@@ -45,6 +45,7 @@ func TestBuildSkillsPatch_ContainsOnlySkills(t *testing.T) {
 	assert.Len(t, patch.Spec.Skills, 2)
 	assert.Equal(t, "git+https://github.com/foo/skill@v1", patch.Spec.Skills[0].Source)
 	assert.Equal(t, "git+https://github.com/bar/other@v2", patch.Spec.Skills[1].Source)
+	assert.Equal(t, "2.0", patch.Spec.Skills[1].Version, "Version must propagate from SelfConfigSkill to InstanceSkill")
 	assert.Empty(t, patch.Spec.Env, "must not touch env when only Skills is requested")
 	assert.Empty(t, patch.Spec.Image.Repository, "must not touch image — Flux owns that")
 }
