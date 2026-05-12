@@ -14,7 +14,7 @@ for file in $(find internal/controller -name "*.go" ! -name "*_test.go"); do
     line_num=0
 
     while IFS= read -r line; do
-        ((line_num++))
+        line_num=$((line_num + 1))
 
         # Track function context
         if [[ $line =~ func\ \(.*\)\ reconcilePVC ]]; then
