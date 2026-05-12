@@ -37,6 +37,12 @@ func BuildConfigMap(inst *hermesv1.HermesInstance, resolvedBody string) *corev1.
 			body = string(y)
 		}
 	}
+	if merged, err := mergeGatewayFragments(body, BuildGatewayConfigFragments(inst)); err == nil {
+		body = merged
+	}
+	// On parse error we keep the original body — the validating webhook is
+	// responsible for rejecting malformed config; we don't want a pure builder
+	// to panic.
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConfigMapName(inst),
@@ -47,6 +53,36 @@ func BuildConfigMap(inst *hermesv1.HermesInstance, resolvedBody string) *corev1.
 			"config.yaml": body,
 		},
 	}
+}
+
+// mergeGatewayFragments deep-merges builder-derived gateway config fragments
+// under the top-level `gateways` key of the rendered config.yaml. Gateway
+// fragments win over any user-provided `gateways:` entries because the operator
+// owns this sub-tree (users should disable the gateway and write their own if
+// they need full control).
+func mergeGatewayFragments(body string, frags map[string]any) (string, error) {
+	if len(frags) == 0 {
+		return body, nil
+	}
+	root := map[string]any{}
+	if body != "" {
+		if err := yaml.Unmarshal([]byte(body), &root); err != nil {
+			return "", fmt.Errorf("parse rendered config: %w", err)
+		}
+	}
+	existing, _ := root["gateways"].(map[string]any)
+	if existing == nil {
+		existing = map[string]any{}
+	}
+	for k, v := range frags {
+		existing[k] = v
+	}
+	root["gateways"] = existing
+	out, err := yaml.Marshal(root)
+	if err != nil {
+		return "", fmt.Errorf("marshal merged config: %w", err)
+	}
+	return string(out), nil
 }
 
 // MergeYAMLBodies performs a YAML deep-merge of `overlay` (JSON or YAML) onto
