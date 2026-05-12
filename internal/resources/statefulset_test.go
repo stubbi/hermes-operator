@@ -238,3 +238,56 @@ func TestBuildStatefulSet_ServiceAccountName(t *testing.T) {
 	sts2 := BuildStatefulSet(inst)
 	assert.Equal(t, "byo-sa", sts2.Spec.Template.Spec.ServiceAccountName)
 }
+
+func TestBuildStatefulSet_WorkspaceVolumeMounted(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.Workspace.InitialFiles = []hermesv1.WorkspaceFile{{Path: "a.md", Content: "x"}}
+	sts := BuildStatefulSet(inst)
+	var sawVol bool
+	for _, v := range sts.Spec.Template.Spec.Volumes {
+		if v.Name == "workspace" && v.ConfigMap != nil && v.ConfigMap.Name == "demo-workspace" {
+			sawVol = true
+		}
+	}
+	assert.True(t, sawVol, "workspace ConfigMap mounted as volume")
+}
+
+func TestBuildStatefulSet_CABundleConfigMapMounted(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.Security.CABundle = hermesv1.CABundleSpec{ConfigMapName: "corp-ca", Key: "ca.crt"}
+	sts := BuildStatefulSet(inst)
+	var sawCA bool
+	for _, v := range sts.Spec.Template.Spec.Volumes {
+		if v.Name == "ca-bundle" {
+			sawCA = true
+		}
+	}
+	assert.True(t, sawCA)
+	c := sts.Spec.Template.Spec.Containers[0]
+	var hasSSLEnv bool
+	for _, e := range c.Env {
+		if e.Name == "SSL_CERT_FILE" {
+			hasSSLEnv = true
+		}
+	}
+	assert.True(t, hasSSLEnv, "SSL_CERT_FILE set when CA bundle is mounted")
+}
+
+func TestBuildStatefulSet_Suspended(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.Suspended = true
+	sts := BuildStatefulSet(inst)
+	assert.NotNil(t, sts.Spec.Replicas)
+	assert.Equal(t, int32(0), *sts.Spec.Replicas)
+}
+
+func TestBuildStatefulSet_NotSuspendedDefaultReplica(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	sts := BuildStatefulSet(inst)
+	assert.NotNil(t, sts.Spec.Replicas)
+	assert.Equal(t, int32(1), *sts.Spec.Replicas)
+}

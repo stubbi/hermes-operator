@@ -99,6 +99,51 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance) *appsv1.StatefulSet {
 		c.StartupProbe = inst.Spec.Probes.Startup.DeepCopy()
 	}
 
+	// Mount workspace ConfigMap (unconditional)
+	c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
+		Name:      "workspace",
+		MountPath: "/home/hermes/.hermes-workspace-seed",
+		ReadOnly:  true,
+	})
+
+	// Prepare CA bundle volume source if configured
+	var caBundleVolumeSource *corev1.VolumeSource
+	if inst.Spec.Security.CABundle.ConfigMapName != "" || inst.Spec.Security.CABundle.SecretName != "" {
+		key := inst.Spec.Security.CABundle.Key
+		if key == "" {
+			key = "ca.crt"
+		}
+		switch {
+		case inst.Spec.Security.CABundle.ConfigMapName != "":
+			caBundleVolumeSource = &corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{Name: inst.Spec.Security.CABundle.ConfigMapName},
+					Items:                []corev1.KeyToPath{{Key: key, Path: "ca.crt"}},
+					DefaultMode:          Ptr(int32(0o644)),
+				},
+			}
+		case inst.Spec.Security.CABundle.SecretName != "":
+			caBundleVolumeSource = &corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  inst.Spec.Security.CABundle.SecretName,
+					Items:       []corev1.KeyToPath{{Key: key, Path: "ca.crt"}},
+					DefaultMode: Ptr(int32(0o644)),
+				},
+			}
+		}
+		// Mount CA bundle into container
+		c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
+			Name:      "ca-bundle",
+			MountPath: "/etc/ssl/certs/hermes-ca-bundle.crt",
+			SubPath:   "ca.crt",
+			ReadOnly:  true,
+		})
+		c.Env = append(c.Env, corev1.EnvVar{
+			Name:  "SSL_CERT_FILE",
+			Value: "/etc/ssl/certs/hermes-ca-bundle.crt",
+		})
+	}
+
 	// Extend container with extra volume mounts, env, and envFrom
 	c.VolumeMounts = append(c.VolumeMounts, inst.Spec.ExtraVolumeMounts...)
 	c.Env = append(c.Env, inst.Spec.Env...)
@@ -145,10 +190,32 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance) *appsv1.StatefulSet {
 		},
 	}
 
+	// Append workspace volume (unconditional)
+	podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
+		Name: "workspace",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: WorkspaceConfigMapName(inst)},
+				DefaultMode:          Ptr(int32(0o644)),
+			},
+		},
+	})
+
+	// Append CA bundle volume if configured
+	if caBundleVolumeSource != nil {
+		podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{Name: "ca-bundle", VolumeSource: *caBundleVolumeSource})
+	}
+
 	// Append sidecars, init containers, and extra volumes
 	podSpec.Containers = append(podSpec.Containers, inst.Spec.Sidecars...)
 	podSpec.InitContainers = append(podSpec.InitContainers, inst.Spec.InitContainers...)
 	podSpec.Volumes = append(podSpec.Volumes, inst.Spec.ExtraVolumes...)
+
+	// Determine replicas based on suspended state
+	replicas := int32(1)
+	if inst.Spec.Suspended {
+		replicas = 0
+	}
 
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -158,7 +225,7 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance) *appsv1.StatefulSet {
 		},
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName:          ServiceName(inst),
-			Replicas:             Ptr(int32(1)),
+			Replicas:             Ptr(replicas),
 			RevisionHistoryLimit: Ptr(int32(10)),
 			PodManagementPolicy:  appsv1.OrderedReadyPodManagement,
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
