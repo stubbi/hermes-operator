@@ -52,4 +52,14 @@ for file in $(find internal/controller -name "*.go" ! -name "*_test.go"); do
     done < "$file"
 done
 
+# Lesson #437: finalizer mutation must not use r.Update on the CR.
+# Heuristic: any line that calls r.Update(ctx, ...) within 3 lines of
+# AddFinalizer or RemoveFinalizer is suspect.
+if grep -rIn -B 3 -A 1 -E 'controllerutil\.(Add|Remove)Finalizer' internal/controller/ --include='*.go' --exclude='*_test.go' \
+    | grep -E 'r\.Update\(ctx,' \
+    | grep -v 'reconcile-guard:allow'; then
+    echo "::error::Finalizer add/remove must use r.Patch(ctx, inst, client.MergeFrom(original)), not r.Update — see lesson #437" >&2
+    fail=1
+fi
+
 exit $fail
