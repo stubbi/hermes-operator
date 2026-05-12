@@ -60,6 +60,7 @@ const operatorLabelPrefix = "hermes.agent/"
 // +kubebuilder:rbac:groups=hermes.agent,resources=hermesinstances,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=hermes.agent,resources=hermesinstances/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=hermes.agent,resources=hermesinstances/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;configmaps;persistentvolumeclaims;secrets;serviceaccounts;events,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies;ingresses,verbs=get;list;watch;create;update;patch;delete
@@ -96,6 +97,7 @@ func (r *HermesInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		{"ServiceMonitor", hermesv1.ConditionTypeServiceMonitorReady, r.reconcileServiceMonitor},
 		{"PrometheusRule", hermesv1.ConditionTypePrometheusRuleReady, r.reconcilePrometheusRule},
 		{"StatefulSet", "StatefulSetReady", r.reconcileStatefulSet},
+		{"Honcho", "ProfileStoreReady", r.reconcileHoncho},
 	}
 	for _, s := range steps {
 		if err := s.fn(ctx, inst); err != nil {
@@ -403,6 +405,98 @@ func (r *HermesInstanceReconciler) reconcileStatefulSet(ctx context.Context, ins
 	return err
 }
 
+func (r *HermesInstanceReconciler) reconcileHoncho(ctx context.Context, inst *hermesv1.HermesInstance) error {
+	enabled := resources.BoolValue(inst.Spec.ProfileStore.Honcho.Enabled)
+	persistEnabled := resources.BoolValueOrDefault(inst.Spec.ProfileStore.Honcho.Persistence.Enabled, true)
+
+	// PVC: create-only when enabled && persistence enabled; leave on disable (data safety).
+	if enabled && persistEnabled {
+		pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+			Name: resources.HonchoPVCName(inst), Namespace: inst.Namespace,
+		}}
+		err := r.Get(ctx, types.NamespacedName{Name: pvc.Name, Namespace: pvc.Namespace}, pvc)
+		if apierrors.IsNotFound(err) {
+			desired := resources.BuildHonchoPVC(inst)
+			desired.Labels = resources.MergePreservingForeign(desired.Labels, desired.Labels, operatorLabelPrefix)
+			if err := controllerutil.SetControllerReference(inst, desired, r.Scheme); err != nil {
+				return fmt.Errorf("honcho pvc owner ref: %w", err)
+			}
+			if err := r.Create(ctx, desired); err != nil {
+				return fmt.Errorf("honcho pvc create: %w", err)
+			}
+		} else if err != nil {
+			return fmt.Errorf("honcho pvc get: %w", err)
+		}
+	}
+
+	// Service: create/update when enabled; delete when disabled.
+	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{
+		Name: resources.HonchoServiceName(inst), Namespace: inst.Namespace,
+	}}
+	if !enabled {
+		if err := r.deleteIfExists(ctx, svc); err != nil {
+			return fmt.Errorf("honcho svc delete: %w", err)
+		}
+	} else {
+		if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
+			desired := resources.BuildHonchoService(inst)
+			svc.Labels = resources.MergePreservingForeign(svc.Labels, desired.Labels, operatorLabelPrefix)
+			svc.Annotations = resources.MergePreservingForeign(svc.Annotations, desired.Annotations, operatorLabelPrefix)
+			clusterIP := svc.Spec.ClusterIP
+			clusterIPs := svc.Spec.ClusterIPs
+			svc.Spec = desired.Spec
+			if clusterIP != "" {
+				svc.Spec.ClusterIP = clusterIP
+				svc.Spec.ClusterIPs = clusterIPs
+			}
+			return controllerutil.SetControllerReference(inst, svc, r.Scheme)
+		}); err != nil {
+			return fmt.Errorf("honcho svc: %w", err)
+		}
+	}
+
+	// Deployment: create/update when enabled; delete when disabled.
+	dep := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
+		Name: resources.HonchoDeploymentName(inst), Namespace: inst.Namespace,
+	}}
+	if !enabled {
+		if err := r.deleteIfExists(ctx, dep); err != nil {
+			return fmt.Errorf("honcho deployment delete: %w", err)
+		}
+	} else {
+		if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
+			desired := resources.BuildHonchoDeployment(inst)
+			dep.Labels = resources.MergePreservingForeign(dep.Labels, desired.Labels, operatorLabelPrefix)
+			dep.Spec = desired.Spec
+			return controllerutil.SetControllerReference(inst, dep, r.Scheme)
+		}); err != nil {
+			return fmt.Errorf("honcho deployment: %w", err)
+		}
+	}
+
+	// NetworkPolicy: create/update when enabled AND global NetworkPolicy is enabled; otherwise delete.
+	npEnabled := enabled && resources.BoolValueOrDefault(inst.Spec.Security.NetworkPolicy.Enabled, true)
+	np := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{
+		Name: resources.HonchoDeploymentName(inst), Namespace: inst.Namespace,
+	}}
+	if !npEnabled {
+		if err := r.deleteIfExists(ctx, np); err != nil {
+			return fmt.Errorf("honcho netpol delete: %w", err)
+		}
+	} else {
+		if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, np, func() error {
+			desired := resources.BuildHonchoNetworkPolicy(inst)
+			np.Labels = resources.MergePreservingForeign(np.Labels, desired.Labels, operatorLabelPrefix)
+			np.Spec = desired.Spec
+			return controllerutil.SetControllerReference(inst, np, r.Scheme)
+		}); err != nil {
+			return fmt.Errorf("honcho netpol: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // --- helpers ---
 
 func (r *HermesInstanceReconciler) deleteIfExists(ctx context.Context, obj client.Object) error {
@@ -453,6 +547,7 @@ func (r *HermesInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hermesv1.HermesInstance{}).
 		Owns(&appsv1.StatefulSet{}).
+		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.PersistentVolumeClaim{}).
