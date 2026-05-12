@@ -27,12 +27,12 @@ func TestLabelsForInstance(t *testing.T) {
 
 func TestMergePreservingForeignAnnotations(t *testing.T) {
 	existing := map[string]string{
-		"hermes.agent/foo":     "old",
-		"third-party/keep-me":  "preserve",
+		"hermes.agent/foo":    "old",
+		"third-party/keep-me": "preserve",
 	}
 	desired := map[string]string{
-		"hermes.agent/foo":  "new",
-		"hermes.agent/bar":  "added",
+		"hermes.agent/foo": "new",
+		"hermes.agent/bar": "added",
 	}
 	got := MergePreservingForeign(existing, desired, "hermes.agent/")
 	assert.Equal(t, "new", got["hermes.agent/foo"], "operator key overwritten")
