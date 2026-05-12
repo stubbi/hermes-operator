@@ -1,0 +1,173 @@
+name: OperatorHub Submission
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+
+jobs:
+  submit-community-operators:
+    name: Submit to k8s-operatorhub/community-operators
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: version
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.version.outputs.tag }}
+
+      - name: Prepare bundle
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          BUNDLE_DIR="submission/operators/hermes-operator/${VERSION}"
+          mkdir -p "${BUNDLE_DIR}/manifests" "${BUNDLE_DIR}/metadata"
+
+          # Copy and version the CSV.
+          sed \
+            -e "s/hermes-operator\.v[0-9]\+\.[0-9]\+\.[0-9]\+/hermes-operator.v${VERSION}/g" \
+            -e "s|ghcr.io/stubbi/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+|ghcr.io/stubbi/hermes-operator:${TAG}|g" \
+            -e "s/createdAt: .*/createdAt: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" \
+            -e "s/^  version: [0-9]\+\.[0-9]\+\.[0-9]\+/  version: ${VERSION}/" \
+            bundle/manifests/hermes-operator.clusterserviceversion.yaml \
+            > "${BUNDLE_DIR}/manifests/hermes-operator.v${VERSION}.clusterserviceversion.yaml"
+
+          # CRDs and metadata as-is.
+          cp bundle/manifests/hermes.agent_hermesinstances.yaml      "${BUNDLE_DIR}/manifests/"
+          cp bundle/manifests/hermes.agent_hermesselfconfigs.yaml    "${BUNDLE_DIR}/manifests/"
+          cp bundle/manifests/hermes.agent_hermesclusterdefaults.yaml "${BUNDLE_DIR}/manifests/"
+          cp bundle/metadata/annotations.yaml "${BUNDLE_DIR}/metadata/"
+          # Per community-operators convention, copy ci.yaml alongside.
+          cp bundle/ci.yaml "submission/operators/hermes-operator/" || true
+
+          echo "Bundle prepared at ${BUNDLE_DIR}:"
+          find "${BUNDLE_DIR}" -type f
+
+      - name: Fork and submit to community-operators
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          BRANCH="hermes-operator-v${VERSION}"
+
+          gh auth setup-git
+          gh repo fork k8s-operatorhub/community-operators --clone=true --remote=true -- community-operators
+          cd community-operators
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch upstream main
+          git reset --hard upstream/main
+
+          git checkout -b "${BRANCH}"
+
+          mkdir -p operators/hermes-operator
+          cp -r ../submission/operators/hermes-operator/${VERSION} operators/hermes-operator/${VERSION}
+          cp -f ../submission/operators/hermes-operator/ci.yaml operators/hermes-operator/ci.yaml 2>/dev/null || true
+
+          git add "operators/hermes-operator"
+          git commit -m "operator hermes-operator (${VERSION})"
+          git push --force origin "${BRANCH}"
+
+          FORK_OWNER=$(gh api user --jq '.login')
+
+          if ! gh pr view "${FORK_OWNER}:${BRANCH}" --repo k8s-operatorhub/community-operators --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
+            gh pr create \
+              --repo k8s-operatorhub/community-operators \
+              --head "${FORK_OWNER}:${BRANCH}" \
+              --title "operator hermes-operator (${VERSION})" \
+              --body "$(cat <<EOF
+          ### Update to hermes-operator
+
+          **Version:** ${VERSION}
+          **Operator:** [Hermes Kubernetes Operator](https://github.com/stubbi/hermes-operator)
+
+          #### Changes
+          See [release notes](https://github.com/stubbi/hermes-operator/releases/tag/v${VERSION}).
+
+          #### Testing
+          - CI tests + nightly conformance suite pass on the source repository
+          - Container image is published and signed at \`ghcr.io/stubbi/hermes-operator:v${VERSION}\`
+          - SBOM attested at the same digest (verify with \`cosign verify-attestation\`)
+          EOF
+          )"
+          else
+            echo "PR already exists for ${FORK_OWNER}:${BRANCH} - branch was force-pushed with updated content"
+          fi
+
+  submit-redhat:
+    name: Submit to redhat-openshift-ecosystem/community-operators-prod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: version
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.version.outputs.tag }}
+
+      - name: Prepare bundle
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          BUNDLE_DIR="submission/operators/hermes-operator/${VERSION}"
+          mkdir -p "${BUNDLE_DIR}/manifests" "${BUNDLE_DIR}/metadata"
+          sed \
+            -e "s/hermes-operator\.v[0-9]\+\.[0-9]\+\.[0-9]\+/hermes-operator.v${VERSION}/g" \
+            -e "s|ghcr.io/stubbi/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+|ghcr.io/stubbi/hermes-operator:${TAG}|g" \
+            -e "s/createdAt: .*/createdAt: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" \
+            -e "s/^  version: [0-9]\+\.[0-9]\+\.[0-9]\+/  version: ${VERSION}/" \
+            bundle/manifests/hermes-operator.clusterserviceversion.yaml \
+            > "${BUNDLE_DIR}/manifests/hermes-operator.v${VERSION}.clusterserviceversion.yaml"
+          cp bundle/manifests/hermes.agent_hermesinstances.yaml      "${BUNDLE_DIR}/manifests/"
+          cp bundle/manifests/hermes.agent_hermesselfconfigs.yaml    "${BUNDLE_DIR}/manifests/"
+          cp bundle/manifests/hermes.agent_hermesclusterdefaults.yaml "${BUNDLE_DIR}/manifests/"
+          cp bundle/metadata/annotations.yaml "${BUNDLE_DIR}/metadata/"
+
+      - name: Fork and submit to redhat community-operators-prod
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          BRANCH="hermes-operator-v${VERSION}"
+          gh auth setup-git
+          gh repo fork redhat-openshift-ecosystem/community-operators-prod --clone=true --remote=true -- community-operators-prod
+          cd community-operators-prod
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch upstream main
+          git reset --hard upstream/main
+          git checkout -b "${BRANCH}"
+          mkdir -p operators/hermes-operator
+          cp -r ../submission/operators/hermes-operator/${VERSION} operators/hermes-operator/${VERSION}
+          git add "operators/hermes-operator"
+          git commit -m "operator hermes-operator (${VERSION})"
+          git push --force origin "${BRANCH}"
+          FORK_OWNER=$(gh api user --jq '.login')
+          if ! gh pr view "${FORK_OWNER}:${BRANCH}" --repo redhat-openshift-ecosystem/community-operators-prod --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
+            gh pr create \
+              --repo redhat-openshift-ecosystem/community-operators-prod \
+              --head "${FORK_OWNER}:${BRANCH}" \
+              --title "operator hermes-operator (${VERSION})" \
+              --body "Release ${VERSION}. See https://github.com/stubbi/hermes-operator/releases/tag/v${VERSION}."
+          fi
