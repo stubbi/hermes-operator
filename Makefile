@@ -329,3 +329,11 @@ sync-bundle-crds: manifests ## Sync CRDs from config/crd/bases/ into the OLM bun
 	cp config/crd/bases/hermes.agent_hermesinstances.yaml      bundle/manifests/
 	cp config/crd/bases/hermes.agent_hermesselfconfigs.yaml    bundle/manifests/
 	cp config/crd/bases/hermes.agent_hermesclusterdefaults.yaml bundle/manifests/
+
+.PHONY: sync-bundle-rbac
+sync-bundle-rbac: manifests ## Sync bundle CSV RBAC from kubebuilder-generated role.
+	bash hack/sync-bundle-rbac.sh
+
+.PHONY: sync-bundle-rbac-check
+sync-bundle-rbac-check: ## Verify the bundle CSV RBAC is in sync (CI use).
+	bash hack/sync-bundle-rbac.sh --check
