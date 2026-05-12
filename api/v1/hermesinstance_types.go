@@ -19,6 +19,7 @@ package v1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -156,8 +157,44 @@ type PersistenceSpec struct {
 	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
-// ConfigSpec — populated in Task 3.
-type ConfigSpec struct{}
+// ConfigMergeMode controls how Raw and ConfigMapRef are combined.
+// +kubebuilder:validation:Enum=replace;merge
+type ConfigMergeMode string
+
+const (
+	// ConfigMergeModeReplace — Raw replaces ConfigMapRef entirely when both are set.
+	// This is the default to avoid surprising merges.
+	ConfigMergeModeReplace ConfigMergeMode = "replace"
+	// ConfigMergeModeMerge — YAML deep-merge Raw onto ConfigMapRef. Raw wins on conflict.
+	ConfigMergeModeMerge ConfigMergeMode = "merge"
+)
+
+// ConfigSpec holds the agent's ~/.hermes/config.yaml. Exactly one of Raw or
+// ConfigMapRef SHOULD be set; the validating webhook rejects both unset and
+// emits a warning if both are set with MergeMode unset.
+type ConfigSpec struct {
+	// Raw is the inline YAML body of config.yaml. Stored as a RawExtension so
+	// users may write structured YAML in the manifest without escaping.
+	// +optional
+	Raw *RawConfig `json:"raw,omitempty"`
+
+	// ConfigMapRef references a ConfigMap in the same namespace whose
+	// "config.yaml" key holds the body.
+	// +optional
+	ConfigMapRef *corev1.LocalObjectReference `json:"configMapRef,omitempty"`
+
+	// MergeMode controls combination when both Raw and ConfigMapRef are set.
+	// +kubebuilder:default=replace
+	// +optional
+	MergeMode ConfigMergeMode `json:"mergeMode,omitempty"`
+}
+
+// +kubebuilder:object:generate=true
+
+// RawConfig wraps runtime.RawExtension so deepcopy is generated cleanly.
+type RawConfig struct {
+	runtime.RawExtension `json:",inline"`
+}
 
 // WorkspaceSpec — populated in Task 4.
 type WorkspaceSpec struct{}

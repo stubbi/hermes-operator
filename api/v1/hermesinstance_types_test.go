@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // TestHermesInstanceSpec_HasAllSubSpecs is the schema canary — every sub-spec
@@ -26,4 +28,16 @@ func TestHermesInstanceSpec_HasAllSubSpecs(t *testing.T) {
 		_, ok := specType.FieldByName(name)
 		assert.Truef(t, ok, "HermesInstanceSpec is missing field %q (design §4)", name)
 	}
+}
+
+func TestConfigSpec_RawAndRef(t *testing.T) {
+	t.Parallel()
+	cs := ConfigSpec{
+		Raw:          &RawConfig{RawExtension: runtime.RawExtension{Raw: []byte(`{"a":1}`)}},
+		ConfigMapRef: &corev1.LocalObjectReference{Name: "user-config"},
+		MergeMode:    ConfigMergeModeMerge,
+	}
+	assert.NotNil(t, cs.Raw)
+	assert.NotNil(t, cs.ConfigMapRef)
+	assert.Equal(t, ConfigMergeModeMerge, cs.MergeMode)
 }
