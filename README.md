@@ -3,6 +3,8 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Report Card](https://goreportcard.com/badge/github.com/stubbi/hermes-operator)](https://goreportcard.com/report/github.com/stubbi/hermes-operator)
 [![CI](https://github.com/stubbi/hermes-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/stubbi/hermes-operator/actions/workflows/ci.yaml)
+[![Conformance](https://github.com/stubbi/hermes-operator/actions/workflows/conformance.yaml/badge.svg)](https://github.com/stubbi/hermes-operator/actions/workflows/conformance.yaml)
+[![Release](https://github.com/stubbi/hermes-operator/actions/workflows/release.yaml/badge.svg)](https://github.com/stubbi/hermes-operator/actions/workflows/release.yaml)
 
 Kubernetes operator for [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent) — a Python-based self-improving multi-platform AI agent.
 
