@@ -11,3 +11,9 @@ cosign verify ghcr.io/stubbi/hermes-operator:vX.Y.Z \
   --certificate-identity-regexp 'https://github.com/stubbi/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+## Signing & SBOMs
+
+Full verification commands live at [`docs/security/signing.md`](docs/security/signing.md).
+A weekly `verify-signing.yaml` workflow checks that the latest release is
+still cosign-verifiable; if not, it auto-files an `infra-broken` issue.

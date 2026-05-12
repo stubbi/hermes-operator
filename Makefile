@@ -396,3 +396,17 @@ catalog-push: ## Push the catalog image.
 .PHONY: scorecard
 scorecard: operator-sdk ## Run operator-sdk scorecard tests (requires a kind cluster).
 	$(OPERATOR_SDK) scorecard bundle --wait-time 120s
+
+.PHONY: verify-signing
+verify-signing: ## Verify the latest published release is Cosign-signed and SBOM-attested.
+	@VERSION=$$(gh release view --repo stubbi/hermes-operator --json tagName --jq .tagName); \
+	IMAGE="ghcr.io/stubbi/hermes-operator:$${VERSION}"; \
+	echo "Verifying $${IMAGE}..."; \
+	cosign verify "$${IMAGE}" \
+	  --certificate-identity-regexp 'https://github.com/stubbi/hermes-operator/.github/workflows/.*' \
+	  --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null || { echo "::error::signature verification failed for $${IMAGE}"; exit 1; }; \
+	echo "Verifying SBOM attestation..."; \
+	cosign verify-attestation "$${IMAGE}" --type spdxjson \
+	  --certificate-identity-regexp 'https://github.com/stubbi/hermes-operator/.github/workflows/.*' \
+	  --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null || { echo "::error::SBOM attestation verification failed for $${IMAGE}"; exit 1; }; \
+	echo "OK: $${IMAGE} is signed and SBOM-attested."
