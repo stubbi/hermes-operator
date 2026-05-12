@@ -337,3 +337,62 @@ sync-bundle-rbac: manifests ## Sync bundle CSV RBAC from kubebuilder-generated r
 .PHONY: sync-bundle-rbac-check
 sync-bundle-rbac-check: ## Verify the bundle CSV RBAC is in sync (CI use).
 	bash hack/sync-bundle-rbac.sh --check
+
+##@ Bundle
+
+BUNDLE_IMG ?= ghcr.io/stubbi/hermes-operator-bundle:$(shell git describe --tags --always)
+CATALOG_IMG ?= ghcr.io/stubbi/hermes-operator-catalog:$(shell git describe --tags --always)
+
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+OPERATOR_SDK_VERSION ?= v1.38.0
+OPM ?= $(LOCALBIN)/opm
+OPM_VERSION ?= v1.47.0
+
+.PHONY: operator-sdk
+operator-sdk: $(OPERATOR_SDK) ## Download operator-sdk locally if necessary.
+$(OPERATOR_SDK): $(LOCALBIN)
+	@if [ ! -f "$(OPERATOR_SDK)" ]; then \
+	  OS=$$(uname | awk '{print tolower($$0)}'); \
+	  ARCH=$$(case $$(uname -m) in x86_64) echo amd64;; aarch64|arm64) echo arm64;; esac); \
+	  echo "Downloading operator-sdk $(OPERATOR_SDK_VERSION) ($${OS}/$${ARCH})"; \
+	  curl -sSLo "$(OPERATOR_SDK)" "https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH}"; \
+	  chmod +x "$(OPERATOR_SDK)"; \
+	fi
+
+.PHONY: opm
+opm: $(OPM) ## Download opm locally if necessary.
+$(OPM): $(LOCALBIN)
+	@if [ ! -f "$(OPM)" ]; then \
+	  OS=$$(uname | awk '{print tolower($$0)}'); \
+	  ARCH=$$(case $$(uname -m) in x86_64) echo amd64;; aarch64|arm64) echo arm64;; esac); \
+	  echo "Downloading opm $(OPM_VERSION) ($${OS}/$${ARCH})"; \
+	  curl -sSLo "$(OPM)" "https://github.com/operator-framework/operator-registry/releases/download/$(OPM_VERSION)/$${OS}-$${ARCH}-opm"; \
+	  chmod +x "$(OPM)"; \
+	fi
+
+.PHONY: bundle
+bundle: manifests sync-bundle-crds sync-bundle-rbac ## Refresh bundle manifests from current source.
+
+.PHONY: bundle-validate
+bundle-validate: operator-sdk ## Validate the OLM bundle.
+	$(OPERATOR_SDK) bundle validate ./bundle --select-optional suite=operatorframework
+
+.PHONY: bundle-build
+bundle-build: bundle bundle-validate ## Build the OLM bundle image.
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push: ## Push the OLM bundle image.
+	docker push $(BUNDLE_IMG)
+
+.PHONY: catalog-build
+catalog-build: opm ## Build a single-bundle catalog image (FBC).
+	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMG)
+
+.PHONY: catalog-push
+catalog-push: ## Push the catalog image.
+	docker push $(CATALOG_IMG)
+
+.PHONY: scorecard
+scorecard: operator-sdk ## Run operator-sdk scorecard tests (requires a kind cluster).
+	$(OPERATOR_SDK) scorecard bundle --wait-time 120s
