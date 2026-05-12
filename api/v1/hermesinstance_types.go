@@ -136,6 +136,10 @@ type HermesInstanceSpec struct {
 	// Secret(s) so tokens are rotatable independently.
 	// +optional
 	Gateways GatewaysSpec `json:"gateways,omitempty"`
+
+	// ProfileStore configures the optional Honcho profile-store companion.
+	// +optional
+	ProfileStore ProfileStoreSpec `json:"profileStore,omitempty"`
 }
 
 // ImageSpec selects an OCI image.
@@ -996,6 +1000,63 @@ type SignalGatewaySpec struct {
 
 	// +optional
 	AuthTokenSecretRef *corev1.SecretKeySelector `json:"authTokenSecretRef,omitempty"`
+}
+
+// ProfileStoreSpec is the union of supported profile-store backends. Only
+// `honcho` is supported in v1.
+type ProfileStoreSpec struct {
+	// +optional
+	Honcho HonchoSpec `json:"honcho,omitempty"`
+}
+
+// HonchoSpec controls the Honcho companion Deployment.
+type HonchoSpec struct {
+	// +kubebuilder:default=false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// +optional
+	Image HonchoImageSpec `json:"image,omitempty"`
+
+	// +optional
+	Persistence HonchoPersistenceSpec `json:"persistence,omitempty"`
+
+	// +optional
+	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// APIKeySecretRef points at the Secret holding the Honcho API key.
+	// +optional
+	APIKeySecretRef *corev1.SecretKeySelector `json:"apiKeySecretRef,omitempty"`
+}
+
+// HonchoImageSpec selects the Honcho image.
+type HonchoImageSpec struct {
+	// +kubebuilder:default="ghcr.io/plastic-labs/honcho"
+	// +optional
+	Repository string `json:"repository,omitempty"`
+
+	// +kubebuilder:default="0.1.0"
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// +kubebuilder:default=IfNotPresent
+	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
+	// +optional
+	PullPolicy string `json:"pullPolicy,omitempty"`
+}
+
+// HonchoPersistenceSpec controls the Honcho-side PVC.
+type HonchoPersistenceSpec struct {
+	// +kubebuilder:default=true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// +kubebuilder:default="5Gi"
+	// +optional
+	Size string `json:"size,omitempty"`
+
+	// +optional
+	StorageClassName *string `json:"storageClassName,omitempty"`
 }
 
 func init() {
