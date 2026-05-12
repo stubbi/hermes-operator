@@ -127,3 +127,114 @@ func TestBuildStatefulSet_ProbeOverrides(t *testing.T) {
 	assert.NotNil(t, c.LivenessProbe)
 	assert.Equal(t, int32(30), c.LivenessProbe.InitialDelaySeconds)
 }
+
+func TestBuildStatefulSet_Scheduling(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.Scheduling = hermesv1.SchedulingSpec{
+		NodeSelector:      map[string]string{"disktype": "ssd"},
+		Tolerations:       []corev1.Toleration{{Key: "gpu", Operator: corev1.TolerationOpExists}},
+		PriorityClassName: "hi",
+		Affinity: &corev1.Affinity{
+			NodeAffinity: &corev1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+					NodeSelectorTerms: []corev1.NodeSelectorTerm{{}},
+				},
+			},
+		},
+	}
+	sts := BuildStatefulSet(inst)
+	podSpec := sts.Spec.Template.Spec
+	assert.Equal(t, "ssd", podSpec.NodeSelector["disktype"])
+	assert.Len(t, podSpec.Tolerations, 1)
+	assert.Equal(t, "hi", podSpec.PriorityClassName)
+	assert.NotNil(t, podSpec.Affinity)
+}
+
+func TestBuildStatefulSet_TopologySpread(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.Availability.TopologySpreadConstraints = []corev1.TopologySpreadConstraint{
+		{TopologyKey: "topology.kubernetes.io/zone", WhenUnsatisfiable: corev1.ScheduleAnyway, MaxSkew: 1,
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "x"}}},
+	}
+	sts := BuildStatefulSet(inst)
+	assert.Len(t, sts.Spec.Template.Spec.TopologySpreadConstraints, 1)
+}
+
+func TestBuildStatefulSet_InitContainersAndSidecars(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.InitContainers = []corev1.Container{{Name: "user-init", Image: "alpine"}}
+	inst.Spec.Sidecars = []corev1.Container{{Name: "user-side", Image: "alpine"}}
+	sts := BuildStatefulSet(inst)
+	var sawInit, sawSide bool
+	for _, c := range sts.Spec.Template.Spec.InitContainers {
+		if c.Name == "user-init" {
+			sawInit = true
+		}
+	}
+	for _, c := range sts.Spec.Template.Spec.Containers {
+		if c.Name == "user-side" {
+			sawSide = true
+		}
+	}
+	assert.True(t, sawInit)
+	assert.True(t, sawSide)
+}
+
+func TestBuildStatefulSet_ExtraVolumesAndMounts(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.ExtraVolumes = []corev1.Volume{{Name: "user-vol", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}}
+	inst.Spec.ExtraVolumeMounts = []corev1.VolumeMount{{Name: "user-vol", MountPath: "/user"}}
+	sts := BuildStatefulSet(inst)
+	var sawVol, sawMount bool
+	for _, v := range sts.Spec.Template.Spec.Volumes {
+		if v.Name == "user-vol" {
+			sawVol = true
+		}
+	}
+	for _, m := range sts.Spec.Template.Spec.Containers[0].VolumeMounts {
+		if m.Name == "user-vol" && m.MountPath == "/user" {
+			sawMount = true
+		}
+	}
+	assert.True(t, sawVol)
+	assert.True(t, sawMount)
+}
+
+func TestBuildStatefulSet_EnvAndEnvFrom(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	inst.Spec.Env = []corev1.EnvVar{{Name: "FOO", Value: "bar"}}
+	inst.Spec.EnvFrom = []corev1.EnvFromSource{
+		{SecretRef: &corev1.SecretEnvSource{LocalObjectReference: corev1.LocalObjectReference{Name: "user-secret"}}},
+	}
+	sts := BuildStatefulSet(inst)
+	c := sts.Spec.Template.Spec.Containers[0]
+	var sawEnv, sawEnvFrom bool
+	for _, e := range c.Env {
+		if e.Name == "FOO" && e.Value == "bar" {
+			sawEnv = true
+		}
+	}
+	for _, ef := range c.EnvFrom {
+		if ef.SecretRef != nil && ef.SecretRef.Name == "user-secret" {
+			sawEnvFrom = true
+		}
+	}
+	assert.True(t, sawEnv)
+	assert.True(t, sawEnvFrom)
+}
+
+func TestBuildStatefulSet_ServiceAccountName(t *testing.T) {
+	t.Parallel()
+	inst := minimalInstance()
+	sts := BuildStatefulSet(inst)
+	assert.Equal(t, "demo", sts.Spec.Template.Spec.ServiceAccountName)
+
+	inst.Spec.Security.RBAC.ServiceAccountName = "byo-sa"
+	sts2 := BuildStatefulSet(inst)
+	assert.Equal(t, "byo-sa", sts2.Spec.Template.Spec.ServiceAccountName)
+}

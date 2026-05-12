@@ -99,6 +99,57 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance) *appsv1.StatefulSet {
 		c.StartupProbe = inst.Spec.Probes.Startup.DeepCopy()
 	}
 
+	// Extend container with extra volume mounts, env, and envFrom
+	c.VolumeMounts = append(c.VolumeMounts, inst.Spec.ExtraVolumeMounts...)
+	c.Env = append(c.Env, inst.Spec.Env...)
+	c.EnvFrom = append(c.EnvFrom, inst.Spec.EnvFrom...)
+
+	// Build PodSpec with scheduling and service account
+	podSpec := corev1.PodSpec{
+		RestartPolicy:                 corev1.RestartPolicyAlways,
+		DNSPolicy:                     corev1.DNSClusterFirst,
+		SchedulerName:                 "default-scheduler",
+		TerminationGracePeriodSeconds: Ptr(int64(30)),
+		SecurityContext:               podSecurityCtx,
+		NodeSelector:                  inst.Spec.Scheduling.NodeSelector,
+		Tolerations:                   inst.Spec.Scheduling.Tolerations,
+		Affinity:                      inst.Spec.Scheduling.Affinity,
+		PriorityClassName:             inst.Spec.Scheduling.PriorityClassName,
+		TopologySpreadConstraints:     inst.Spec.Availability.TopologySpreadConstraints,
+		ServiceAccountName:            ServiceAccountNameFor(inst),
+		Containers:                    []corev1.Container{c},
+		Volumes: []corev1.Volume{
+			{
+				Name: "config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: ConfigMapName(inst)},
+						DefaultMode:          Ptr(int32(0o644)),
+					},
+				},
+			},
+			{
+				Name: "data",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: PVCName(inst),
+					},
+				},
+			},
+			{
+				Name: "tmp",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+	}
+
+	// Append sidecars, init containers, and extra volumes
+	podSpec.Containers = append(podSpec.Containers, inst.Spec.Sidecars...)
+	podSpec.InitContainers = append(podSpec.InitContainers, inst.Spec.InitContainers...)
+	podSpec.Volumes = append(podSpec.Volumes, inst.Spec.ExtraVolumes...)
+
 	return &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      StatefulSetName(inst),
@@ -125,39 +176,7 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance) *appsv1.StatefulSet {
 			Selector: &metav1.LabelSelector{MatchLabels: selector},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: labels},
-				Spec: corev1.PodSpec{
-					RestartPolicy:                 corev1.RestartPolicyAlways,
-					DNSPolicy:                     corev1.DNSClusterFirst,
-					SchedulerName:                 "default-scheduler",
-					TerminationGracePeriodSeconds: Ptr(int64(30)),
-					SecurityContext:               podSecurityCtx,
-					Containers:                    []corev1.Container{c},
-					Volumes: []corev1.Volume{
-						{
-							Name: "config",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{Name: ConfigMapName(inst)},
-									DefaultMode:          Ptr(int32(0o644)),
-								},
-							},
-						},
-						{
-							Name: "data",
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: PVCName(inst),
-								},
-							},
-						},
-						{
-							Name: "tmp",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-					},
-				},
+				Spec:       podSpec,
 			},
 		},
 	}
