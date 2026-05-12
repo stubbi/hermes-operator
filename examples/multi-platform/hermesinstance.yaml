@@ -1,0 +1,45 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: multi-platform
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.4.2"
+  storage:
+    persistence:
+      enabled: true
+      size: 10Gi
+  gateways:
+    telegram:
+      enabled: true
+      secretRef:
+        name: hermes-telegram
+        tokenKey: token
+    discord:
+      enabled: true
+      secretRef:
+        name: hermes-discord
+        tokenKey: token
+    slack:
+      enabled: true
+      secretRef:
+        name: hermes-slack
+        botTokenKey: botToken
+        signingSecretKey: signingSecret
+      ingress:
+        enabled: true
+        host: hermes-slack.example.com
+        # Slack's events webhook requires a public HTTPS endpoint.
+        # Bring your own ingress controller + TLS.
+    whatsapp:
+      enabled: true
+      secretRef:
+        name: hermes-whatsapp
+        accessTokenKey: accessToken
+        phoneNumberIDKey: phoneNumberID
+    signal:
+      enabled: true
+      secretRef:
+        name: hermes-signal
+        registrationKeyKey: registrationKey
