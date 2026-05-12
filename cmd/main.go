@@ -190,7 +190,7 @@ func main() {
 	}
 
 	defaulter := &internalwebhook.HermesInstanceDefaulter{Client: mgr.GetClient()}
-	instValidator := &internalwebhook.HermesInstanceValidator{}
+	instValidator := &internalwebhook.HermesInstanceValidator{Client: mgr.GetClient()}
 	if err := hermesv1.RegisterHermesInstanceWebhook(mgr, defaulter, instValidator); err != nil {
 		setupLog.Error(err, "unable to register HermesInstance webhook")
 		os.Exit(1)
