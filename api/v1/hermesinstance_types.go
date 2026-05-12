@@ -252,8 +252,29 @@ type WorkspaceBootstrap struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// ResourcesSpec — populated in Task 5.
-type ResourcesSpec struct{}
+// ResourcesSpec sets CPU/memory requests + limits on the agent container.
+// Defaults intentionally omitted — the defaulting webhook fills from
+// HermesClusterDefaults if available, otherwise the field is left empty
+// (meaning the agent inherits whatever Pod-level defaults the namespace's
+// LimitRange applies).
+type ResourcesSpec struct {
+	// Requests is the resource-requests map.
+	// +optional
+	Requests corev1.ResourceList `json:"requests,omitempty"`
+
+	// Limits is the resource-limits map.
+	// +optional
+	Limits corev1.ResourceList `json:"limits,omitempty"`
+}
+
+// ToContainerResourceRequirements converts to a corev1.ResourceRequirements,
+// useful inside resource builders.
+func (r *ResourcesSpec) ToContainerResourceRequirements() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Requests: r.Requests,
+		Limits:   r.Limits,
+	}
+}
 
 // SecuritySpec — populated in Task 6.
 type SecuritySpec struct{}

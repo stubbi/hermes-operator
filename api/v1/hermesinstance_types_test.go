@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -60,4 +61,20 @@ func TestWorkspaceSpec_NestedPath(t *testing.T) {
 	assert.Equal(t, "notes/finance/2026.md", ws.InitialFiles[0].Path)
 	assert.NotNil(t, ws.Bootstrap.Enabled)
 	assert.False(t, *ws.Bootstrap.Enabled)
+}
+
+func TestResourcesSpec_RequestsLimits(t *testing.T) {
+	t.Parallel()
+	rs := ResourcesSpec{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("100m"),
+			corev1.ResourceMemory: resource.MustParse("256Mi"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("500m"),
+			corev1.ResourceMemory: resource.MustParse("512Mi"),
+		},
+	}
+	assert.Equal(t, resource.MustParse("100m"), rs.Requests[corev1.ResourceCPU])
+	assert.Equal(t, resource.MustParse("512Mi"), rs.Limits[corev1.ResourceMemory])
 }
