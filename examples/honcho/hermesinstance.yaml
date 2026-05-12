@@ -1,0 +1,31 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: honcho
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.4.2"
+  storage:
+    persistence:
+      enabled: true
+      size: 10Gi
+  profileStore:
+    enabled: true
+    image:
+      repository: ghcr.io/plastic-labs/honcho
+      tag: "0.0.36"
+    persistence:
+      enabled: true
+      size: 5Gi
+      storageClassName: gp3
+    secret:
+      name: hermes-honcho
+      apiKeyKey: apiKey
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
