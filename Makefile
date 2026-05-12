@@ -323,3 +323,9 @@ conformance-gitops:
 .PHONY: conformance-failure
 conformance-failure:
 	cd test/conformance && go test -v -timeout 20m -ginkgo.v -ginkgo.focus="failure injection" ./...
+
+.PHONY: sync-bundle-crds
+sync-bundle-crds: manifests ## Sync CRDs from config/crd/bases/ into the OLM bundle.
+	cp config/crd/bases/hermes.agent_hermesinstances.yaml      bundle/manifests/
+	cp config/crd/bases/hermes.agent_hermesselfconfigs.yaml    bundle/manifests/
+	cp config/crd/bases/hermes.agent_hermesclusterdefaults.yaml bundle/manifests/
