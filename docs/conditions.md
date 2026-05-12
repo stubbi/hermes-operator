@@ -34,3 +34,13 @@ This document is the authoritative reference for all `status.conditions` emitted
 | Type | When True | When False | Reason codes |
 |---|---|---|---|
 | `Ready` | name == "cluster" | otherwise | `Singleton`, `InvalidName` |
+
+## HermesSelfConfig conditions
+
+| Type | Status=True meaning | Reasons |
+|---|---|---|
+| `Applied` | The SSA writes succeeded for every requested action. | `SSASuccess` |
+| `Denied` | Policy or validation rejected the request. No mutation occurred. | `PolicyViolation`, `InstanceNotFound`, `ProtectedPath`, `InvalidPatch`, `SSAConflict` |
+| `Pending` | The controller has accepted the SelfConfig but not yet attempted apply. | `Accepted` |
+
+Phase derives from conditions: `Applied → Applied`, `Denied → Denied`, otherwise `Pending`.

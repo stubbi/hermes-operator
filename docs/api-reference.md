@@ -537,19 +537,61 @@ Same schema as `HermesInstance.spec.resources`. Provides cluster-wide default re
 
 ## HermesSelfConfig
 
-**API group / version:** `hermes.agent/v1`
-**Kind:** `HermesSelfConfig`
-**Scope:** Namespaced
-**Owner:** Plan 4
+Agent-driven, audited mutation API. Validated against the parent
+`HermesInstance.spec.selfConfigure` policy and applied via Server-Side Apply
+with field manager `hermes.agent/selfconfig`.
 
-HermesSelfConfig enables agent self-mutation via Server-Side Apply. The full field-by-field reference is owned by Plan 4. Plan 2 provides a stub validating webhook that permits all HermesSelfConfig objects (with a warning in the operator log) until Plan 4 ships the real implementation.
+### Spec
 
-The fields declared on `HermesInstance` that HermesSelfConfig targets are:
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `instanceRef` | string | yes | Name of the parent `HermesInstance` in the same namespace. |
+| `addSkills[]` | list | no | uv-compatible source specifiers appended to `HermesInstance.spec.skills`. SSA list-map key: `source`. |
+| `addSkills[].source` | string | yes (per item) | e.g. `git+https://github.com/foo/skill@v1.2`. |
+| `addSkills[].version` | string | no | Audit-only human label. |
+| `patchConfig` | `apiextensions/v1.JSON` | no | JSON merge patch (RFC 7396) written to the workspace ConfigMap key `selfconfig.yaml`. Layered onto `~/.hermes/config.yaml` at agent startup. |
+| `addEnvVars[]` | list | no | Environment variables appended to `HermesInstance.spec.env`. SSA list-map key: `name`. |
+| `addEnvVars[].name` | string | yes | C-identifier (`^[A-Za-z_][A-Za-z0-9_]*$`). |
+| `addEnvVars[].value` | string | no | Literal value. Mutually exclusive with `valueFrom`. |
+| `addEnvVars[].valueFrom.secretKeyRef` | object | no | Resolve from `Secret` key. |
+| `addEnvVars[].valueFrom.configMapKeyRef` | object | no | Resolve from `ConfigMap` key. |
+| `addWorkspaceFiles[]` | list | no | Files materialised under `~/.hermes/workspace/`. Nested paths supported via `/` → `__` ConfigMap-key encoding. |
+| `addWorkspaceFiles[].path` | string | yes | Relative path. |
+| `addWorkspaceFiles[].content` | string | no | Literal file body. |
+| `addProfileSnapshot` | object | no | Write a Honcho profile snapshot. Requires `HermesInstance.spec.profileStore.honcho.enabled=true`. |
+| `addProfileSnapshot.profileID` | string | yes | Honcho profile identifier. |
+| `addProfileSnapshot.data` | string | yes | Opaque payload written verbatim to `/data/snapshots/<profileID>/<RFC3339>.json`. |
 
-- `spec.env` (listMapKey=`name`)
-- `spec.skills` (listMapKey=`source`)
-- `spec.workspace.initialFiles` (listMapKey=`path`)
-- `spec.config.raw`
-- `spec.selfConfigure.allowedActions`
+### Status
 
-The field manager used by HermesSelfConfig SSA is `hermes.agent/selfconfig`.
+| Field | Type | Description |
+|---|---|---|
+| `observedGeneration` | int64 | Spec generation the controller last processed. |
+| `phase` | enum | One of `Pending`, `Applied`, `Denied`. |
+| `appliedAt` | timestamp | Time of the most recent successful SSA write. |
+| `denyReason` | string | Populated when `phase=Denied`. |
+| `appliedFields[]` | list of strings | Dotted paths SSA touched, e.g. `spec.env[name=FINANCE_TZ]`. |
+| `conditions[]` | `[]metav1.Condition` | Standard k8s conditions. Types: `Applied`, `Denied`, `Pending`. |
+
+### Policy model
+
+Allowed mutations are governed by the parent's `selfConfigure` block:
+
+```yaml
+spec:
+  selfConfigure:
+    enabled: true
+    allowedActions: [skills, config, envVars, workspaceFiles, profiles]
+    protectedKeys:
+      - "provider.apiKey"
+      - "*.secret*"
+      - "gateways.telegram.token"
+```
+
+- `enabled: false` (or unset) → every SelfConfig is `Denied` with reason `selfconfig disabled on parent`.
+- `allowedActions` is the closed set of permitted mutation categories.
+- `protectedKeys` are glob patterns matched against the dotted JSON path of `patchConfig` (gobwas/glob, `.` is the segment separator).
+
+### Field-manager contract
+
+The reconciler writes via `client.Apply` with field owner `hermes.agent/selfconfig`. It owns only the paths the SelfConfig touches — never `spec.image`, `spec.storage`, `spec.gateways`, etc. Other field managers (FluxCD, Argo CD, kubectl users) co-own their own paths and are not disturbed. By default conflicts are surfaced as `Denied`. To force ownership, set `metadata.annotations["hermes.agent/force-ownership"]: "true"` on the SelfConfig.
