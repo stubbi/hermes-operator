@@ -277,3 +277,49 @@ e2e: ## Run e2e suite against the kind cluster (must already be up).
 .PHONY: e2e-load-image
 e2e-load-image: docker-build ## Load the locally-built operator image into kind.
 	kind load docker-image $(IMG) --name $(KIND_CLUSTER)
+
+##@ Conformance
+
+CONFORMANCE_KIND_CLUSTER ?= hermes-conformance
+
+.PHONY: conformance-kind-up
+conformance-kind-up: ## Spin up a fresh kind cluster for conformance.
+	kind create cluster --name $(CONFORMANCE_KIND_CLUSTER) --config hack/kind-config.yaml || true
+
+.PHONY: conformance-kind-down
+conformance-kind-down:
+	kind delete cluster --name $(CONFORMANCE_KIND_CLUSTER)
+
+.PHONY: conformance-install
+conformance-install: docker-build ## Install operator + CRDs onto the conformance cluster.
+	kind load docker-image $(IMG) --name $(CONFORMANCE_KIND_CLUSTER)
+	helm upgrade --install hermes-operator charts/hermes-operator \
+	  --namespace hermes-system --create-namespace \
+	  --set image.repository=$(shell echo $(IMG) | cut -d: -f1) \
+	  --set image.tag=$(shell echo $(IMG) | cut -d: -f2) \
+	  --set image.pullPolicy=IfNotPresent \
+	  --wait --timeout=5m
+
+.PHONY: conformance
+conformance: ## Run the full conformance suite. Requires KUBECONFIG to a cluster with operator installed.
+	cd test/conformance && go test -v -timeout 60m -ginkgo.v ./...
+
+.PHONY: conformance-negative
+conformance-negative:
+	cd test/conformance && go test -v -timeout 10m -ginkgo.v -ginkgo.focus="negative" ./...
+
+.PHONY: conformance-idempotency
+conformance-idempotency:
+	cd test/conformance && go test -v -timeout 30m -ginkgo.v -ginkgo.focus="idempotency" ./...
+
+.PHONY: conformance-upgrade
+conformance-upgrade:
+	cd test/conformance && go test -v -timeout 60m -ginkgo.v -ginkgo.focus="upgrade-path matrix" ./...
+
+.PHONY: conformance-gitops
+conformance-gitops:
+	cd test/conformance && go test -v -timeout 20m -ginkgo.v -ginkgo.focus="GitOps coexistence" ./...
+
+.PHONY: conformance-failure
+conformance-failure:
+	cd test/conformance && go test -v -timeout 20m -ginkgo.v -ginkgo.focus="failure injection" ./...
