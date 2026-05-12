@@ -3482,6 +3482,145 @@ spec:
                 type: array
               networking:
                 description: Networking exposes the agent via Service / Ingress.
+                properties:
+                  ingress:
+                    description: Ingress controls optional Ingress creation.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Annotations are applied to the Ingress. The operator merges
+                          provider-specific defaults (force-https, etc.) on top of these.
+                        type: object
+                      className:
+                        description: ClassName is the IngressClass (`nginx`, `traefik`,
+                          ...).
+                        type: string
+                      enabled:
+                        default: false
+                        description: |-
+                          Enabled — when true, the operator creates an Ingress for the agent.
+                          Default false.
+                        type: boolean
+                      host:
+                        description: Host is the primary hostname.
+                        type: string
+                      path:
+                        default: /
+                        description: Path — default "/".
+                        type: string
+                      pathType:
+                        default: Prefix
+                        description: PathType — default Prefix.
+                        enum:
+                        - Exact
+                        - Prefix
+                        - ImplementationSpecific
+                        type: string
+                      servicePortName:
+                        default: gateway
+                        description: |-
+                          ServicePortName — name of the Service port the Ingress should route to.
+                          Default "gateway".
+                        type: string
+                      tls:
+                        description: TLS is the list of TLS settings.
+                        items:
+                          description: IngressTLSSpec is a single TLS section on the
+                            Ingress.
+                          properties:
+                            hosts:
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
+                            secretName:
+                              minLength: 1
+                              type: string
+                          required:
+                          - secretName
+                          type: object
+                        type: array
+                    type: object
+                  service:
+                    description: Service controls the Service kind and ports.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations are applied verbatim onto the Service
+                          (LoadBalancer hints, etc.).
+                        type: object
+                      clusterIP:
+                        description: ClusterIP — set to "None" for a headless Service.
+                          Default empty (api-server allocates).
+                        type: string
+                      externalTrafficPolicy:
+                        description: ExternalTrafficPolicy is propagated when Type=LoadBalancer
+                          or NodePort.
+                        enum:
+                        - Cluster
+                        - Local
+                        type: string
+                      loadBalancerClass:
+                        description: LoadBalancerClass is propagated when Type=LoadBalancer.
+                        type: string
+                      ports:
+                        description: |-
+                          Ports is the list of Service ports. If empty, the operator emits a default
+                          "gateway" port on 8443 (matches the StatefulSet's container port).
+                        items:
+                          description: |-
+                            NamedServicePort is a single Service port. The TargetPort is optional and
+                            defaults to Port when nil.
+                          properties:
+                            name:
+                              maxLength: 63
+                              minLength: 1
+                              type: string
+                            nodePort:
+                              description: NodePort is honored only when the Service
+                                is NodePort or LoadBalancer.
+                              format: int32
+                              type: integer
+                            port:
+                              format: int32
+                              maximum: 65535
+                              minimum: 1
+                              type: integer
+                            protocol:
+                              default: TCP
+                              description: Protocol defines network protocols supported
+                                for things like container ports.
+                              enum:
+                              - TCP
+                              - UDP
+                              - SCTP
+                              type: string
+                            targetPort:
+                              format: int32
+                              type: integer
+                          required:
+                          - name
+                          - port
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      type:
+                        default: ClusterIP
+                        description: |-
+                          Type is the Service kind. Default ClusterIP (headed) — Plan 1 emitted a
+                          headless Service; v1 keeps ClusterIP as the default and lets users opt
+                          into Headless via Type=ClusterIP with ClusterIP="None" through the spec.
+                        enum:
+                        - ClusterIP
+                        - NodePort
+                        - LoadBalancer
+                        type: string
+                    type: object
                 type: object
               observability:
                 description: Observability turns on metrics, ServiceMonitor, PrometheusRule,

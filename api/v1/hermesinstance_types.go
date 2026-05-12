@@ -383,8 +383,126 @@ type CABundleSpec struct {
 	Key string `json:"key,omitempty"`
 }
 
-// NetworkingSpec — populated in Task 7.
-type NetworkingSpec struct{}
+// NetworkingSpec exposes the agent via Service + (optionally) Ingress.
+type NetworkingSpec struct {
+	// Service controls the Service kind and ports.
+	// +optional
+	Service ServiceSpec `json:"service,omitempty"`
+
+	// Ingress controls optional Ingress creation.
+	// +optional
+	Ingress IngressSpec `json:"ingress,omitempty"`
+}
+
+// ServiceSpec controls the agent's Service.
+type ServiceSpec struct {
+	// Type is the Service kind. Default ClusterIP (headed) — Plan 1 emitted a
+	// headless Service; v1 keeps ClusterIP as the default and lets users opt
+	// into Headless via Type=ClusterIP with ClusterIP="None" through the spec.
+	// +kubebuilder:default=ClusterIP
+	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer
+	// +optional
+	Type corev1.ServiceType `json:"type,omitempty"`
+
+	// ClusterIP — set to "None" for a headless Service. Default empty (api-server allocates).
+	// +optional
+	ClusterIP string `json:"clusterIP,omitempty"`
+
+	// Ports is the list of Service ports. If empty, the operator emits a default
+	// "gateway" port on 8443 (matches the StatefulSet's container port).
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	Ports []NamedServicePort `json:"ports,omitempty"`
+
+	// Annotations are applied verbatim onto the Service (LoadBalancer hints, etc.).
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// LoadBalancerClass is propagated when Type=LoadBalancer.
+	// +optional
+	LoadBalancerClass *string `json:"loadBalancerClass,omitempty"`
+
+	// ExternalTrafficPolicy is propagated when Type=LoadBalancer or NodePort.
+	// +kubebuilder:validation:Enum=Cluster;Local
+	// +optional
+	ExternalTrafficPolicy corev1.ServiceExternalTrafficPolicyType `json:"externalTrafficPolicy,omitempty"`
+}
+
+// NamedServicePort is a single Service port. The TargetPort is optional and
+// defaults to Port when nil.
+type NamedServicePort struct {
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	Name string `json:"name"`
+
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port int32 `json:"port"`
+
+	// +optional
+	TargetPort *int32 `json:"targetPort,omitempty"`
+
+	// +kubebuilder:validation:Enum=TCP;UDP;SCTP
+	// +kubebuilder:default=TCP
+	// +optional
+	Protocol corev1.Protocol `json:"protocol,omitempty"`
+
+	// NodePort is honored only when the Service is NodePort or LoadBalancer.
+	// +optional
+	NodePort int32 `json:"nodePort,omitempty"`
+}
+
+// IngressSpec controls optional Ingress creation.
+type IngressSpec struct {
+	// Enabled — when true, the operator creates an Ingress for the agent.
+	// Default false.
+	// +kubebuilder:default=false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Host is the primary hostname.
+	// +optional
+	Host string `json:"host,omitempty"`
+
+	// ClassName is the IngressClass (`nginx`, `traefik`, ...).
+	// +optional
+	ClassName *string `json:"className,omitempty"`
+
+	// TLS is the list of TLS settings.
+	// +optional
+	TLS []IngressTLSSpec `json:"tls,omitempty"`
+
+	// Annotations are applied to the Ingress. The operator merges
+	// provider-specific defaults (force-https, etc.) on top of these.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// PathType — default Prefix.
+	// +kubebuilder:default=Prefix
+	// +kubebuilder:validation:Enum=Exact;Prefix;ImplementationSpecific
+	// +optional
+	PathType networkingv1.PathType `json:"pathType,omitempty"`
+
+	// Path — default "/".
+	// +kubebuilder:default="/"
+	// +optional
+	Path string `json:"path,omitempty"`
+
+	// ServicePortName — name of the Service port the Ingress should route to.
+	// Default "gateway".
+	// +kubebuilder:default="gateway"
+	// +optional
+	ServicePortName string `json:"servicePortName,omitempty"`
+}
+
+// IngressTLSSpec is a single TLS section on the Ingress.
+type IngressTLSSpec struct {
+	// +kubebuilder:validation:MinLength=1
+	SecretName string `json:"secretName"`
+	// +listType=set
+	Hosts []string `json:"hosts,omitempty"`
+}
 
 // ObservabilitySpec — populated in Task 8.
 type ObservabilitySpec struct{}

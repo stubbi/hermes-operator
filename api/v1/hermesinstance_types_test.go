@@ -105,3 +105,27 @@ func TestSecuritySpec_Shape(t *testing.T) {
 	assert.True(t, *ss.NetworkPolicy.Enabled)
 	assert.Equal(t, "corp-ca", ss.CABundle.ConfigMapName)
 }
+
+func TestNetworkingSpec_ServiceAndIngress(t *testing.T) {
+	t.Parallel()
+	port := int32(8443)
+	ns := NetworkingSpec{
+		Service: ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []NamedServicePort{
+				{Name: "gateway", Port: 8443, TargetPort: &port, Protocol: corev1.ProtocolTCP},
+			},
+		},
+		Ingress: IngressSpec{
+			Enabled:     Ptr(true),
+			Host:        "hermes.example.com",
+			ClassName:   Ptr("nginx"),
+			TLS:         []IngressTLSSpec{{SecretName: "hermes-tls", Hosts: []string{"hermes.example.com"}}},
+			Annotations: map[string]string{"foo": "bar"},
+		},
+	}
+	assert.Equal(t, corev1.ServiceTypeClusterIP, ns.Service.Type)
+	assert.Len(t, ns.Service.Ports, 1)
+	assert.True(t, *ns.Ingress.Enabled)
+	assert.Equal(t, "hermes.example.com", ns.Ingress.Host)
+}
