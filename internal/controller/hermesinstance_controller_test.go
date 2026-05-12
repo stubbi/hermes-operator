@@ -256,6 +256,225 @@ var _ = Describe("HermesInstance — full subsystems", func() {
 	})
 })
 
+var _ = Describe("HermesInstance reconciler — gateways", func() {
+	const (
+		instName = "gateways-it"
+		ns       = "default"
+	)
+
+	BeforeEach(func() {
+		ctx := context.Background()
+		sec := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "tg-secret", Namespace: ns},
+			Data:       map[string][]byte{"token": []byte("xxxx")},
+		}
+		_ = k8sClient.Create(ctx, sec)
+	})
+
+	AfterEach(func() {
+		ctx := context.Background()
+		_ = k8sClient.Delete(ctx, &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns}})
+		_ = k8sClient.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "tg-secret", Namespace: ns}})
+	})
+
+	It("propagates gateway env vars into the StatefulSet and an egress rule into the NetworkPolicy", func() {
+		ctx := context.Background()
+		inst := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns},
+			Spec: hermesv1.HermesInstanceSpec{
+				Image:   hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent"},
+				Storage: hermesv1.StorageSpec{Persistence: hermesv1.PersistenceSpec{Size: "1Gi"}},
+				Gateways: hermesv1.GatewaysSpec{
+					Telegram: hermesv1.TelegramGatewaySpec{
+						Enabled: Ptr(true),
+						BotTokenSecretRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "tg-secret"},
+							Key:                  "token",
+						},
+						AllowedUserIDs: []int64{42},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, inst)).To(Succeed())
+
+		Eventually(func(g Gomega) {
+			var sts appsv1.StatefulSet
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &sts)).To(Succeed())
+			env := sts.Spec.Template.Spec.Containers[0].Env
+			byName := map[string]corev1.EnvVar{}
+			for _, e := range env {
+				byName[e.Name] = e
+			}
+			g.Expect(byName).To(HaveKey("TELEGRAM_BOT_TOKEN"))
+			g.Expect(byName["TELEGRAM_BOT_TOKEN"].ValueFrom).NotTo(BeNil())
+			g.Expect(byName["TELEGRAM_ALLOWED_USER_IDS"].Value).To(Equal("42"))
+		}, "30s", "250ms").Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			var np networkingv1.NetworkPolicy
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &np)).To(Succeed())
+			has443 := false
+			for _, r := range np.Spec.Egress {
+				for _, p := range r.Ports {
+					if p.Port != nil && p.Port.IntVal == 443 {
+						has443 = true
+					}
+				}
+			}
+			g.Expect(has443).To(BeTrue(), "egress rule for gateway endpoints (443/TCP)")
+		}, "30s", "250ms").Should(Succeed())
+	})
+
+	It("removes gateway env vars when the gateway is toggled off", func() {
+		ctx := context.Background()
+		inst := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns},
+			Spec: hermesv1.HermesInstanceSpec{
+				Image:   hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent"},
+				Storage: hermesv1.StorageSpec{Persistence: hermesv1.PersistenceSpec{Size: "1Gi"}},
+				Gateways: hermesv1.GatewaysSpec{
+					Telegram: hermesv1.TelegramGatewaySpec{
+						Enabled:           Ptr(true),
+						BotTokenSecretRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "tg-secret"}, Key: "token"},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, inst)).To(Succeed())
+
+		Eventually(func() bool {
+			var sts appsv1.StatefulSet
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &sts); err != nil {
+				return false
+			}
+			for _, e := range sts.Spec.Template.Spec.Containers[0].Env {
+				if e.Name == "TELEGRAM_BOT_TOKEN" {
+					return true
+				}
+			}
+			return false
+		}, "30s", "250ms").Should(BeTrue())
+
+		var live hermesv1.HermesInstance
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &live)).To(Succeed())
+		live.Spec.Gateways.Telegram.Enabled = Ptr(false)
+		Expect(k8sClient.Update(ctx, &live)).To(Succeed())
+
+		Eventually(func() bool {
+			var sts appsv1.StatefulSet
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &sts); err != nil {
+				return true
+			}
+			for _, e := range sts.Spec.Template.Spec.Containers[0].Env {
+				if e.Name == "TELEGRAM_BOT_TOKEN" {
+					return false
+				}
+			}
+			return true
+		}, "30s", "250ms").Should(BeTrue(), "TELEGRAM_BOT_TOKEN env var removed after toggle")
+	})
+})
+
+var _ = Describe("HermesInstance reconciler — Honcho profile store", func() {
+	const (
+		instName = "honcho-it"
+		ns       = "default"
+	)
+
+	AfterEach(func() {
+		ctx := context.Background()
+		_ = k8sClient.Delete(ctx, &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns}})
+		_ = k8sClient.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "honcho-secret", Namespace: ns}})
+	})
+
+	It("creates Honcho Deployment+Service+PVC when honcho.enabled=true", func() {
+		ctx := context.Background()
+		_ = k8sClient.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "honcho-secret", Namespace: ns},
+			Data:       map[string][]byte{"api-key": []byte("k")},
+		})
+		inst := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns},
+			Spec: hermesv1.HermesInstanceSpec{
+				Image:   hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent"},
+				Storage: hermesv1.StorageSpec{Persistence: hermesv1.PersistenceSpec{Size: "1Gi"}},
+				ProfileStore: hermesv1.ProfileStoreSpec{
+					Honcho: hermesv1.HonchoSpec{
+						Enabled:         Ptr(true),
+						APIKeySecretRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "honcho-secret"}, Key: "api-key"},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, inst)).To(Succeed())
+
+		Eventually(func(g Gomega) {
+			var dep appsv1.Deployment
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho", Namespace: ns}, &dep)).To(Succeed())
+			var svc corev1.Service
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho", Namespace: ns}, &svc)).To(Succeed())
+			var pvc corev1.PersistentVolumeClaim
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho-data", Namespace: ns}, &pvc)).To(Succeed())
+		}, "30s", "250ms").Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			var sts appsv1.StatefulSet
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &sts)).To(Succeed())
+			env := sts.Spec.Template.Spec.Containers[0].Env
+			byName := map[string]corev1.EnvVar{}
+			for _, e := range env {
+				byName[e.Name] = e
+			}
+			g.Expect(byName).To(HaveKey("HONCHO_BASE_URL"))
+			g.Expect(byName["HONCHO_BASE_URL"].Value).To(Equal("http://" + instName + "-honcho:8000"))
+		}, "30s", "250ms").Should(Succeed())
+	})
+
+	It("deletes Honcho Deployment+Service when toggled off (PVC retained)", func() {
+		ctx := context.Background()
+		_ = k8sClient.Create(ctx, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "honcho-secret", Namespace: ns},
+			Data:       map[string][]byte{"api-key": []byte("k")},
+		})
+		inst := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns},
+			Spec: hermesv1.HermesInstanceSpec{
+				Image:   hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent"},
+				Storage: hermesv1.StorageSpec{Persistence: hermesv1.PersistenceSpec{Size: "1Gi"}},
+				ProfileStore: hermesv1.ProfileStoreSpec{
+					Honcho: hermesv1.HonchoSpec{
+						Enabled:         Ptr(true),
+						APIKeySecretRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "honcho-secret"}, Key: "api-key"},
+					},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, inst)).To(Succeed())
+		Eventually(func() error {
+			var dep appsv1.Deployment
+			return k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho", Namespace: ns}, &dep)
+		}, "30s", "250ms").Should(Succeed())
+
+		var live hermesv1.HermesInstance
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &live)).To(Succeed())
+		live.Spec.ProfileStore.Honcho.Enabled = Ptr(false)
+		Expect(k8sClient.Update(ctx, &live)).To(Succeed())
+
+		Eventually(func() bool {
+			var dep appsv1.Deployment
+			return apierrors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho", Namespace: ns}, &dep))
+		}, "30s", "250ms").Should(BeTrue())
+		Eventually(func() bool {
+			var svc corev1.Service
+			return apierrors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho", Namespace: ns}, &svc))
+		}, "30s", "250ms").Should(BeTrue())
+
+		var pvc corev1.PersistentVolumeClaim
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho-data", Namespace: ns}, &pvc)).To(Succeed())
+	})
+})
+
 func maximalInstance(name, namespace string) *hermesv1.HermesInstance {
 	tp := int32(8443)
 	mi := intstr.FromString("50%")
