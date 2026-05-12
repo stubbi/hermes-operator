@@ -37,11 +37,18 @@ ENV UV_LINK_MODE=copy \
 
 WORKDIR /build
 
+# git + ca-certificates are needed at lock-resolve time because the lockfile
+# pins hermes-agent by git ref (upstream is not on PyPI).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy lockfile + project metadata first for layer caching.
 COPY pyproject.toml uv.lock ./
 
-# Override the pinned version with the requested HERMES_VERSION, then sync against
-# the lockfile (which the operator repo's `make agent-image-relock` keeps in sync).
+# Sync the frozen lockfile. `make agent-image-relock HERMES_VERSION=vX.Y.Z`
+# rewrites the @ ref in pyproject.toml and regenerates uv.lock; at build time
+# we simply trust the lock. HERMES_VERSION is informational for the labels stage.
 RUN --mount=type=cache,target=/root/.cache/uv \
     set -eux; \
     if [ -z "${HERMES_VERSION}" ]; then \
