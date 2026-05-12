@@ -172,6 +172,13 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
+.PHONY: installer
+installer: manifests generate kustomize ## Emit dist/install.yaml for plain kubectl apply.
+	mkdir -p dist
+	cd config/manager && $(KUSTOMIZE) edit set image controller=ghcr.io/stubbi/hermes-operator:$${VERSION:-latest}
+	$(KUSTOMIZE) build config/default > dist/install.yaml
+	@echo "Wrote dist/install.yaml ($$(wc -l < dist/install.yaml) lines)"
+
 ##@ Deployment
 
 ifndef ignore-not-found
