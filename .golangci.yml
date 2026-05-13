@@ -49,6 +49,21 @@ linters:
       - path: test/
         linters: [staticcheck]
         text: 'ST1001'
+      # Tolerate deprecated controller-runtime / k8s API surfaces across
+      # api/v1, cmd/, and internal/controller/. The k8s 0.36 / controller-
+      # runtime 0.24 bump deprecated several APIs we still use:
+      #   - admission.CustomDefaulter / CustomValidator (use Defaulter[T] / Validator[T])
+      #   - ctrl.NewWebhookManagedBy builder methods (use the typed variants)
+      #   - mgr.GetEventRecorderFor (use GetEventRecorder)
+      #   - client.Apply (use client.Client.Apply())
+      #   - fieldsV1.Raw direct access (use GetRawBytes / GetRawString)
+      #   - corev1.ServiceExternalTrafficPolicyType (use ServiceExternalTrafficPolicy)
+      #   - scheme.Builder
+      # The deprecated forms still work for v1.0; migrating to the typed
+      # equivalents is tracked as a v1.1 cleanup.
+      - path: (api/v1|cmd|internal/(controller|webhook))/
+        linters: [staticcheck]
+        text: 'SA1019'
 
 formatters:
   enable:

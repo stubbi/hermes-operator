@@ -51,6 +51,10 @@ spec:
   image:
     repository: ghcr.io/stubbi/hermes-agent
     tag: "1.0.0"
+  storage:
+    persistence:
+      enabled: true
+      size: 1Gi
 `
 	deadline := time.Now().Add(5 * time.Minute)
 	var lastErr string

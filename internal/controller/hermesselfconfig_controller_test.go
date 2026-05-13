@@ -15,8 +15,12 @@ import (
 
 var _ = Describe("HermesSelfConfig controller", func() {
 	const (
-		ns      = "default"
-		timeout = 30 * time.Second
+		ns = "default"
+		// Idempotency-check timeout: 30s was too short on stock envtest,
+		// 60s still flaked on k8s 1.32 (parent HermesInstance reconciler
+		// races with the SelfConfig reconciler on slow runners). 120s
+		// absorbs the worst-case settle time.
+		timeout = 120 * time.Second
 		poll    = 200 * time.Millisecond
 	)
 

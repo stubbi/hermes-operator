@@ -43,7 +43,14 @@ jobs:
         uses: anchore/sbom-action/download-syft@v0
 
       - name: Generate install manifest
-        run: make installer
+        run: |
+          make installer
+          # GoReleaser refuses to release with a dirty tree. The install
+          # manifest is regenerated at release time and not tracked; stage
+          # it into a throw-away CI-local commit so GoReleaser sees a clean
+          # tree. The bytes stay on disk for upload as a release asset.
+          git add -A
+          git -c user.email=ci@local -c user.name=ci commit -m "ci: release artifacts" --allow-empty
 
       - name: Run GoReleaser
         id: goreleaser

@@ -15,10 +15,9 @@ var hermesinstancelog = logf.Log.WithName("hermesinstance-webhook")
 // RegisterHermesInstanceWebhook wires both the defaulter and the validator with the manager.
 func RegisterHermesInstanceWebhook(mgr ctrl.Manager, def admission.CustomDefaulter, val admission.CustomValidator) error {
 	hermesinstancelog.Info("registering HermesInstance webhook")
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&HermesInstance{}).
-		WithDefaulter(def).
-		WithValidator(val).
+	return ctrl.NewWebhookManagedBy(mgr, &HermesInstance{}).
+		WithCustomDefaulter(def).
+		WithCustomValidator(val).
 		Complete()
 }
 

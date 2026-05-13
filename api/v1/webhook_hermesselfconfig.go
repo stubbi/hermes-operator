@@ -9,8 +9,7 @@ import (
 
 // RegisterHermesSelfConfigWebhook wires the validator with the manager.
 func RegisterHermesSelfConfigWebhook(mgr ctrl.Manager, val admission.CustomValidator) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&HermesSelfConfig{}).
-		WithValidator(val).
+	return ctrl.NewWebhookManagedBy(mgr, &HermesSelfConfig{}).
+		WithCustomValidator(val).
 		Complete()
 }

@@ -9,8 +9,7 @@ import (
 
 // RegisterHermesClusterDefaultsWebhook wires the validator with the manager.
 func RegisterHermesClusterDefaultsWebhook(mgr ctrl.Manager, val admission.CustomValidator) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&HermesClusterDefaults{}).
-		WithValidator(val).
+	return ctrl.NewWebhookManagedBy(mgr, &HermesClusterDefaults{}).
+		WithCustomValidator(val).
 		Complete()
 }
