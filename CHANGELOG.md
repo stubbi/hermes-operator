@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.2](https://github.com/stubbi/hermes-operator/compare/v0.1.1...v0.1.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* **ci:** semantic Bundle RBAC sync check (was: file-diff flake) ([#16](https://github.com/stubbi/hermes-operator/issues/16)) ([3b3b5a6](https://github.com/stubbi/hermes-operator/commit/3b3b5a6e83046ccf041340e082e0165234d3ceb3))
+* **release:** trigger v0.1.2 (v0.1.1 tag has broken release.yaml) ([#18](https://github.com/stubbi/hermes-operator/issues/18)) ([e3f8289](https://github.com/stubbi/hermes-operator/commit/e3f8289b26d2dcc581702c138549c90914b747bf))
+
 ## [0.1.1](https://github.com/stubbi/hermes-operator/compare/v0.1.0...v0.1.1) (2026-05-13)
 
 
