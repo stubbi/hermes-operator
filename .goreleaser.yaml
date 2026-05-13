@@ -2,6 +2,12 @@ version: 2
 
 project_name: hermes-operator
 
+# Run after --clean wipes dist/, before archives/release glob extra_files.
+# The CI workflow also has setup-go + kubectl + kustomize available.
+before:
+  hooks:
+    - make installer
+
 builds:
   - id: manager
     main: ./cmd
