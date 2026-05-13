@@ -41,6 +41,23 @@ var _ = BeforeSuite(func() {
 	}, 3*time.Minute, 5*time.Second).ShouldNot(BeEmpty(),
 		"operator webhook backend never became ready; helm --wait passed but the validating-webhook service has no endpoints")
 
+	By("waiting for the validating webhook to actually answer (cert injection + TLS bind can lag past pod-ready)")
+	probe := `apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: e2e-webhook-probe
+  namespace: default
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.0.0"
+`
+	Eventually(func() error {
+		_, err := runStdin("kubectl", []string{"apply", "--dry-run=server", "-f", "-"}, probe)
+		return err
+	}, 3*time.Minute, 3*time.Second).Should(Succeed(),
+		"webhook never answered a dry-run apply; operator pod is ready but TLS bind / cert injection is still pending")
+
 	By("installing MinIO for backup/restore e2e")
 	InstallMinIO()
 	CreateHermesS3CredsSecret("default")
