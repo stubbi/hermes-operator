@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.3](https://github.com/stubbi/hermes-operator/compare/v0.1.2...v0.1.3) (2026-05-13)
+
+
+### Bug Fixes
+
+* **release:** use --skip=validate instead of throw-away commit ([#20](https://github.com/stubbi/hermes-operator/issues/20)) ([61f2099](https://github.com/stubbi/hermes-operator/commit/61f20999031ba61f13d2996b7b235026ab701e5a))
+
 ## [0.1.2](https://github.com/stubbi/hermes-operator/compare/v0.1.1...v0.1.2) (2026-05-13)
 
 

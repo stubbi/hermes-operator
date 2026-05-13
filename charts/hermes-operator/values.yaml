@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/stubbi/hermes-operator
-  tag: 0.1.2
+  tag: 0.1.3
   pullPolicy: IfNotPresent
 logLevel: info
 createRBAC: true
