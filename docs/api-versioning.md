@@ -1,4 +1,4 @@
-# Hermes Operator — API Versioning Policy
+# Hermes Operator: API Versioning Policy
 
 > Canonical policy for the `hermes.agent` API group. This document governs every
 > change to `HermesInstance`, `HermesSelfConfig`, and `HermesClusterDefaults`
@@ -25,7 +25,7 @@ This policy covers:
   `docs/conditions.md`).
 - Validating- and defaulting-webhook semantics.
 - RBAC verbs requested by the operator's `ClusterRole` (additions are non-
-  breaking; removals are breaking — see "RBAC changes" below).
+  breaking; removals are breaking: see "RBAC changes" below).
 
 It does **not** cover:
 
@@ -89,13 +89,13 @@ The following changes are breaking and may only land via a new served version
    breaking even though the field name and type are unchanged.
 3. **Required-field addition.** Adding a field with no default that the
    reconciler dereferences is breaking even if the OpenAPI marks it
-   `optional` — if the operator panics on `nil`, that's a break.
+   `optional`: if the operator panics on `nil`, that's a break.
 4. **Type change** on any field (string → enum, int → string, etc.).
 5. **Validation tightening** that would reject an instance that previously
    validated. Loosening validation is non-breaking.
 6. **Condition removal.** Removing a condition type that previously was set
    is breaking because dashboards key off it.
-7. **Condition semantic change** — changing the meaning of a reason code
+7. **Condition semantic change**: changing the meaning of a reason code
    without renaming it.
 8. **RBAC verb removal.** A v2 operator may need fewer permissions; the
    chart's `ClusterRole` shrinking will break GitOps workflows that pin
@@ -163,7 +163,7 @@ for a future hypothetical TypeScript backend). The migration path is:
    any objects written since then are v2).
 
 This is the only sanctioned shape for a breaking change. Reviewers reject PRs
-that try to "just rename it, it's a minor field" — the contract is binding.
+that try to "just rename it, it's a minor field": the contract is binding.
 
 ## Reading list for reviewers
 

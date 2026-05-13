@@ -55,8 +55,8 @@ populates from v1.1 onward.
 
 ### GitOps coexistence (`gitops_test.go`)
 
-Two concurrent SSA writers — a FluxCD-style manager and the operator's
-`hermes.agent/selfconfig` field-manager — race against the same
+Two concurrent SSA writers: a FluxCD-style manager and the operator's
+`hermes.agent/selfconfig` field-manager: race against the same
 `HermesInstance` for 200 iterations (each ~100ms apart, simulating 10
 minutes of load). The test asserts at most one ownership flip on the
 contended path (the initial settle), then both managers' fields coexist in
@@ -67,10 +67,10 @@ the final spec. >1 flip indicates SSA isolation is broken.
 Four reconcile paths, each killed mid-flight via `kubectl delete pod
 --force --grace-period=0`:
 
-1. Instance create — assert Ready within 3 minutes after restart.
-2. Instance update (patched resources) — assert StatefulSet reflects the patch.
-3. SelfConfig apply — assert phase=Applied + spec change visible.
-4. Backup-on-delete finalizer — assert instance fully deleted.
+1. Instance create: assert Ready within 3 minutes after restart.
+2. Instance update (patched resources): assert StatefulSet reflects the patch.
+3. SelfConfig apply: assert phase=Applied + spec change visible.
+4. Backup-on-delete finalizer: assert instance fully deleted.
 
 ## Running locally
 
@@ -88,10 +88,10 @@ make conformance-kind-down
 
 ## What CI does
 
-- **PRs touching `test/conformance/`** — runs all five categories. Advisory.
-- **Nightly on `main`** — runs all five. Required to be green before the next
+- **PRs touching `test/conformance/`**: runs all five categories. Advisory.
+- **Nightly on `main`**: runs all five. Required to be green before the next
   release.
-- **On tag `v*`** — runs all five. Required.
+- **On tag `v*`**: runs all five. Required.
 
 ## When to add a row
 

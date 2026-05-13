@@ -1,38 +1,25 @@
 # Hermes Operator
 
 <p align="center">
-  <!--
-    Banner image. Render via:
-      mmdc -i docs/images/hermes-banner.mmd -o docs/images/hermes-banner.svg
-    or any SVG editor. Until docs/images/hermes-banner.svg lands, GitHub
-    will render the alt text below.
-  -->
-  <img src="docs/images/hermes-banner.svg"
-       alt="Hermes Operator — Kubernetes-native lifecycle for nousresearch/hermes-agent"
-       width="720" />
-</p>
-
-<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License"></a>
   <a href="https://goreportcard.com/report/github.com/stubbi/hermes-operator"><img src="https://goreportcard.com/badge/github.com/stubbi/hermes-operator" alt="Go Report Card"></a>
   <a href="https://github.com/stubbi/hermes-operator/actions/workflows/ci.yaml"><img src="https://github.com/stubbi/hermes-operator/actions/workflows/ci.yaml/badge.svg" alt="CI"></a>
   <a href="https://github.com/stubbi/hermes-operator/actions/workflows/e2e.yaml"><img src="https://github.com/stubbi/hermes-operator/actions/workflows/e2e.yaml/badge.svg" alt="E2E"></a>
   <a href="https://github.com/stubbi/hermes-operator/actions/workflows/conformance.yaml"><img src="https://github.com/stubbi/hermes-operator/actions/workflows/conformance.yaml/badge.svg" alt="Conformance"></a>
   <a href="https://github.com/stubbi/hermes-operator/releases/latest"><img src="https://img.shields.io/github/v/release/stubbi/hermes-operator" alt="Release"></a>
-  <a href="#supported-kubernetes-versions"><img src="https://img.shields.io/badge/kubernetes-1.28%E2%80%931.32-blue" alt="Kubernetes versions"></a>
+  <a href="#supported-kubernetes-versions"><img src="https://img.shields.io/badge/kubernetes-1.28--1.32-blue" alt="Kubernetes versions"></a>
   <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/stubbi/hermes-operator" alt="Go version"></a>
   <a href="https://api.securityscorecards.dev/projects/github.com/stubbi/hermes-operator"><img src="https://api.securityscorecards.dev/projects/github.com/stubbi/hermes-operator/badge" alt="OpenSSF Scorecard"></a>
   <a href="https://artifacthub.io/packages/search?repo=hermes-operator"><img src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/hermes-operator" alt="Artifact Hub"></a>
 </p>
 
-Kubernetes operator for [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent)
-— a Python-based self-improving multi-platform AI agent. Declarative spec,
+Kubernetes operator for [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent): a Python-based self-improving multi-platform AI agent. Declarative spec,
 opinionated security defaults, S3 backups, OCI-registry auto-update,
 SSA-based GitOps coexistence, and a one-shot migration path from
 openclaw-operator.
 
 `hermes-operator` ships as v1.0.0 with [v1 stability commitments](docs/api-versioning.md)
-in place from day one — no v0.x grind.
+in place from day one: no v0.x grind.
 
 > Inspired by [openclaw-rocks/openclaw-operator](https://github.com/openclaw-rocks/openclaw-operator);
 > openclaw lessons #437, #446, #433, #471, #479, #458, #469 (and many more)
@@ -133,13 +120,13 @@ deny NetworkPolicy. The `HermesSelfConfig` controller uses Server-Side Apply
 under field manager `hermes.agent/selfconfig`, so FluxCD/Argo can own the
 parent `HermesInstance` for other fields without flap. `HermesClusterDefaults`
 is a cluster-scoped singleton (name **must** be `cluster`) that fills `nil`
-fields only — explicit values on the instance always win.
+fields only: explicit values on the instance always win.
 
 ## Features
 
 | Area | Feature | Notes |
 |---|---|---|
-| **Declarative** | Single `HermesInstance` CR drives the whole stack | StatefulSet, Service, PVC, NetworkPolicy, ConfigMap, PDB, HPA, ServiceMonitor, Honcho deploy, backup CronJob — all owned and reconciled. |
+| **Declarative** | Single `HermesInstance` CR drives the whole stack | StatefulSet, Service, PVC, NetworkPolicy, ConfigMap, PDB, HPA, ServiceMonitor, Honcho deploy, backup CronJob: all owned and reconciled. |
 | **Declarative** | `HermesClusterDefaults` for cluster-wide defaults | Defaulting webhook fills `nil` fields only. |
 | **Adaptive** | `HermesSelfConfig` for audited agent-initiated mutations | SSA under field manager `hermes.agent/selfconfig`. Policy-gated by `spec.selfConfigure.protectedKeys`. |
 | **Adaptive** | OCI-registry-driven auto-update | Channel-pinned polling, pre-update backup, probe-failure rollback. |
@@ -204,7 +191,7 @@ kubectl get hsc -n agents
 
 The audit trail lives in `kubectl describe hsc install-finance-skill` and on
 the instance via the per-field SSA field manager
-`hermes.agent/selfconfig` — `kubectl get hi my-hermes -o jsonpath='{.metadata.managedFields}'`
+`hermes.agent/selfconfig`: `kubectl get hi my-hermes -o jsonpath='{.metadata.managedFields}'`
 shows exactly which fields the agent owns vs. Flux owns vs. you own.
 
 See [`examples/`](examples/) for end-to-end recipes.
@@ -229,14 +216,14 @@ minor release. Patch releases never change the supported matrix.
 
 ## Documentation
 
-- [Design spec](docs/superpowers/specs/2026-05-12-hermes-operator-design.md) — the canonical product/architecture doc.
-- [API reference](docs/api-reference.md) — every field on every CR.
-- [Condition catalogue](docs/conditions.md) — every status condition, reason code, troubleshooting hint.
-- [API versioning policy](docs/api-versioning.md) — what is and is not a breaking change.
-- [Deprecation policy](docs/deprecations.md) — the 3-step flow + active deprecations.
-- [Roadmap](ROADMAP.md) — shipped, planned, future, non-goals.
-- [Examples](examples/) — 9 worked YAML recipes.
-- [Grafana dashboard](docs/grafana/) — operator-overview dashboard JSON.
+- [Design spec](docs/superpowers/specs/2026-05-12-hermes-operator-design.md): the canonical product/architecture doc.
+- [API reference](docs/api-reference.md): every field on every CR.
+- [Condition catalogue](docs/conditions.md): every status condition, reason code, troubleshooting hint.
+- [API versioning policy](docs/api-versioning.md): what is and is not a breaking change.
+- [Deprecation policy](docs/deprecations.md): the 3-step flow + active deprecations.
+- [Roadmap](ROADMAP.md): shipped, planned, future, non-goals.
+- [Examples](examples/): 9 worked YAML recipes.
+- [Grafana dashboard](docs/grafana/): operator-overview dashboard JSON.
 
 ## Contributing
 

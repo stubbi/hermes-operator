@@ -10,7 +10,7 @@ packages it into a multi-arch container that the operator can pull by default.
 |---|---|
 | `Dockerfile` | Multi-stage build (uv builder + slim runtime). |
 | `pyproject.toml` | uv project pinning `hermes-agent`. |
-| `uv.lock` | Committed lockfile — reproducible builds. |
+| `uv.lock` | Committed lockfile: reproducible builds. |
 | `entrypoint.sh` | tini-wrapped startup; sources `~/.hermes/config.yaml`. |
 
 ## Common workflows

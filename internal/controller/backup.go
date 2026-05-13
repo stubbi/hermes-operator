@@ -25,7 +25,7 @@ import (
 // +kubebuilder:rbac:groups=batch,resources=jobs;cronjobs,verbs=get;list;watch;create;update;patch;delete
 
 // BackupReconciler is a sub-controller invoked by HermesInstanceReconciler.
-// Not a controller-runtime Reconciler — the main reconciler drives it.
+// Not a controller-runtime Reconciler: the main reconciler drives it.
 type BackupReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
@@ -34,8 +34,8 @@ type BackupReconciler struct {
 
 // EnsureFinalizer adds the backup-on-delete finalizer when spec.backup.onDelete is true.
 //
-// CRITICAL — lesson #437: finalizer mutation uses r.Patch(ctx, inst, client.MergeFrom(original)),
-// NEVER r.Update — Update bumps metadata.generation and triggers a pod-replace.
+// CRITICAL: lesson #437: finalizer mutation uses r.Patch(ctx, inst, client.MergeFrom(original)),
+// NEVER r.Update: Update bumps metadata.generation and triggers a pod-replace.
 func (b *BackupReconciler) EnsureFinalizer(ctx context.Context, inst *hermesv1.HermesInstance) error {
 	if !inst.Spec.Backup.OnDelete {
 		return nil
@@ -169,7 +169,7 @@ func (b *BackupReconciler) HandleDeletion(ctx context.Context, inst *hermesv1.He
 		if err := controllerutil.SetControllerReference(inst, desired, b.Scheme); err != nil {
 			return ctrl.Result{}, true, err
 		}
-		if err := b.Create(ctx, desired); err != nil && !apierrors.IsAlreadyExists(err) { // reconcile-guard:allow — final backup Job is create-only
+		if err := b.Create(ctx, desired); err != nil && !apierrors.IsAlreadyExists(err) { // reconcile-guard:allow: final backup Job is create-only
 			return ctrl.Result{}, true, fmt.Errorf("create final backup Job: %w", err)
 		}
 		inst.Status.Backup.FinalBackupJobName = jobName
@@ -240,7 +240,7 @@ func (b *BackupReconciler) RunOneShot(ctx context.Context, inst *hermesv1.Hermes
 		if err := controllerutil.SetControllerReference(inst, desired, b.Scheme); err != nil {
 			return "", false, err
 		}
-		if err := b.Create(ctx, desired); err != nil && !apierrors.IsAlreadyExists(err) { // reconcile-guard:allow — pre-update backup Job is create-only
+		if err := b.Create(ctx, desired); err != nil && !apierrors.IsAlreadyExists(err) { // reconcile-guard:allow: pre-update backup Job is create-only
 			return "", false, fmt.Errorf("create pre-update backup Job: %w", err)
 		}
 		b.Recorder.Eventf(inst, corev1.EventTypeNormal, "PreUpdateBackupStarted",

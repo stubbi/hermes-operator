@@ -24,7 +24,7 @@ import (
 
 // BuildSnapshotJob constructs a one-shot Job that writes a profile snapshot
 // to /data/snapshots/<profileID>/<timestamp>.json on the Honcho PVC.
-// Name is deterministic — `<inst>-snapshot-<profileID>-<YYYYMMDDHHMMSS>`.
+// Name is deterministic: `<inst>-snapshot-<profileID>-<YYYYMMDDHHMMSS>`.
 func BuildSnapshotJob(inst *hermesv1.HermesInstance, profileID, data string, when time.Time) *batchv1.Job {
 	stamp := when.UTC().Format("20060102150405")
 	name := fmt.Sprintf("%s-snapshot-%s-%s", inst.Name, sanitizeProfileID(profileID), stamp)

@@ -257,26 +257,26 @@ spec:
                         type: boolean
                       maxReplicas:
                         default: 5
-                        description: MaxReplicas — default 5.
+                        description: 'MaxReplicas: default 5.'
                         format: int32
                         minimum: 1
                         type: integer
                       minReplicas:
                         default: 1
-                        description: MinReplicas — default 1.
+                        description: 'MinReplicas: default 1.'
                         format: int32
                         minimum: 1
                         type: integer
                       targetCPUUtilization:
                         default: 80
-                        description: TargetCPUUtilization — default 80 (percent).
+                        description: 'TargetCPUUtilization: default 80 (percent).'
                         format: int32
                         maximum: 100
                         minimum: 1
                         type: integer
                       targetMemoryUtilization:
-                        description: TargetMemoryUtilization — optional, when set
-                          adds a memory metric.
+                        description: 'TargetMemoryUtilization: optional, when set
+                          adds a memory metric.'
                         format: int32
                         maximum: 100
                         minimum: 1
@@ -293,15 +293,15 @@ spec:
                         - type: integer
                         - type: string
                         description: |-
-                          MaxUnavailable — optional, mutually exclusive with MinAvailable.
+                          MaxUnavailable: optional, mutually exclusive with MinAvailable.
                           Default 1 when neither is set and PDB is enabled.
                         x-kubernetes-int-or-string: true
                       minAvailable:
                         anyOf:
                         - type: integer
                         - type: string
-                        description: MinAvailable — optional, mutually exclusive with
-                          MaxUnavailable.
+                        description: 'MinAvailable: optional, mutually exclusive with
+                          MaxUnavailable.'
                         x-kubernetes-int-or-string: true
                     type: object
                   topologySpreadConstraints:
@@ -4644,7 +4644,7 @@ spec:
                       enabled:
                         default: false
                         description: |-
-                          Enabled — when true, the operator creates an Ingress for the agent.
+                          Enabled: when true, the operator creates an Ingress for the agent.
                           Default false.
                         type: boolean
                       host:
@@ -4652,11 +4652,11 @@ spec:
                         type: string
                       path:
                         default: /
-                        description: Path — default "/".
+                        description: 'Path: default "/".'
                         type: string
                       pathType:
                         default: Prefix
-                        description: PathType — default Prefix.
+                        description: 'PathType: default Prefix.'
                         enum:
                         - Exact
                         - Prefix
@@ -4665,7 +4665,7 @@ spec:
                       servicePortName:
                         default: gateway
                         description: |-
-                          ServicePortName — name of the Service port the Ingress should route to.
+                          ServicePortName: name of the Service port the Ingress should route to.
                           Default "gateway".
                         type: string
                       tls:
@@ -4697,8 +4697,8 @@ spec:
                           (LoadBalancer hints, etc.).
                         type: object
                       clusterIP:
-                        description: ClusterIP — set to "None" for a headless Service.
-                          Default empty (api-server allocates).
+                        description: 'ClusterIP: set to "None" for a headless Service.
+                          Default empty (api-server allocates).'
                         type: string
                       externalTrafficPolicy:
                         description: ExternalTrafficPolicy is propagated when Type=LoadBalancer
@@ -4756,7 +4756,7 @@ spec:
                       type:
                         default: ClusterIP
                         description: |-
-                          Type is the Service kind. Default ClusterIP (headed) — Plan 1 emitted a
+                          Type is the Service kind. Default ClusterIP (headed): Plan 1 emitted a
                           headless Service; v1 keeps ClusterIP as the default and lets users opt
                           into Headless via Type=ClusterIP with ClusterIP="None" through the spec.
                         enum:
@@ -4783,8 +4783,8 @@ spec:
                         type: string
                       level:
                         default: info
-                        description: Level — Plan 3 wires HERMES_LOG_LEVEL on the
-                          agent container.
+                        description: 'Level: Plan 3 wires HERMES_LOG_LEVEL on the
+                          agent container.'
                         enum:
                         - trace
                         - debug
@@ -4810,7 +4810,7 @@ spec:
                       secure:
                         default: false
                         description: |-
-                          Secure — when true, /metrics requires bearer-token auth and uses HTTPS.
+                          Secure: when true, /metrics requires bearer-token auth and uses HTTPS.
                           The ServiceMonitor scheme/scrape settings must agree (lesson #435/#440).
                         type: boolean
                     type: object
@@ -4865,7 +4865,7 @@ spec:
                         type: boolean
                       interval:
                         default: 30s
-                        description: Interval — default "30s".
+                        description: 'Interval: default "30s".'
                         pattern: ^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$
                         type: string
                       labels:
@@ -4877,7 +4877,7 @@ spec:
                         type: object
                       scrapeTimeout:
                         default: 10s
-                        description: ScrapeTimeout — default "10s".
+                        description: 'ScrapeTimeout: default "10s".'
                         pattern: ^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$
                         type: string
                     type: object
@@ -5536,7 +5536,7 @@ spec:
                   python:
                     default: "3.11"
                     description: |-
-                      Python is informational only — the agent image's Python version is fixed
+                      Python is informational only: the agent image's Python version is fixed
                       at build time. Setting this does NOT pull a different interpreter; it
                       exists so downstream tooling can assert the runtime it expects.
                     type: string
@@ -5556,7 +5556,7 @@ spec:
                       cacheVolume:
                         description: |-
                           CacheVolume controls the volume mounted at /home/hermes/.cache/uv.
-                          Defaults to an emptyDir with a 1Gi sizeLimit — fast and ephemeral.
+                          Defaults to an emptyDir with a 1Gi sizeLimit: fast and ephemeral.
                         properties:
                           emptyDir:
                             description: |-
@@ -6999,7 +6999,7 @@ spec:
                       allowDNS:
                         default: true
                         description: |-
-                          AllowDNS — emit the standard DNS egress rule (UDP+TCP 53 to any peer).
+                          AllowDNS: emit the standard DNS egress rule (UDP+TCP 53 to any peer).
                           Default true. Disable only when CoreDNS is reachable via a different
                           transport (e.g. node-local DNS via hostNetwork).
                         type: boolean
@@ -7030,7 +7030,7 @@ spec:
                       enabled:
                         default: true
                         description: |-
-                          Enabled — when true (the default), the operator creates a deny-all
+                          Enabled: when true (the default), the operator creates a deny-all
                           NetworkPolicy plus selective allow rules (DNS + 443 egress + Service ingress
                           from the same namespace).
                         type: boolean
@@ -7285,12 +7285,12 @@ spec:
                       createServiceAccount:
                         default: true
                         description: |-
-                          CreateServiceAccount — when true (the default), the operator creates and
+                          CreateServiceAccount: when true (the default), the operator creates and
                           owns a ServiceAccount named after the instance.
                         type: boolean
                       serviceAccountName:
                         description: |-
-                          ServiceAccountName — when CreateServiceAccount is false, the agent uses
+                          ServiceAccountName: when CreateServiceAccount is false, the agent uses
                           this externally-managed ServiceAccount. Must exist in the same namespace.
                         type: string
                     type: object
@@ -7319,7 +7319,7 @@ spec:
                     x-kubernetes-list-type: set
                   enabled:
                     description: |-
-                      Enabled — explicit *bool so the defaulter can distinguish "user said false"
+                      Enabled: explicit *bool so the defaulter can distinguish "user said false"
                       from "user did not set it" (Plan 4 relies on this).
                     type: boolean
                   protectedKeys:
@@ -8862,7 +8862,7 @@ spec:
                   (Plan 4) can target it without a CRD schema change.
                 items:
                   description: |-
-                    InstanceSkill — Plan 3 fills the runtime semantics. The field exists here so
+                    InstanceSkill: Plan 3 fills the runtime semantics. The field exists here so
                     SSA from HermesSelfConfig (Plan 4) can patch the slice with listMapKey=source.
                   properties:
                     source:
@@ -8911,8 +8911,8 @@ spec:
                     properties:
                       enabled:
                         default: false
-                        description: Enabled — default false. Plan 3 wires the actual
-                          init-container.
+                        description: 'Enabled: default false. Plan 3 wires the actual
+                          init-container.'
                         type: boolean
                     type: object
                   configMapRef:

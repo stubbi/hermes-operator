@@ -1,4 +1,4 @@
-# Hermes Operator — Deprecation Policy
+# Hermes Operator: Deprecation Policy
 
 > Canonical policy for deprecating fields, conditions, reason codes, RBAC
 > verbs, metric names, Helm values, and CLI flags. Paired with
@@ -14,7 +14,7 @@
   before v1.6 *and* not before July. If we ship v1.5 and v1.6 within four
   months, removal still waits for the calendar.
 - **Active deprecations live in the table at the bottom of this file.** When
-  empty (as it is at v1.0.0), the table header is still present — the next
+  empty (as it is at v1.0.0), the table header is still present: the next
   contributor appends a row, never invents the format.
 
 ## The 3-step deprecation flow
@@ -22,7 +22,7 @@
 A change is "deprecated" only when all three of these are true in the same
 release:
 
-### Step 1 — Godoc + CRD description warning
+### Step 1: Godoc + CRD description warning
 
 In the Go type definition:
 
@@ -40,7 +40,7 @@ The `// Deprecated:` comment is read by `staticcheck` and surfaces in IDE
 tooling. The `+kubebuilder:validation:Description` field is the human-facing
 text in `kubectl explain`.
 
-### Step 2 — Webhook warning on use
+### Step 2: Webhook warning on use
 
 In `internal/webhook/hermesinstance_validator.go`:
 
@@ -57,14 +57,14 @@ the deprecated field. `kubectl` surfaces these as
 `Warning: ...` lines below the apply result. GitOps tools (Argo, Flux) also
 surface them in their audit logs.
 
-### Step 3 — CHANGELOG entry + `docs/deprecations.md` row
+### Step 3: CHANGELOG entry + `docs/deprecations.md` row
 
 In `CHANGELOG.md` under the release that ships the deprecation:
 
 ```markdown
 ### Deprecated
 
-- `spec.selfImproveLegacyKnob` — replaced by `spec.learning.knobs.*`.
+- `spec.selfImproveLegacyKnob`: replaced by `spec.learning.knobs.*`.
   Target removal: v2.0.0 (no earlier than 2027-01-01).
   See [docs/deprecations.md](docs/deprecations.md).
 ```
@@ -101,7 +101,7 @@ The deprecation flow applies to every public surface listed in
 - **Condition reason codes.** Renaming a reason code requires deprecating
   the old one.
 - **Webhook warnings.** Deprecating a warning means promising not to remove
-  it for the lead-time window — useful when scripts grep for it.
+  it for the lead-time window: useful when scripts grep for it.
 - **RBAC verbs in the Helm chart.** Removing a verb the operator no longer
   uses still breaks GitOps workflows that pin the `ClusterRole` diff.
 - **Helm `values.yaml` keys.** Renaming a key requires the chart to accept
@@ -136,12 +136,12 @@ they read the changelog:
 When a deprecation is **2 minor releases out from removal**, we additionally:
 
 - Add a `panic-on-set` opt-in flag (`HERMES_OPERATOR_FAIL_ON_DEPRECATED=true`)
-  that turns warnings into rejections — for GitOps workflows that want to
+  that turns warnings into rejections: for GitOps workflows that want to
   fail fast on lagging configs.
 - Emit a `Warning` Kubernetes Event on the instance object so
   `kubectl describe hi` shows the deprecation prominently.
 
-## Adding a deprecation — checklist
+## Adding a deprecation: checklist
 
 When you open a PR that deprecates anything, the PR description must include
 this checklist (the PR template has it pre-filled):
@@ -155,7 +155,7 @@ this checklist (the PR template has it pre-filled):
 - [ ] Migration guidance added to `docs/api-reference.md` (the affected field's
       description gets a "Migration:" sub-section).
 
-## Removing a deprecation — checklist
+## Removing a deprecation: checklist
 
 When the lead-time window has elapsed and you open a PR removing the
 deprecated surface:
@@ -176,10 +176,10 @@ maintained for the next contributor.
 
 | Surface | Type | Deprecated in | Replaced by | Earliest removal | Status |
 |---|---|---|---|---|---|
-| _(none)_ | — | — | — | — | — |
+| _(none)_ |: |: |: |: |: |
 
 ## Historical removals
 
 | Surface | Type | Deprecated in | Removed in | Notes |
 |---|---|---|---|---|
-| _(none)_ | — | — | — | — |
+| _(none)_ |: |: |: |: |

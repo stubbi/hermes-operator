@@ -83,7 +83,7 @@ func TestSCValidate_WarnsOnMultipleMutations(t *testing.T) {
 	}
 	warns, err := v.ValidateCreate(context.Background(), sc)
 	require.NoError(t, err)
-	require.NotEmpty(t, warns, "must warn — not deny — on multiple mutation fields")
+	require.NotEmpty(t, warns, "must warn: not deny: on multiple mutation fields")
 	assert.Contains(t, warns[0], "atomic")
 }
 

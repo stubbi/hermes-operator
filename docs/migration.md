@@ -71,7 +71,7 @@ status:
 
 ## Immutability
 
-`spec.migration.fromOpenClaw` is **immutable** once `status.migration.completed = true`. The validating webhook rejects updates. This is intentional — migration is one-shot. To re-migrate, delete the HermesInstance and re-create.
+`spec.migration.fromOpenClaw` is **immutable** once `status.migration.completed = true`. The validating webhook rejects updates. This is intentional: migration is one-shot. To re-migrate, delete the HermesInstance and re-create.
 
 ## Restore + Migrate are mutually exclusive
 
@@ -82,7 +82,7 @@ You cannot set both `spec.restoreFrom` AND `spec.migration.fromOpenClaw` on the 
 | Symptom | Cause | Fix |
 |---|---|---|
 | Init container exits 1 with "source not found". | OpenClaw PVC name doesn't match `<name>-data`. | Older openclaw versions used different PVC names; check `kubectl get pvc -n <ns>` and either rename or use S3 mode. |
-| Permission denied reading source PVC. | RBAC missing for `pvc/get` in the source namespace. | Update the operator's RoleBinding to include the source namespace (Helm value `watchNamespaces` doesn't grant this — it's a separate scope). |
+| Permission denied reading source PVC. | RBAC missing for `pvc/get` in the source namespace. | Update the operator's RoleBinding to include the source namespace (Helm value `watchNamespaces` doesn't grant this: it's a separate scope). |
 | Migration appears to succeed but `~/.hermes` is empty. | The upstream importer's CLI flag changed between versions. | Verify the CLI shape (see the warning at the top of this doc) and adjust the init-container args. |
 
 ## End-to-end test

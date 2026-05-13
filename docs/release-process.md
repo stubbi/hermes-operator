@@ -72,7 +72,7 @@ manually:
 gh workflow run "OperatorHub Submission" -f tag=vX.Y.Z
 ```
 
-If a release was tagged but the release workflow didn't run (very rare —
+If a release was tagged but the release workflow didn't run (very rare:
 usually because the PAT expired), retag:
 
 ```bash
@@ -99,7 +99,7 @@ See `docs/security/signing.md` for the full verification ritual.
   `ghcr.io/stubbi/hermes-operator:vX.Y.Z` and `:X.Y` and `:latest`
 - Multi-arch agent image:
   `ghcr.io/stubbi/hermes-agent:vX.Y.Z` (built by a separate hermes-agent
-  release; the operator's `appVersion` doesn't pin agent versions —
+  release; the operator's `appVersion` doesn't pin agent versions:
   `spec.image.tag` does)
 - OLM bundle image:
   `ghcr.io/stubbi/hermes-operator-bundle:vX.Y.Z`

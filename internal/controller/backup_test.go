@@ -143,7 +143,7 @@ var _ = Describe("Backup sub-controller", func() {
 			// by a spurious Update on metadata (only Status and Spec updates bump generation)
 			fetched := &hermesv1.HermesInstance{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: bName, Namespace: namespace}, fetched)).To(Succeed())
-			// generation should remain at 1 (created) — a Patch on finalizers only does NOT bump generation
+			// generation should remain at 1 (created): a Patch on finalizers only does NOT bump generation
 			Expect(fetched.Generation).To(Equal(int64(1)),
 				"lesson #437: finalizer patch must NOT use Update which bumps metadata.generation")
 		})

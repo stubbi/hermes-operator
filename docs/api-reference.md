@@ -62,7 +62,7 @@ Supplies the body of `~/.hermes/config.yaml`. Exactly one of `raw` or `configMap
 |---|---|---|---|
 | `spec.config.raw` | `RawConfig` (inline YAML, `runtime.RawExtension`) | `nil` | Inline YAML body of `config.yaml`. Users may write structured YAML directly in the manifest without escaping. |
 | `spec.config.configMapRef` | `LocalObjectReference` | `nil` | References a ConfigMap in the same namespace whose `config.yaml` key holds the body. |
-| `spec.config.mergeMode` | `string` (enum) | `replace` | Controls combination when both `raw` and `configMapRef` are set. `replace` — `raw` replaces the ConfigMap content entirely. `merge` — deep YAML merge; `raw` wins on key conflicts. |
+| `spec.config.mergeMode` | `string` (enum) | `replace` | Controls combination when both `raw` and `configMapRef` are set. `replace`: `raw` replaces the ConfigMap content entirely. `merge`: deep YAML merge; `raw` wins on key conflicts. |
 
 ### spec.workspace
 
@@ -70,7 +70,7 @@ Seeds initial files and directories into `~/.hermes` on first start. Nested path
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `spec.workspace.initialFiles` | `[]WorkspaceFile` (listType=map, listMapKey=path) | `[]` | Files to seed. Each entry has a `path` (relative to `~/.hermes`, 1–4096 chars, no leading/trailing slash) and a `content` (UTF-8 body, max 1 MiB). |
+| `spec.workspace.initialFiles` | `[]WorkspaceFile` (listType=map, listMapKey=path) | `[]` | Files to seed. Each entry has a `path` (relative to `~/.hermes`, 1-4096 chars, no leading/trailing slash) and a `content` (UTF-8 body, max 1 MiB). |
 | `spec.workspace.initialDirs` | `[]string` (listType=set) | `[]` | Directories to `mkdir -p` on first start. |
 | `spec.workspace.configMapRef` | `LocalObjectReference` | `nil` | User-owned ConfigMap whose entries are merged onto `initialFiles`. Operator-managed entries win on key conflicts. |
 | `spec.workspace.bootstrap.enabled` | `*bool` | `false` | When true, hermes-agent runs a one-shot bootstrap script (`hermes onboard`) on first start. Plan 3 wires the actual init-container. |
@@ -79,12 +79,12 @@ Seeds initial files and directories into `~/.hermes` on first start. Nested path
 
 | Field | Type | Constraints | Description |
 |---|---|---|---|
-| `path` | `string` | Required; 1–4096 chars; pattern `^[^/].*[^/]$\|^[^/]$` | Relative path under `~/.hermes`. |
+| `path` | `string` | Required; 1-4096 chars; pattern `^[^/].*[^/]$\|^[^/]$` | Relative path under `~/.hermes`. |
 | `content` | `string` | Max 1 MiB (1 048 576 chars) | UTF-8 body of the file. |
 
 ### spec.resources
 
-Sets CPU/memory requests and limits on the agent container. Defaults are intentionally absent at the schema level — the defaulting webhook fills them from `HermesClusterDefaults` when available; otherwise the pod inherits namespace-level `LimitRange` defaults.
+Sets CPU/memory requests and limits on the agent container. Defaults are intentionally absent at the schema level: the defaulting webhook fills them from `HermesClusterDefaults` when available; otherwise the pod inherits namespace-level `LimitRange` defaults.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -150,7 +150,7 @@ Controls the PVC backing `~/.hermes` for this instance.
 | `spec.storage.persistence.size` | `string` | `1Gi` | Requested PVC size (Kubernetes quantity string). |
 | `spec.storage.persistence.storageClassName` | `*string` | `nil` (cluster default) | StorageClass name. When nil, the cluster's default StorageClass is used. |
 
-Note: PVCs are immutable once created — the operator only creates, never updates them.
+Note: PVCs are immutable once created: the operator only creates, never updates them.
 
 ### spec.networking
 
@@ -171,8 +171,8 @@ Exposes the agent via a Service and optionally an Ingress.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `string` | Required | Port name (1–63 chars). |
-| `port` | `int32` | Required | Service port number (1–65535). |
+| `name` | `string` | Required | Port name (1-63 chars). |
+| `port` | `int32` | Required | Service port number (1-65535). |
 | `targetPort` | `*int32` | `nil` (defaults to `port`) | Container port to forward to. |
 | `protocol` | `string` (enum) | `TCP` | Transport protocol. Allowed: `TCP`, `UDP`, `SCTP`. |
 | `nodePort` | `int32` | `0` (api-server allocates) | Node port number. Honored only when Service type is `NodePort` or `LoadBalancer`. |
@@ -199,7 +199,7 @@ Controls metrics exposure, Prometheus Operator integration, and logging configur
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `spec.observability.metrics.enabled` | `*bool` | `true` | When true, the agent container exposes a `/metrics` endpoint. |
-| `spec.observability.metrics.port` | `int32` | `9090` | Port for the `/metrics` endpoint (1–65535). |
+| `spec.observability.metrics.port` | `int32` | `9090` | Port for the `/metrics` endpoint (1-65535). |
 | `spec.observability.metrics.secure` | `*bool` | `false` | When true, `/metrics` requires bearer-token auth and uses HTTPS. The ServiceMonitor scheme/scrape settings must agree (see lesson #435/#440). |
 
 #### spec.observability.serviceMonitor
@@ -248,8 +248,8 @@ Bundles PodDisruptionBudget, HorizontalPodAutoscaler, and topology-spread constr
 | `spec.availability.horizontalPodAutoscaler.enabled` | `*bool` | `false` | When true, the operator creates a HorizontalPodAutoscaler. |
 | `spec.availability.horizontalPodAutoscaler.minReplicas` | `*int32` | `1` | Minimum replica count (minimum value: 1). |
 | `spec.availability.horizontalPodAutoscaler.maxReplicas` | `*int32` | `5` | Maximum replica count (minimum value: 1). |
-| `spec.availability.horizontalPodAutoscaler.targetCPUUtilization` | `*int32` | `80` | Target CPU utilization percentage (1–100). The HPA metric target type is set explicitly to `Utilization`. |
-| `spec.availability.horizontalPodAutoscaler.targetMemoryUtilization` | `*int32` | `nil` (disabled) | Target memory utilization percentage (1–100). When set, adds a memory-based HPA metric alongside the CPU metric. |
+| `spec.availability.horizontalPodAutoscaler.targetCPUUtilization` | `*int32` | `80` | Target CPU utilization percentage (1-100). The HPA metric target type is set explicitly to `Utilization`. |
+| `spec.availability.horizontalPodAutoscaler.targetMemoryUtilization` | `*int32` | `nil` (disabled) | Target memory utilization percentage (1-100). When set, adds a memory-based HPA metric alongside the CPU metric. |
 | `spec.availability.horizontalPodAutoscaler.behavior` | `*autoscalingv2.HorizontalPodAutoscalerBehavior` | `nil` | Forwarded verbatim to the HPA `spec.behavior` field for fine-grained scale-up/scale-down control. |
 
 #### spec.availability.topologySpreadConstraints
@@ -260,7 +260,7 @@ Bundles PodDisruptionBudget, HorizontalPodAutoscaler, and topology-spread constr
 
 ### spec.probes
 
-Overrides the operator's built-in liveness, readiness, and startup probes. Each field is a complete `corev1.Probe` applied verbatim — set every value you want non-default.
+Overrides the operator's built-in liveness, readiness, and startup probes. Each field is a complete `corev1.Probe` applied verbatim: set every value you want non-default.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -594,4 +594,4 @@ spec:
 
 ### Field-manager contract
 
-The reconciler writes via `client.Apply` with field owner `hermes.agent/selfconfig`. It owns only the paths the SelfConfig touches — never `spec.image`, `spec.storage`, `spec.gateways`, etc. Other field managers (FluxCD, Argo CD, kubectl users) co-own their own paths and are not disturbed. By default conflicts are surfaced as `Denied`. To force ownership, set `metadata.annotations["hermes.agent/force-ownership"]: "true"` on the SelfConfig.
+The reconciler writes via `client.Apply` with field owner `hermes.agent/selfconfig`. It owns only the paths the SelfConfig touches: never `spec.image`, `spec.storage`, `spec.gateways`, etc. Other field managers (FluxCD, Argo CD, kubectl users) co-own their own paths and are not disturbed. By default conflicts are surfaced as `Denied`. To force ownership, set `metadata.annotations["hermes.agent/force-ownership"]: "true"` on the SelfConfig.

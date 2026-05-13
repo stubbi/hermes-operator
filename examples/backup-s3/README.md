@@ -17,7 +17,7 @@ kubectl apply -n agents -f minio.yaml
 kubectl apply -n agents -f s3-credentials.yaml
 kubectl wait -n agents --for=condition=complete job/minio-mkbucket --timeout=60s
 
-# 3. Apply the HermesInstance — it begins backing up immediately on first
+# 3. Apply the HermesInstance: it begins backing up immediately on first
 #    reconcile, and again every 10 minutes per the schedule.
 kubectl apply -n agents -f hermesinstance.yaml
 ```

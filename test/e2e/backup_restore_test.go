@@ -20,7 +20,7 @@ var _ = Describe("Backup → delete → restore cycle (MinIO)", func() {
 		// finalizer, status latching, restore init container) is covered by
 		// the envtest controller suite and the conformance suite (Idempotency).
 		// Pending until Plan 3 publishes a runnable hermes-agent image.
-		Skip("pending hermes-agent image — covered by envtests + conformance suite")
+		Skip("pending hermes-agent image: covered by envtests + conformance suite")
 		manifest := `
 apiVersion: hermes.agent/v1
 kind: HermesInstance

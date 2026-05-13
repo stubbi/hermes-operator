@@ -29,8 +29,8 @@ The channel uses [Masterminds/semver](https://github.com/Masterminds/semver) con
 |---|---|
 | `1.x` | any 1.y.z, no prereleases |
 | `>=1.4 <2` | 1.4.0 and up, but no 2.x |
-| `~1.4` | 1.4.0–1.4.x |
-| `1.4.x` | exactly 1.4.0–1.4.x |
+| `~1.4` | 1.4.0-1.4.x |
+| `1.4.x` | exactly 1.4.0-1.4.x |
 | `*` | any tag (use only for non-production) |
 
 **Prereleases are excluded by default** (`1.5.0-rc1` does not match `1.x`). To opt in, use an explicit constraint with the prerelease, e.g. `>=1.5.0-rc1 <2`.
@@ -62,7 +62,7 @@ The operator deliberately rolls the StatefulSet PodTemplate forward instead of p
 
 1. **GitOps coexistence.** `spec.image.tag` is what the user sees in Git. If the operator patched it, FluxCD/Argo would either revert the change (causing thrash) or accept it (causing Git/cluster drift). Neither is acceptable. By rolling the STS PodTemplate, the operator owns the "in-flight target" view while the user owns the "intended" view via `spec.image.tag`.
 2. **Drift is observable.** `status.autoUpdate.currentTag` reports the actual running tag; `spec.image.tag` reports the intended floor. A discrepancy is a signal, not a bug.
-3. **Rollback is local.** A rollback only mutates the STS PodTemplate — no cross-resource ordering, no need to wait for the user to update Git.
+3. **Rollback is local.** A rollback only mutates the STS PodTemplate: no cross-resource ordering, no need to wait for the user to update Git.
 
 To "promote" a confirmed auto-update tag into the spec, the user updates `spec.image.tag` in Git and commits. The operator will observe that `currentRunningTag` already matches and no-op.
 
@@ -70,7 +70,7 @@ To "promote" a confirmed auto-update tag into the spec, the user updates `spec.i
 
 The OCI registry client caches tag lists by ETag. The minimum re-fetch interval is `spec.autoUpdate.pollInterval` (with a global floor of 15 minutes). The client uses `go-containerregistry`'s `remote.List` which honours `If-None-Match`; on `304 Not Modified` the cached list is returned.
 
-This is intentional — pulling a 1000-tag list on every reconcile is rude. In production we observed ~5 round-trips/day per instance on a 1h poll interval.
+This is intentional: pulling a 1000-tag list on every reconcile is rude. In production we observed ~5 round-trips/day per instance on a 1h poll interval.
 
 ## Rollback semantics
 
@@ -87,7 +87,7 @@ kubectl patch hermesinstance my-hermes --subresource=status --type=merge -p '{"s
 | Auto-update never picks up the new tag. | Channel constraint excludes it, e.g. tag is `2.0.0` but channel is `1.x`. | Update the channel. |
 | Rollback loop. | `lastFailedTag` is cleared automatically only when a new tag becomes available. Manually clear if needed (see above). | Pin `spec.image.tag` to a known-good and disable autoUpdate temporarily. |
 | Pre-update backup fails. | S3 unreachable, credentials wrong. | Fix Secret; the controller retries indefinitely. Disable `backupBeforeUpdate` only as a last resort. |
-| `spec.image.tag` and `status.autoUpdate.currentTag` disagree. | Expected — see [Why spec.image.tag is not patched](#why-specimagetag-is-not-patched). | Update `spec.image.tag` in Git once the confirmed tag is acceptable. |
+| `spec.image.tag` and `status.autoUpdate.currentTag` disagree. | Expected: see [Why spec.image.tag is not patched](#why-specimagetag-is-not-patched). | Update `spec.image.tag` in Git once the confirmed tag is acceptable. |
 
 ## Disabling auto-update
 

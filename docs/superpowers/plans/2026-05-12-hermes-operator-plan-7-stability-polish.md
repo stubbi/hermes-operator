@@ -1,14 +1,14 @@
-# Hermes Operator — Plan 7: v1 Stability Docs, Polish, and v1.0.0 Cut
+# Hermes Operator: Plan 7: v1 Stability Docs, Polish, and v1.0.0 Cut
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Earn the v1 label — publish the formal API-versioning and deprecation policies, finalise the exhaustive condition catalogue, build a polished README + public ROADMAP, ship a complete `examples/` directory and a Grafana dashboard, cut and release `v1.0.0` via release-please/GoReleaser, track the OperatorHub PRs through merge, and (on user confirmation) flip the repo public.
+**Goal:** Earn the v1 label: publish the formal API-versioning and deprecation policies, finalise the exhaustive condition catalogue, build a polished README + public ROADMAP, ship a complete `examples/` directory and a Grafana dashboard, cut and release `v1.0.0` via release-please/GoReleaser, track the OperatorHub PRs through merge, and (on user confirmation) flip the repo public.
 
-**Architecture:** Plan 7 is almost entirely documentation, example YAML, and release ceremony — no new controllers, no new builders, no new conditions. It consolidates the surfaces that Plans 1–6 leave as TODOs: `docs/api-versioning.md`, `docs/deprecations.md`, `docs/conditions.md`, `ROADMAP.md`, `examples/**`, `docs/grafana/`, the v1.0.0 `CHANGELOG.md` entry, the GoReleaser/OperatorHub release watch, and a launch-announcement draft. The repo-public flip is a gated user-confirmed step at the very end. Where Plans 2–6 left stub entries in `docs/conditions.md`, this plan rewrites the file from the aggregated catalogue and verifies nothing was missed. The README that Plan 1 created as a minimal "what this is" file becomes the v1-quality landing page modelled on the openclaw-operator shape but with hermes content (no openclaw text copied; the shape only).
+**Architecture:** Plan 7 is almost entirely documentation, example YAML, and release ceremony: no new controllers, no new builders, no new conditions. It consolidates the surfaces that Plans 1-6 leave as TODOs: `docs/api-versioning.md`, `docs/deprecations.md`, `docs/conditions.md`, `ROADMAP.md`, `examples/**`, `docs/grafana/`, the v1.0.0 `CHANGELOG.md` entry, the GoReleaser/OperatorHub release watch, and a launch-announcement draft. The repo-public flip is a gated user-confirmed step at the very end. Where Plans 2-6 left stub entries in `docs/conditions.md`, this plan rewrites the file from the aggregated catalogue and verifies nothing was missed. The README that Plan 1 created as a minimal "what this is" file becomes the v1-quality landing page modelled on the openclaw-operator shape but with hermes content (no openclaw text copied; the shape only).
 
 **Tech Stack:** Markdown (CommonMark + GitHub-flavoured tables), Mermaid diagrams, YAML (Kubernetes manifests for examples), Grafana dashboard JSON (schemaVersion 39), GitHub CLI (`gh`) for release/PR tracking, release-please + GoReleaser (driven by Plan 6's workflows). No new Go code.
 
-**Prerequisite:** Plans 1–6 merged. All conformance jobs green on main. release-please workflow installed (Plan 6). GoReleaser workflow installed (Plan 6). OperatorHub-submission workflow installed (Plan 6). `gh` CLI authenticated locally as the repo owner.
+**Prerequisite:** Plans 1-6 merged. All conformance jobs green on main. release-please workflow installed (Plan 6). GoReleaser workflow installed (Plan 6). OperatorHub-submission workflow installed (Plan 6). `gh` CLI authenticated locally as the repo owner.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-12-hermes-operator-design.md` §11, §12.
 
@@ -24,7 +24,7 @@ hermes-operator/
 ├── docs/
 │   ├── api-versioning.md                    # NEW: formal versioning policy (Task 1)
 │   ├── deprecations.md                      # NEW: deprecation policy + active-deprecation tracker (Task 2)
-│   ├── conditions.md                        # REWRITE: aggregated, exhaustive condition catalogue (Tasks 3–9)
+│   ├── conditions.md                        # REWRITE: aggregated, exhaustive condition catalogue (Tasks 3-9)
 │   ├── launch-announcement.md               # NEW: short launch announcement draft (Task 20)
 │   ├── post-launch-checklist.md             # NEW: first-30-days checklist (Task 22)
 │   └── grafana/
@@ -65,14 +65,14 @@ hermes-operator/
 │   └── cluster-defaults/
 │       ├── README.md
 │       └── clusterdefaults.yaml             # (Task 14)
-└── (release artefacts, not files)           # release-please PR, GoReleaser run, OperatorHub PRs (Tasks 17–19, 21)
+└── (release artefacts, not files)           # release-please PR, GoReleaser run, OperatorHub PRs (Tasks 17-19, 21)
 ```
 
 Roughly 25 new markdown/YAML/JSON files; one README rewrite; one `CHANGELOG.md` polish pass over what release-please generated; zero Go file changes.
 
 ---
 
-## Task 1: `docs/api-versioning.md` — formal versioning policy
+## Task 1: `docs/api-versioning.md`: formal versioning policy
 
 **Files:**
 - Create: `docs/api-versioning.md`
@@ -92,7 +92,7 @@ git checkout -b docs/api-versioning
 Create the file with this exact content (no placeholders):
 
 ```markdown
-# Hermes Operator — API Versioning Policy
+# Hermes Operator: API Versioning Policy
 
 > Canonical policy for the `hermes.agent` API group. This document governs every
 > change to `HermesInstance`, `HermesSelfConfig`, and `HermesClusterDefaults`
@@ -119,7 +119,7 @@ This policy covers:
   `docs/conditions.md`).
 - Validating- and defaulting-webhook semantics.
 - RBAC verbs requested by the operator's `ClusterRole` (additions are non-
-  breaking; removals are breaking — see "RBAC changes" below).
+  breaking; removals are breaking: see "RBAC changes" below).
 
 It does **not** cover:
 
@@ -183,13 +183,13 @@ The following changes are breaking and may only land via a new served version
    breaking even though the field name and type are unchanged.
 3. **Required-field addition.** Adding a field with no default that the
    reconciler dereferences is breaking even if the OpenAPI marks it
-   `optional` — if the operator panics on `nil`, that's a break.
+   `optional`: if the operator panics on `nil`, that's a break.
 4. **Type change** on any field (string → enum, int → string, etc.).
 5. **Validation tightening** that would reject an instance that previously
    validated. Loosening validation is non-breaking.
 6. **Condition removal.** Removing a condition type that previously was set
    is breaking because dashboards key off it.
-7. **Condition semantic change** — changing the meaning of a reason code
+7. **Condition semantic change**: changing the meaning of a reason code
    without renaming it.
 8. **RBAC verb removal.** A v2 operator may need fewer permissions; the
    chart's `ClusterRole` shrinking will break GitOps workflows that pin
@@ -257,7 +257,7 @@ for a future hypothetical TypeScript backend). The migration path is:
    any objects written since then are v2).
 
 This is the only sanctioned shape for a breaking change. Reviewers reject PRs
-that try to "just rename it, it's a minor field" — the contract is binding.
+that try to "just rename it, it's a minor field": the contract is binding.
 
 ## Reading list for reviewers
 
@@ -285,20 +285,20 @@ git commit -m "docs: formal API versioning policy for hermes.agent/v1"
 
 ---
 
-## Task 2: `docs/deprecations.md` — deprecation policy + active tracker
+## Task 2: `docs/deprecations.md`: deprecation policy + active tracker
 
 **Files:**
 - Create: `docs/deprecations.md`
 
 The canonical document spec §11.2 commits to. Defines the 3-step deprecation
 flow and carries the live table of active deprecations (which is empty at
-v1.0 — but the table shape must be in place so the first deprecation
+v1.0: but the table shape must be in place so the first deprecation
 becomes a row, not a fresh format invention).
 
 - [ ] **Step 1: Write `docs/deprecations.md` end-to-end**
 
 ```markdown
-# Hermes Operator — Deprecation Policy
+# Hermes Operator: Deprecation Policy
 
 > Canonical policy for deprecating fields, conditions, reason codes, RBAC
 > verbs, metric names, Helm values, and CLI flags. Paired with
@@ -314,7 +314,7 @@ becomes a row, not a fresh format invention).
   before v1.6 *and* not before July. If we ship v1.5 and v1.6 within four
   months, removal still waits for the calendar.
 - **Active deprecations live in the table at the bottom of this file.** When
-  empty (as it is at v1.0.0), the table header is still present — the next
+  empty (as it is at v1.0.0), the table header is still present: the next
   contributor appends a row, never invents the format.
 
 ## The 3-step deprecation flow
@@ -322,7 +322,7 @@ becomes a row, not a fresh format invention).
 A change is "deprecated" only when all three of these are true in the same
 release:
 
-### Step 1 — Godoc + CRD description warning
+### Step 1: Godoc + CRD description warning
 
 In the Go type definition:
 
@@ -340,7 +340,7 @@ The `// Deprecated:` comment is read by `staticcheck` and surfaces in IDE
 tooling. The `+kubebuilder:validation:Description` field is the human-facing
 text in `kubectl explain`.
 
-### Step 2 — Webhook warning on use
+### Step 2: Webhook warning on use
 
 In `internal/webhook/hermesinstance_validator.go`:
 
@@ -357,14 +357,14 @@ the deprecated field. `kubectl` surfaces these as
 `Warning: ...` lines below the apply result. GitOps tools (Argo, Flux) also
 surface them in their audit logs.
 
-### Step 3 — CHANGELOG entry + `docs/deprecations.md` row
+### Step 3: CHANGELOG entry + `docs/deprecations.md` row
 
 In `CHANGELOG.md` under the release that ships the deprecation:
 
 ```markdown
 ### Deprecated
 
-- `spec.selfImproveLegacyKnob` — replaced by `spec.learning.knobs.*`.
+- `spec.selfImproveLegacyKnob`: replaced by `spec.learning.knobs.*`.
   Target removal: v2.0.0 (no earlier than 2027-01-01).
   See [docs/deprecations.md](docs/deprecations.md).
 ```
@@ -401,7 +401,7 @@ The deprecation flow applies to every public surface listed in
 - **Condition reason codes.** Renaming a reason code requires deprecating
   the old one.
 - **Webhook warnings.** Deprecating a warning means promising not to remove
-  it for the lead-time window — useful when scripts grep for it.
+  it for the lead-time window: useful when scripts grep for it.
 - **RBAC verbs in the Helm chart.** Removing a verb the operator no longer
   uses still breaks GitOps workflows that pin the `ClusterRole` diff.
 - **Helm `values.yaml` keys.** Renaming a key requires the chart to accept
@@ -436,12 +436,12 @@ they read the changelog:
 When a deprecation is **2 minor releases out from removal**, we additionally:
 
 - Add a `panic-on-set` opt-in flag (`HERMES_OPERATOR_FAIL_ON_DEPRECATED=true`)
-  that turns warnings into rejections — for GitOps workflows that want to
+  that turns warnings into rejections: for GitOps workflows that want to
   fail fast on lagging configs.
 - Emit a `Warning` Kubernetes Event on the instance object so
   `kubectl describe hi` shows the deprecation prominently.
 
-## Adding a deprecation — checklist
+## Adding a deprecation: checklist
 
 When you open a PR that deprecates anything, the PR description must include
 this checklist (the PR template has it pre-filled):
@@ -455,7 +455,7 @@ this checklist (the PR template has it pre-filled):
 - [ ] Migration guidance added to `docs/api-reference.md` (the affected field's
       description gets a "Migration:" sub-section).
 
-## Removing a deprecation — checklist
+## Removing a deprecation: checklist
 
 When the lead-time window has elapsed and you open a PR removing the
 deprecated surface:
@@ -476,13 +476,13 @@ maintained for the next contributor.
 
 | Surface | Type | Deprecated in | Replaced by | Earliest removal | Status |
 |---|---|---|---|---|---|
-| _(none)_ | — | — | — | — | — |
+| _(none)_ |: |: |: |: |: |
 
 ## Historical removals
 
 | Surface | Type | Deprecated in | Removed in | Notes |
 |---|---|---|---|---|
-| _(none)_ | — | — | — | — |
+| _(none)_ |: |: |: |: |
 ```
 
 - [ ] **Step 2: Commit**
@@ -494,12 +494,12 @@ git commit -m "docs: deprecation policy and active-deprecation tracker"
 
 ---
 
-## Task 3: `docs/conditions.md` — exhaustive condition catalogue (rewrite)
+## Task 3: `docs/conditions.md`: exhaustive condition catalogue (rewrite)
 
 **Files:**
 - Rewrite: `docs/conditions.md`
 
-Plans 2, 4, and 5 each appended to `docs/conditions.md`. The result is correct but stitched together. Plan 7 rewrites the file in one pass with a consistent shape — header → CR-by-CR sections → per-condition tables with status × reason × meaning × troubleshooting — so dashboards and the kubectl plugin (post-v1) can consume it as one document.
+Plans 2, 4, and 5 each appended to `docs/conditions.md`. The result is correct but stitched together. Plan 7 rewrites the file in one pass with a consistent shape: header → CR-by-CR sections → per-condition tables with status × reason × meaning × troubleshooting: so dashboards and the kubectl plugin (post-v1) can consume it as one document.
 
 The catalogue MUST be exhaustive. Before writing, re-read these to confirm nothing is missed:
 
@@ -519,10 +519,10 @@ git checkout -b docs/conditions-catalogue
 
 - [ ] **Step 2: Replace `docs/conditions.md` with the canonical catalogue**
 
-Open `docs/conditions.md` and replace the entire file contents (anything appended by Plans 2, 4, and 5 is consolidated below — nothing is dropped):
+Open `docs/conditions.md` and replace the entire file contents (anything appended by Plans 2, 4, and 5 is consolidated below: nothing is dropped):
 
 ```markdown
-# Hermes Operator — Status Condition Catalogue
+# Hermes Operator: Status Condition Catalogue
 
 > Every condition the operator emits, what it means, what reason codes go with
 > it, and how to debug it. This catalogue is part of the v1 stability contract
@@ -571,10 +571,10 @@ The PVC backing `~/.hermes` is bound and matches spec.
 | Status | Reason | When |
 |---|---|---|
 | True | `PVCBound` | The PVC for `~/.hermes` is `Bound` and its `spec.resources.requests.storage` matches the desired size. |
-| False | `PVCPending` | The PVC exists but has `status.phase=Pending` — typically because no `StorageClass` can provision the requested size in the current AZ. |
+| False | `PVCPending` | The PVC exists but has `status.phase=Pending`: typically because no `StorageClass` can provision the requested size in the current AZ. |
 | False | `PVCMismatch` | The bound PVC has a different `storageClassName` or `accessModes` than the spec asks for. The validator blocks new instances in this state; this condition fires on legacy instances created before validation tightened. |
 | False | `ExistingClaimNotFound` | `spec.storage.persistence.existingClaim` references a PVC that does not exist in the namespace. |
-| (absent) | — | `spec.storage.persistence.enabled=false`. The instance runs with an `emptyDir`. |
+| (absent) |: | `spec.storage.persistence.enabled=false`. The instance runs with an `emptyDir`. |
 
 Troubleshooting: `kubectl get pvc -l app.kubernetes.io/instance=<name>` and check
 `kubectl describe pvc <pvc>`.
@@ -614,7 +614,7 @@ The default-deny + allow-list NetworkPolicy is in place.
 |---|---|---|
 | True | `Applied` | The NetworkPolicy named `<instance>-network` exists, has owner-ref pointing at the instance, and matches the spec (deny-all baseline + allow rules derived from `spec.gateways` and `spec.networking.egress`). |
 | False | `PolicyEngineMissing` | The cluster has no NetworkPolicy enforcer. The operator detects this by looking for known CNI annotations at startup. Falls back to warning if user has explicitly acknowledged via `spec.networking.networkPolicy.acknowledgeNoEnforcer=true`. |
-| (absent) | — | `spec.networking.networkPolicy.enabled=false`. |
+| (absent) |: | `spec.networking.networkPolicy.enabled=false`. |
 
 Troubleshooting: `kubectl get netpol -n <ns>` and verify the CNI supports
 NetworkPolicy.
@@ -640,7 +640,7 @@ Per-platform gateway wiring (Telegram/Discord/Slack/WhatsApp/Signal).
 | True | `AllEnabledGatewaysWired` | Every gateway with `enabled=true` has its token Secret resolved, its generated config emitted into the agent ConfigMap, and its Service/Ingress allowances applied. |
 | False | `TokenSecretMissing` | At least one enabled gateway's `secretRef` does not resolve. `message` names the gateways. |
 | False | `IngressUnsupportedForPlatform` | A gateway requested an Ingress (e.g. Slack's events webhook) but `spec.networking.ingress.enabled=false`. The webhook normally rejects this combination; the condition fires on legacy resources. |
-| (absent) | — | No gateway has `enabled=true`. |
+| (absent) |: | No gateway has `enabled=true`. |
 
 Troubleshooting: `kubectl describe hi <name>` and check the per-gateway sub-status in `status.gateways[].*`.
 
@@ -654,7 +654,7 @@ Honcho profile-store companion deployment.
 | False | `HonchoPending` | The Honcho Deployment is rolling out. |
 | False | `HonchoImagePullBackOff` | The Honcho image cannot be pulled. The operator distinguishes this from generic `HonchoPending` so dashboards alert on it. |
 | False | `HonchoSecretMissing` | `spec.profileStore.secret` references a Secret that does not exist. |
-| (absent) | — | `spec.profileStore.enabled=false`. |
+| (absent) |: | `spec.profileStore.enabled=false`. |
 
 Troubleshooting: `kubectl get deploy,svc,pvc,secret -l app.kubernetes.io/instance=<name>,app.kubernetes.io/component=honcho`.
 
@@ -666,22 +666,22 @@ State of scheduled backups (from Plan 5, restated here for the catalogue).
 |---|---|---|
 | True | `Scheduled` | A backup CronJob is configured and the most recent run succeeded. `status.backup.lastSuccessfulSnapshotKey` is populated. |
 | False | `S3CredentialsMissing` | `spec.backup.s3.credentialsSecretRef` does not resolve. |
-| False | `PersistenceDisabled` | `spec.storage.persistence.enabled=false` — scheduled backups require persistence. |
+| False | `PersistenceDisabled` | `spec.storage.persistence.enabled=false`: scheduled backups require persistence. |
 | False | `LastRunFailed` | The most recent backup Job exited non-zero. `status.backup.lastFailureReason` carries the detail. |
-| (absent) | — | `spec.backup.schedule` is empty. |
+| (absent) |: | `spec.backup.schedule` is empty. |
 
 Troubleshooting: `kubectl get cj,job -l app.kubernetes.io/instance=<name>,backup=true` and `kubectl logs job/<last-run>`.
 
 ### `RestoreApplied`
 
-Terminal — once `True`, immutable for the lifetime of the instance.
+Terminal: once `True`, immutable for the lifetime of the instance.
 
 | Status | Reason | When |
 |---|---|---|
 | True | `RestoreCompleted` | `status.restoredFrom == spec.restoreFrom`. |
 | False | `Restoring` | The `init-restore` init container is in progress. |
 | False | `RestoreFailed` | The `init-restore` init container exited non-zero. The `message` includes the exit code and the last line of `kubectl logs`. |
-| (absent) | — | `spec.restoreFrom` is unset. |
+| (absent) |: | `spec.restoreFrom` is unset. |
 
 Troubleshooting: `kubectl logs <instance>-0 -c init-restore` and inspect the snapshot key in S3.
 
@@ -696,8 +696,8 @@ Outcome of the most recent auto-update cycle.
 | False | `RolloutInFlight` | A rollout is currently being watched. `status.autoUpdate.targetTag` carries the candidate. |
 | False | `RolledBack` | The most recent rollout failed; image reverted. The `message` references the failed tag. |
 | False | `NoMatchingTag` | No tag in the registry matches the channel pattern. |
-| False | `SuppressedKnownFailure` | The highest matching tag equals `status.autoUpdate.lastFailedTag` — auto-update declines to retry a tag that has already failed. Manual intervention (clear `lastFailedTag` via subresource patch) is required. |
-| (absent) | — | `spec.autoUpdate.enabled=false`. |
+| False | `SuppressedKnownFailure` | The highest matching tag equals `status.autoUpdate.lastFailedTag`: auto-update declines to retry a tag that has already failed. Manual intervention (clear `lastFailedTag` via subresource patch) is required. |
+| (absent) |: | `spec.autoUpdate.enabled=false`. |
 
 Troubleshooting: `kubectl get hi <name> -o jsonpath='{.status.autoUpdate}'` for the full sub-status.
 
@@ -713,25 +713,25 @@ The condition is removed on the next successful `AutoUpdated=True` (reason=`Conf
 
 ### `MigrationCompleted`
 
-Terminal — once `True`, immutable for the lifetime of the instance.
+Terminal: once `True`, immutable for the lifetime of the instance.
 
 | Status | Reason | When |
 |---|---|---|
 | True | `MigrationCompleted` | The `init-migrate-from-openclaw` init container exited 0. |
 | False | `MigrationFailed` | The migration init container exited non-zero. The `message` includes the exit code and a short tail of the init container's stderr. |
-| (absent) | — | `spec.migration.fromOpenClaw` is unset. |
+| (absent) |: | `spec.migration.fromOpenClaw` is unset. |
 
 Troubleshooting: `kubectl logs <instance>-0 -c init-migrate-from-openclaw`.
 
 ### `WebhookReady`
 
-Reflects the operator's ability to serve the admission webhooks for this CR. This condition fires when the webhook serving cert is invalid or the webhook server is unreachable — it is a *cluster-level* failure surfaced per-instance so consumers do not have to know about the operator's pod state.
+Reflects the operator's ability to serve the admission webhooks for this CR. This condition fires when the webhook serving cert is invalid or the webhook server is unreachable: it is a *cluster-level* failure surfaced per-instance so consumers do not have to know about the operator's pod state.
 
 | Status | Reason | When |
 |---|---|---|
 | True | `WebhookHealthy` | The operator's webhook server returned `200` to its own self-check probe within the last `RequeueAfter`. |
 | False | `CertExpired` | The webhook serving cert's `notAfter` is in the past. cert-manager (when enabled) usually rotates before this fires; when it fires, manual intervention is required. |
-| False | `EndpointUnreachable` | The webhook Service has no Endpoints — usually because the operator Pod is not Ready. |
+| False | `EndpointUnreachable` | The webhook Service has no Endpoints: usually because the operator Pod is not Ready. |
 | Unknown | `SelfCheckPending` | First reconcile before the self-check has run. |
 
 Troubleshooting: `kubectl get validatingwebhookconfiguration,mutatingwebhookconfiguration | grep hermes` and `kubectl logs -n hermes-operator deploy/hermes-operator-controller-manager`.
@@ -763,7 +763,7 @@ Phase derives from these conditions: `Applied → Applied`, `Denied → Denied`,
 | Status | Reason | When |
 |---|---|---|
 | True | `AwaitingInstanceReady` | The parent instance is not yet `Ready=True`. The SelfConfig reconciler defers application until it is. Prevents racing the initial bring-up. |
-| True | `RateLimited` | More than 5 SelfConfigs per minute for the same instance — back off. Reset after the burst window passes. |
+| True | `RateLimited` | More than 5 SelfConfigs per minute for the same instance: back off. Reset after the burst window passes. |
 
 Troubleshooting: `kubectl get hsc -n <ns>` shows the phase. `kubectl describe hsc <name>` shows `status.denyReason` or the conditions detail.
 
@@ -777,16 +777,16 @@ Troubleshooting: `kubectl get hsc -n <ns>` shows the phase. `kubectl describe hs
 |---|---|---|
 | True | `Applied` | The singleton `cluster` exists, passes validation, and the defaulting webhook is using it on every admission. `status.observedGeneration == metadata.generation`. |
 | False | `WrongName` | A `HermesClusterDefaults` exists with a name other than `cluster`. The validating webhook rejects new ones; this condition exists for legacy resources created before the webhook was installed. |
-| (absent) | — | No `HermesClusterDefaults` exists in the cluster. The defaulter falls back to its built-in fallback defaults. |
+| (absent) |: | No `HermesClusterDefaults` exists in the cluster. The defaulter falls back to its built-in fallback defaults. |
 
 ### `Invalid`
 
 | Status | Reason | When |
 |---|---|---|
-| True | `SchemaViolation` | A field on the singleton fails server-side validation (e.g. negative quantity, malformed cron). The defaulter ignores invalid fields and uses fallback values for them — the rest of the singleton still applies. `message` lists the offending JSON paths. |
+| True | `SchemaViolation` | A field on the singleton fails server-side validation (e.g. negative quantity, malformed cron). The defaulter ignores invalid fields and uses fallback values for them: the rest of the singleton still applies. `message` lists the offending JSON paths. |
 | True | `ImagePullSecretMissing` | `spec.registry.pullSecretName` does not resolve in the operator's namespace. Defaulter skips that field. |
 
-The two conditions can both be `True` simultaneously — `Active=True` (defaults are applied) and `Invalid=True` (some fields are skipped). Dashboards key on `Invalid` for alerting.
+The two conditions can both be `True` simultaneously: `Active=True` (defaults are applied) and `Invalid=True` (some fields are skipped). Dashboards key on `Invalid` for alerting.
 
 ---
 
@@ -809,7 +809,7 @@ grep -hEo 'Type:[[:space:]]*"[A-Za-z]+"' docs/superpowers/plans/2026-05-12-herme
   | sort -u
 ```
 
-Every type printed must appear as a `###` heading in `docs/conditions.md`. If something is missing (Plans 2 and 3 are still being rewritten in parallel — they may add a condition this plan did not foresee), add a section in the same shape as the others.
+Every type printed must appear as a `###` heading in `docs/conditions.md`. If something is missing (Plans 2 and 3 are still being rewritten in parallel: they may add a condition this plan did not foresee), add a section in the same shape as the others.
 
 - [ ] **Step 4: Commit**
 
@@ -820,7 +820,7 @@ git commit -m "docs(conditions): consolidated, exhaustive condition catalogue fo
 
 ---
 
-## Task 4: `ROADMAP.md` — public roadmap
+## Task 4: `ROADMAP.md`: public roadmap
 
 **Files:**
 - Create: `ROADMAP.md`
@@ -837,7 +837,7 @@ git checkout -b docs/roadmap
 - [ ] **Step 2: Write `ROADMAP.md`**
 
 ```markdown
-# Hermes Operator — Roadmap
+# Hermes Operator: Roadmap
 
 > Public, non-binding roadmap. Things on this list may shift between minor
 > releases. The v1 API stability contract in
@@ -863,7 +863,7 @@ adapted to hermes-agent's Python/uv runtime") items are in v1.0.0:
 - `HermesClusterDefaults` cluster-scoped singleton with the defaulting
   webhook that fills `nil` fields only (never overrides).
 - StatefulSet-based runtime with explicit Kubernetes defaults set in every
-  builder (no generation thrash on update — Reconcile Guard CI enforces).
+  builder (no generation thrash on update: Reconcile Guard CI enforces).
 - Default-deny NetworkPolicy + per-gateway allow rules.
 - S3-compatible scheduled / on-delete / pre-update backups; declarative
   one-shot restore via `spec.restoreFrom`.
@@ -894,13 +894,13 @@ introduce breaking changes to `hermes.agent/v1`.
 A `kubectl` plugin (`kubectl hermes`) installable via
 [krew](https://krew.sigs.k8s.io/). Initial commands:
 
-- `kubectl hermes diag <instance>` — pull conditions + recent events +
+- `kubectl hermes diag <instance>`: pull conditions + recent events +
   pod status + recent logs into a single triage report.
-- `kubectl hermes shell <instance>` — `kubectl attach` shortcut for the
+- `kubectl hermes shell <instance>`: `kubectl attach` shortcut for the
   optional web-terminal sidecar.
-- `kubectl hermes snapshot <instance>` — manual one-shot backup outside
+- `kubectl hermes snapshot <instance>`: manual one-shot backup outside
   the schedule.
-- `kubectl hermes migrate-from-openclaw <openclaw-instance>` — generate a
+- `kubectl hermes migrate-from-openclaw <openclaw-instance>`: generate a
   starter `HermesInstance` YAML with the right `migration.fromOpenClaw`
   sub-spec for the source.
 
@@ -941,7 +941,7 @@ periodic basis as Kubernetes Events on the instance:
 - "Provider X is timing out > 1%/h; consider a fallback in spec.providers
   ordering."
 
-Recommendations are advisory — the operator never auto-changes provider
+Recommendations are advisory: the operator never auto-changes provider
 config. Cost data needs an explicit `spec.observability.cost.enabled=true`
 opt-in for privacy reasons.
 
@@ -954,7 +954,7 @@ specific minor:
 
 A `HermesInstanceMirror` CRD that, when applied in a "primary" cluster,
 keeps a 1:1 mirror running in N "secondary" clusters with automatic
-failover. Non-trivial — depends on a clean way to share PVC contents
+failover. Non-trivial: depends on a clean way to share PVC contents
 (velero-based or via the existing backup/restore pipeline).
 
 Design constraint: must not require a control plane outside Kubernetes.
@@ -973,7 +973,7 @@ pods, configurable to keep running while the main agent scales to zero
 and pass the event through on wake).
 
 Note this is design §NG2 explicitly *not* about Modal/Daytona-style
-hibernation — it stays Kubernetes-native.
+hibernation: it stays Kubernetes-native.
 
 ### Per-gateway operator sub-modes
 
@@ -985,7 +985,7 @@ adds a new CRD alongside.
 
 ## Non-goals
 
-From design spec §1 — these are deliberately not on the roadmap:
+From design spec §1: these are deliberately not on the roadmap:
 
 - **Multi-cluster federation as a hard product feature** beyond the
   "future" item above. Single-cluster control loop only by default.
@@ -1035,7 +1035,7 @@ git commit -m "docs: public roadmap (shipped / planned / future / non-goals)"
 **Files:**
 - Modify: `README.md`
 
-Plan 1 created a bare README with quickstart + feature checklist. Plans 2–6 appended feature-table rows as features landed. Plan 7 rewrites the file from scratch into the v1 landing page: hero/banner placeholder, badges, quickstart, Mermaid architecture diagram, comprehensive feature table, worked SelfConfig example, links to docs.
+Plan 1 created a bare README with quickstart + feature checklist. Plans 2-6 appended feature-table rows as features landed. Plan 7 rewrites the file from scratch into the v1 landing page: hero/banner placeholder, badges, quickstart, Mermaid architecture diagram, comprehensive feature table, worked SelfConfig example, links to docs.
 
 The shape mirrors the openclaw-operator README (which it was inspired by); the content is hermes-specific.
 
@@ -1059,7 +1059,7 @@ Replace `README.md` with the following. Section order is fixed.
     will render the alt text below.
   -->
   <img src="docs/images/hermes-banner.svg"
-       alt="Hermes Operator — Kubernetes-native lifecycle for nousresearch/hermes-agent"
+       alt="Hermes Operator: Kubernetes-native lifecycle for nousresearch/hermes-agent"
        width="720" />
 </p>
 
@@ -1075,13 +1075,13 @@ Replace `README.md` with the following. Section order is fixed.
 </p>
 
 Kubernetes operator for [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent)
-— a Python-based self-improving multi-platform AI agent. Declarative spec,
+: a Python-based self-improving multi-platform AI agent. Declarative spec,
 opinionated security defaults, S3 backups, OCI-registry auto-update,
 SSA-based GitOps coexistence, and a one-shot migration path from
 openclaw-operator.
 
 `hermes-operator` ships as v1.0.0 with [v1 stability commitments](docs/api-versioning.md)
-in place from day one — no v0.x grind.
+in place from day one: no v0.x grind.
 
 > Inspired by [openclaw-rocks/openclaw-operator](https://github.com/openclaw-rocks/openclaw-operator);
 > openclaw lessons #437, #446, #433, #471, #479, #458, #469 (and many more)
@@ -1182,13 +1182,13 @@ deny NetworkPolicy. The `HermesSelfConfig` controller uses Server-Side Apply
 under field manager `hermes.agent/selfconfig`, so FluxCD/Argo can own the
 parent `HermesInstance` for other fields without flap. `HermesClusterDefaults`
 is a cluster-scoped singleton (name **must** be `cluster`) that fills `nil`
-fields only — explicit values on the instance always win.
+fields only: explicit values on the instance always win.
 
 ## Features
 
 | Area | Feature | Notes |
 |---|---|---|
-| **Declarative** | Single `HermesInstance` CR drives the whole stack | StatefulSet, Service, PVC, NetworkPolicy, ConfigMap, PDB, HPA, ServiceMonitor, Honcho deploy, backup CronJob — all owned and reconciled. |
+| **Declarative** | Single `HermesInstance` CR drives the whole stack | StatefulSet, Service, PVC, NetworkPolicy, ConfigMap, PDB, HPA, ServiceMonitor, Honcho deploy, backup CronJob: all owned and reconciled. |
 | **Declarative** | `HermesClusterDefaults` for cluster-wide defaults | Defaulting webhook fills `nil` fields only. |
 | **Adaptive** | `HermesSelfConfig` for audited agent-initiated mutations | SSA under field manager `hermes.agent/selfconfig`. Policy-gated by `spec.selfConfigure.protectedKeys`. |
 | **Adaptive** | OCI-registry-driven auto-update | Channel-pinned polling, pre-update backup, probe-failure rollback. |
@@ -1253,7 +1253,7 @@ kubectl get hsc -n agents
 
 The audit trail lives in `kubectl describe hsc install-finance-skill` and on
 the instance via the per-field SSA field manager
-`hermes.agent/selfconfig` — `kubectl get hi my-hermes -o jsonpath='{.metadata.managedFields}'`
+`hermes.agent/selfconfig`: `kubectl get hi my-hermes -o jsonpath='{.metadata.managedFields}'`
 shows exactly which fields the agent owns vs. Flux owns vs. you own.
 
 See [`examples/`](examples/) for end-to-end recipes.
@@ -1278,14 +1278,14 @@ minor release. Patch releases never change the supported matrix.
 
 ## Documentation
 
-- [Design spec](docs/superpowers/specs/2026-05-12-hermes-operator-design.md) — the canonical product/architecture doc.
-- [API reference](docs/api-reference.md) — every field on every CR.
-- [Condition catalogue](docs/conditions.md) — every status condition, reason code, troubleshooting hint.
-- [API versioning policy](docs/api-versioning.md) — what is and is not a breaking change.
-- [Deprecation policy](docs/deprecations.md) — the 3-step flow + active deprecations.
-- [Roadmap](ROADMAP.md) — shipped, planned, future, non-goals.
-- [Examples](examples/) — 9 worked YAML recipes.
-- [Grafana dashboard](docs/grafana/) — operator-overview dashboard JSON.
+- [Design spec](docs/superpowers/specs/2026-05-12-hermes-operator-design.md): the canonical product/architecture doc.
+- [API reference](docs/api-reference.md): every field on every CR.
+- [Condition catalogue](docs/conditions.md): every status condition, reason code, troubleshooting hint.
+- [API versioning policy](docs/api-versioning.md): what is and is not a breaking change.
+- [Deprecation policy](docs/deprecations.md): the 3-step flow + active deprecations.
+- [Roadmap](ROADMAP.md): shipped, planned, future, non-goals.
+- [Examples](examples/): 9 worked YAML recipes.
+- [Grafana dashboard](docs/grafana/): operator-overview dashboard JSON.
 
 ## Contributing
 
@@ -1306,18 +1306,18 @@ Apache-2.0. See [`LICENSE`](LICENSE).
 
 - [ ] **Step 2: Banner placeholder note**
 
-The banner image at `docs/images/hermes-banner.svg` is intentionally not committed in this task — it is design work, and the README inline comment tells the next contributor how to render one. GitHub renders the `alt=` text in the meantime, which is acceptable.
+The banner image at `docs/images/hermes-banner.svg` is intentionally not committed in this task: it is design work, and the README inline comment tells the next contributor how to render one. GitHub renders the `alt=` text in the meantime, which is acceptable.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add README.md
-git commit -m "docs: v1 README — badges, mermaid diagram, comprehensive feature table"
+git commit -m "docs: v1 README: badges, mermaid diagram, comprehensive feature table"
 ```
 
 ---
 
-## Task 6: `examples/README.md` — index of worked examples
+## Task 6: `examples/README.md`: index of worked examples
 
 **Files:**
 - Create: `examples/README.md`
@@ -1333,19 +1333,19 @@ mkdir -p examples
 Write `examples/README.md`:
 
 ```markdown
-# Hermes Operator — Examples
+# Hermes Operator: Examples
 
 End-to-end worked YAML recipes. Every example folder contains a `README.md`
 explaining the scenario and one or more manifests you can `kubectl apply` in
 order.
 
 All examples assume the operator and CRDs are already installed (see the
-[Quickstart](../README.md#quickstart)) and target the `agents` namespace —
+[Quickstart](../README.md#quickstart)) and target the `agents` namespace:
 adjust as needed.
 
 | Example | Scenario |
 |---|---|
-| [`minimal/`](minimal/) | Smallest possible `HermesInstance` — image + PVC, no gateways. |
+| [`minimal/`](minimal/) | Smallest possible `HermesInstance`: image + PVC, no gateways. |
 | [`full-featured/`](full-featured/) | Every sub-spec exercised at least once: gateways, Honcho, auto-update, backup, observability, scheduling. |
 | [`multi-platform/`](multi-platform/) | Telegram + Discord + Slack + WhatsApp + Signal all enabled. |
 | [`honcho/`](honcho/) | Honcho profile store enabled with persistence. |
@@ -1356,7 +1356,7 @@ adjust as needed.
 | [`cluster-defaults/`](cluster-defaults/) | `HermesClusterDefaults` singleton with image/storage/observability defaults. |
 
 If you have a scenario you would like to see worked through, open an issue
-tagged `examples` or a PR — the format is intentionally small so additions
+tagged `examples` or a PR: the format is intentionally small so additions
 are cheap.
 ```
 
@@ -1369,13 +1369,13 @@ git commit -m "docs(examples): index of worked example scenarios"
 
 ---
 
-## Task 7: `examples/minimal/` — smallest possible instance
+## Task 7: `examples/minimal/`: smallest possible instance
 
 **Files:**
 - Create: `examples/minimal/README.md`
 - Create: `examples/minimal/hermesinstance.yaml`
 
-The "hello world" — image, persistence, nothing else. Used as a smoke test from the README quickstart.
+The "hello world": image, persistence, nothing else. Used as a smoke test from the README quickstart.
 
 - [ ] **Step 1: Create the folder**
 
@@ -1459,13 +1459,13 @@ git commit -m "docs(examples): minimal HermesInstance recipe"
 
 ---
 
-## Task 8: `examples/full-featured/` — every sub-spec touched
+## Task 8: `examples/full-featured/`: every sub-spec touched
 
 **Files:**
 - Create: `examples/full-featured/README.md`
 - Create: `examples/full-featured/hermesinstance.yaml`
 
-Reference example exercising every top-level sub-spec at least once. Not intended as a recommended starting config — its job is to demonstrate the surface.
+Reference example exercising every top-level sub-spec at least once. Not intended as a recommended starting config: its job is to demonstrate the surface.
 
 - [ ] **Step 1: Create the folder and README**
 
@@ -1477,7 +1477,7 @@ mkdir -p examples/full-featured
 # Full-featured `HermesInstance`
 
 A deliberately maximal example: every top-level sub-spec is exercised at
-least once. **Do not copy this into production as-is** — it is for
+least once. **Do not copy this into production as-is**: it is for
 discovery. Start from [`minimal/`](../minimal/) and add only what you
 need.
 
@@ -1488,7 +1488,7 @@ This example references several Secrets that you must create first:
 ```bash
 kubectl create namespace agents
 
-# Gateway tokens (placeholder values — replace with real ones).
+# Gateway tokens (placeholder values: replace with real ones).
 kubectl create secret generic hermes-telegram \
   -n agents --from-literal=token=REPLACE_WITH_TELEGRAM_BOT_TOKEN
 kubectl create secret generic hermes-discord \
@@ -1545,7 +1545,7 @@ kubectl apply -n agents -f hermesinstance.yaml
 | `sidecars` | One custom sidecar. |
 | `extraVolumes` / `extraVolumeMounts` | Extra hostPath for tracing. |
 | `envFrom` / `env` | A configMapRef + a literal env var. |
-| `suspended` | Set to `false` (default) — flip to `true` to scale to zero. |
+| `suspended` | Set to `false` (default): flip to `true` to scale to zero. |
 
 The corresponding conditions on `kubectl describe hi full-featured` are:
 `Ready`, `StorageReady`, `ConfigReady`, `SecretsReady`, `NetworkPolicyReady`,
@@ -1780,7 +1780,7 @@ git commit -m "docs(examples): full-featured HermesInstance reference"
 
 ---
 
-## Task 9: `examples/multi-platform/` — five gateways
+## Task 9: `examples/multi-platform/`: five gateways
 
 **Files:**
 - Create: `examples/multi-platform/README.md`
@@ -1955,7 +1955,7 @@ git commit -m "docs(examples): multi-platform gateway recipe (all five enabled)"
 
 ---
 
-## Task 10: `examples/honcho/` — Honcho profile store
+## Task 10: `examples/honcho/`: Honcho profile store
 
 **Files:**
 - Create: `examples/honcho/README.md`
@@ -2065,7 +2065,7 @@ git commit -m "docs(examples): Honcho profile store recipe"
 
 ---
 
-## Task 11: `examples/auto-update/` — channel-pinned auto-update
+## Task 11: `examples/auto-update/`: channel-pinned auto-update
 
 **Files:**
 - Create: `examples/auto-update/README.md`
@@ -2083,7 +2083,7 @@ mkdir -p examples/auto-update
 # OCI-registry auto-update with rollback
 
 Auto-update polls the OCI registry on a `pollInterval`, picks the highest
-tag in the channel (here, `1.x` — anything `1.*.*`), takes a pre-update
+tag in the channel (here, `1.x`: anything `1.*.*`), takes a pre-update
 backup, and rolls the StatefulSet forward. If the new image fails
 readiness probes more than `probeFailureThreshold` times within the
 deadline, the operator rolls back automatically and records the failed
@@ -2214,7 +2214,7 @@ git commit -m "docs(examples): auto-update with rollback recipe"
 
 ---
 
-## Task 12: `examples/backup-s3/` — S3 backups via MinIO on kind
+## Task 12: `examples/backup-s3/`: S3 backups via MinIO on kind
 
 **Files:**
 - Create: `examples/backup-s3/README.md`
@@ -2252,7 +2252,7 @@ kubectl apply -n agents -f minio.yaml
 kubectl apply -n agents -f s3-credentials.yaml
 kubectl wait -n agents --for=condition=complete job/minio-mkbucket --timeout=60s
 
-# 3. Apply the HermesInstance — it begins backing up immediately on first
+# 3. Apply the HermesInstance: it begins backing up immediately on first
 #    reconcile, and again every 10 minutes per the schedule.
 kubectl apply -n agents -f hermesinstance.yaml
 ```
@@ -2436,7 +2436,7 @@ git commit -m "docs(examples): S3 backups on kind via MinIO"
 
 ---
 
-## Task 13: `examples/migration-from-openclaw/` — both source modes
+## Task 13: `examples/migration-from-openclaw/`: both source modes
 
 **Files:**
 - Create: `examples/migration-from-openclaw/README.md`
@@ -2461,13 +2461,13 @@ is set. The field becomes immutable after `MigrationCompleted=True`.
 
 Two sources are supported:
 
-1. **Sibling in-cluster `OpenClawInstance`** — when openclaw-operator is
+1. **Sibling in-cluster `OpenClawInstance`**: when openclaw-operator is
    still installed in the cluster (typical for an in-place cutover).
-2. **S3 backup snapshot** — when openclaw is already gone and you only
+2. **S3 backup snapshot**: when openclaw is already gone and you only
    have the snapshot.
 
 You cannot combine `spec.migration.fromOpenClaw` with `spec.restoreFrom`
-on the same instance — the validator rejects this combination because
+on the same instance: the validator rejects this combination because
 the order of operations is ambiguous. To do both, run two instances and
 join the data manually.
 
@@ -2515,11 +2515,11 @@ The hermes-agent importer migrates:
 
 - The workspace tree (everything under `~/.openclaw/workspace` becomes
   `~/.hermes/workspace`).
-- The session-memory SQLite (mapped through a schema shim — the importer
+- The session-memory SQLite (mapped through a schema shim: the importer
   upgrades FTS5 indexes in place).
 - Skills (anything in `~/.openclaw/skills` that has a `hermes-compatible: true`
   marker in its `metadata.yaml`; everything else is logged and skipped).
-- Config — `~/.openclaw/config.yaml` is translated through a known field
+- Config: `~/.openclaw/config.yaml` is translated through a known field
   map.
 
 It does **not** migrate:
@@ -2607,7 +2607,7 @@ git commit -m "docs(examples): OpenClaw migration recipes (sibling + backup)"
 
 ---
 
-## Task 14: `examples/gitops-fluxcd/` — FluxCD + SelfConfig coexistence
+## Task 14: `examples/gitops-fluxcd/`: FluxCD + SelfConfig coexistence
 
 **Files:**
 - Create: `examples/gitops-fluxcd/README.md`
@@ -2797,7 +2797,7 @@ git commit -m "docs(examples): FluxCD + HermesSelfConfig coexistence recipe"
 
 ---
 
-## Task 15: `examples/cluster-defaults/` — `HermesClusterDefaults` singleton
+## Task 15: `examples/cluster-defaults/`: `HermesClusterDefaults` singleton
 
 **Files:**
 - Create: `examples/cluster-defaults/README.md`
@@ -2814,11 +2814,11 @@ mkdir -p examples/cluster-defaults
 `examples/cluster-defaults/README.md`:
 
 ```markdown
-# `HermesClusterDefaults` — cluster-wide defaults
+# `HermesClusterDefaults`: cluster-wide defaults
 
 The defaulting webhook fills `nil` fields on every `HermesInstance` from
 the cluster-scoped singleton named `cluster`. Explicit values on the
-instance always win — `HermesClusterDefaults` never overrides.
+instance always win: `HermesClusterDefaults` never overrides.
 
 Use this to:
 
@@ -2844,7 +2844,7 @@ kubectl apply -f clusterdefaults.yaml
 kubectl get hcd cluster -o jsonpath='{.status.conditions[?(@.type=="Active")]}'
 # { "status":"True", "reason":"Applied", ... }
 
-# Apply a minimal HermesInstance that omits image, storage, networking —
+# Apply a minimal HermesInstance that omits image, storage, networking:
 # they will all be filled by the defaults.
 kubectl create namespace agents
 kubectl apply -n agents -f - <<'YAML'
@@ -2881,7 +2881,7 @@ kubectl get hi defaulted -n agents -o jsonpath='{.spec.image}'
 The defaulter runs once per admission, *before* the validator. Defaults
 filled from `HermesClusterDefaults` are persisted to etcd as part of the
 admitted object. Editing the singleton later does not retroactively
-re-default existing objects — only new admissions pick up the new
+re-default existing objects: only new admissions pick up the new
 defaults. This is intentional and matches how `LimitRange` works.
 
 To force-resync, re-apply the affected instances with `kubectl replace`.
@@ -2937,14 +2937,14 @@ git commit -m "docs(examples): HermesClusterDefaults singleton recipe"
 
 ---
 
-## Task 16: `docs/grafana/hermes-operator-overview.json` — dashboard
+## Task 16: `docs/grafana/hermes-operator-overview.json`: dashboard
 
 **Files:**
 - Create: `docs/grafana/hermes-operator-overview.json`
 
 Single Grafana dashboard covering operator metrics, per-instance health, backup metrics, auto-update metrics, and SelfConfig metrics. Variables: `namespace`, `instance`.
 
-The metric names match what Plan 2 instruments via `internal/controller/metrics.go` and what Plans 4 and 5 add for SelfConfig/backup/auto-update. If a metric name in this JSON does not yet exist in the operator, that's the operator's job to add — the dashboard is the contract.
+The metric names match what Plan 2 instruments via `internal/controller/metrics.go` and what Plans 4 and 5 add for SelfConfig/backup/auto-update. If a metric name in this JSON does not yet exist in the operator, that's the operator's job to add: the dashboard is the contract.
 
 - [ ] **Step 1: Branch**
 
@@ -2958,7 +2958,7 @@ mkdir -p docs/grafana
 
 ```json
 {
-  "title": "Hermes Operator — Overview",
+  "title": "Hermes Operator: Overview",
   "uid": "hermes-operator-overview",
   "schemaVersion": 39,
   "version": 1,
@@ -3107,7 +3107,7 @@ mkdir -p docs/grafana
     {
       "id": 12,
       "type": "table",
-      "title": "Instances — image, scale, restart count, conditions",
+      "title": "Instances: image, scale, restart count, conditions",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "gridPos": { "h": 10, "w": 18, "x": 6, "y": 18 },
       "targets": [
@@ -3310,7 +3310,7 @@ mkdir -p docs/grafana
       "targets": [
         {
           "expr": "sum by (namespace, instance, outcome) (rate(hermes_selfconfig_outcomes_total{namespace=~\"$namespace\",instance=~\"$instance\"}[5m]))",
-          "legendFormat": "{{namespace}}/{{instance}} — {{outcome}}"
+          "legendFormat": "{{namespace}}/{{instance}}: {{outcome}}"
         }
       ]
     },
@@ -3348,7 +3348,7 @@ git commit -m "docs(grafana): operator-overview dashboard JSON"
 
 ---
 
-## Task 17: `docs/grafana/README.md` — import + variables
+## Task 17: `docs/grafana/README.md`: import + variables
 
 **Files:**
 - Create: `docs/grafana/README.md`
@@ -3356,7 +3356,7 @@ git commit -m "docs(grafana): operator-overview dashboard JSON"
 - [ ] **Step 1: Write the README**
 
 ```markdown
-# Hermes Operator — Grafana dashboards
+# Hermes Operator: Grafana dashboards
 
 Currently one dashboard: `hermes-operator-overview.json`. The library will
 grow in v1.1+ (see [ROADMAP.md](../../ROADMAP.md)).
@@ -3440,12 +3440,12 @@ git commit -m "docs(grafana): import instructions + variable reference"
 
 ---
 
-## Task 18: `CHANGELOG.md` — polish the v1.0.0 entry
+## Task 18: `CHANGELOG.md`: polish the v1.0.0 entry
 
 **Files:**
 - Modify: `CHANGELOG.md`
 
-`release-please` auto-generates the v1.0.0 entry from the commits on `main` since the previous tag. Most of those commits will be from Plans 1–6 plus the doc/example commits in this plan. The auto-generated entry is fine for routine releases; for v1.0.0 (the very first public release) we polish it so the GitHub Releases page reads as a launch announcement rather than a commit-firehose.
+`release-please` auto-generates the v1.0.0 entry from the commits on `main` since the previous tag. Most of those commits will be from Plans 1-6 plus the doc/example commits in this plan. The auto-generated entry is fine for routine releases; for v1.0.0 (the very first public release) we polish it so the GitHub Releases page reads as a launch announcement rather than a commit-firehose.
 
 This task happens **after** all other documentation tasks but **before** the release PR is merged (Task 19). Run it on the release PR that release-please has open.
 
@@ -3459,7 +3459,7 @@ gh pr checkout <PR_NUMBER>
 
 - [ ] **Step 2: Polish `CHANGELOG.md`**
 
-Locate the auto-generated `## [1.0.0]` block at the top of the file. Replace it with the polished version below, preserving the commit hash links release-please inserted (you can re-derive them from the auto-generated text — keep the `[abc1234]` style links, just rearrange them).
+Locate the auto-generated `## [1.0.0]` block at the top of the file. Replace it with the polished version below, preserving the commit hash links release-please inserted (you can re-derive them from the auto-generated text: keep the `[abc1234]` style links, just rearrange them).
 
 ```markdown
 ## [1.0.0](https://github.com/stubbi/hermes-operator/releases/tag/v1.0.0) (2026-05-XX)
@@ -3473,8 +3473,8 @@ Honcho profile-store companion, an SSA-based `HermesSelfConfig` API for
 agent-initiated mutations, and a one-shot OpenClaw → Hermes migration
 path.
 
-The v1 stability contract — API versioning policy, deprecation policy,
-exhaustive condition catalogue, conversion-webhook scaffolding — is in
+The v1 stability contract: API versioning policy, deprecation policy,
+exhaustive condition catalogue, conversion-webhook scaffolding: is in
 place from day one. See
 [docs/api-versioning.md](docs/api-versioning.md) and
 [docs/deprecations.md](docs/deprecations.md).
@@ -3499,7 +3499,7 @@ writable subPaths (openclaw #458).
   auto-managed when `replicas > 1`, read-only root filesystem with
   writable `emptyDir`s for `/tmp` and `~/.config`.
 - **Multi-platform gateways:** Telegram, Discord, Slack, WhatsApp,
-  Signal — each with its own Secret reference, rotatable independently.
+  Signal: each with its own Secret reference, rotatable independently.
 - **Day-2 operations:** S3-compatible backups (scheduled / on-delete /
   pre-update), declarative one-shot restore (`spec.restoreFrom`),
   OCI-registry-driven auto-update with probe-failure rollback, one-shot
@@ -3530,8 +3530,8 @@ writable subPaths (openclaw #458).
 
 This is a clean-room operator built specifically for hermes-agent. The
 [openclaw-rocks/openclaw-operator](https://github.com/openclaw-rocks/openclaw-operator)
-project — which shipped a similar lifecycle operator for OpenClaw,
-evolving through v0.5 → v0.32 with substantial production feedback —
+project: which shipped a similar lifecycle operator for OpenClaw,
+evolving through v0.5 → v0.32 with substantial production feedback:
 served as the reference for the *shape* of this product: which surfaces
 matter, which lessons stick, and which guardrails are non-negotiable.
 The hermes-specific surfaces (Python/uv runtime, multi-platform
@@ -3555,7 +3555,7 @@ git commit -m "docs(changelog): polish v1.0.0 release entry for launch"
 git push
 ```
 
-This pushes to the release-please branch. release-please does not regenerate `CHANGELOG.md` on push (its workflow only edits the file when it next opens or refreshes the PR — and the PR is already open). The polished CHANGELOG ships when the PR merges.
+This pushes to the release-please branch. release-please does not regenerate `CHANGELOG.md` on push (its workflow only edits the file when it next opens or refreshes the PR: and the PR is already open). The polished CHANGELOG ships when the PR merges.
 
 ---
 
@@ -3646,7 +3646,7 @@ Plan 6 installs an `operatorhub-submit` workflow that, on every minor release, o
 gh run list --repo stubbi/hermes-operator --workflow=operatorhub-submit.yaml
 ```
 
-It should have a successful run keyed to the `v1.0.0` tag. If it didn't fire, check that the workflow's trigger expression accepts `1.0.0` (it should — minor releases are `*.*.0`).
+It should have a successful run keyed to the `v1.0.0` tag. If it didn't fire, check that the workflow's trigger expression accepts `1.0.0` (it should: minor releases are `*.*.0`).
 
 - [ ] **Step 2: Find the upstream PRs**
 
@@ -3698,7 +3698,7 @@ Open https://github.com/stubbi/hermes-operator and confirm:
 
 - The "Release" badge shows `v1.0.0`.
 - The "CI" and "E2E" and "Conformance" badges are green.
-- The "Kubernetes versions" badge reads `1.28–1.32`.
+- The "Kubernetes versions" badge reads `1.28-1.32`.
 - The "Go version" badge matches `go.mod`.
 
 - [ ] **Step 2: Pin v1.0.0 in install instructions**
@@ -3731,7 +3731,7 @@ Insert immediately above the `## Quickstart` heading:
 
 ```markdown
 > **Latest release:** [v1.0.0](https://github.com/stubbi/hermes-operator/releases/tag/v1.0.0)
-> — supports Kubernetes 1.28–1.32 and hermes-agent 1.x.
+>: supports Kubernetes 1.28-1.32 and hermes-agent 1.x.
 ```
 
 - [ ] **Step 4: Commit**
@@ -3740,14 +3740,14 @@ Insert immediately above the `## Quickstart` heading:
 git checkout -b docs/readme-v1.0.0-pin
 git add README.md
 git commit -m "docs(readme): pin v1.0.0 in quickstart, add latest-release note"
-gh pr create --title "docs(readme): pin v1.0.0 in quickstart" --body "First post-release polish — pin chart version in quickstart and link to the v1.0.0 release notes."
+gh pr create --title "docs(readme): pin v1.0.0 in quickstart" --body "First post-release polish: pin chart version in quickstart and link to the v1.0.0 release notes."
 ```
 
 Merge once CI is green.
 
 ---
 
-## Task 22: `docs/launch-announcement.md` — short launch draft
+## Task 22: `docs/launch-announcement.md`: short launch draft
 
 **Files:**
 - Create: `docs/launch-announcement.md`
@@ -3764,7 +3764,7 @@ git checkout -b docs/launch-announcement
 - [ ] **Step 2: Write the draft**
 
 ```markdown
-# Hermes Operator v1.0.0 — launch announcement draft
+# Hermes Operator v1.0.0: launch announcement draft
 
 > Short, factual, no marketing fluff. Edit per channel before posting; do
 > not auto-post.
@@ -3785,8 +3785,8 @@ What you get on day one:
 - S3 backups (scheduled / on-delete / pre-update), declarative one-shot
   restore, OCI-registry auto-update with rollback.
 - One-shot migration from openclaw-operator.
-- v1 stability contract — API versioning policy, deprecation policy,
-  exhaustive condition catalogue, conversion-webhook scaffolding — in
+- v1 stability contract: API versioning policy, deprecation policy,
+  exhaustive condition catalogue, conversion-webhook scaffolding: in
   place from day one.
 - Helm chart + OLM bundle (OperatorHub) + plain kustomize manifests.
   Multi-arch Cosign-signed images with SBOM.
@@ -3795,13 +3795,13 @@ What you get on day one:
 
 This operator is heavily informed by
 [`openclaw-rocks/openclaw-operator`](https://github.com/openclaw-rocks/openclaw-operator)
-— a similar lifecycle operator that evolved through v0.5 → v0.32 with
+: a similar lifecycle operator that evolved through v0.5 → v0.32 with
 substantial production feedback. The v0.x grind taught a lot. v1.0 of
 hermes-operator skips that grind by baking the lessons in directly:
 
 - Server-Side Apply on the SelfConfig path from day one (openclaw #433).
 - Explicit Kubernetes defaults set in every builder so reconciliation
-  is idempotent — `metadata.generation` does not change after the first
+  is idempotent: `metadata.generation` does not change after the first
   reconcile (openclaw #437 plus a CI test that would have caught it).
 - Finalizer mutations via `r.Patch` rather than `r.Update` (openclaw
   #437 root cause).
@@ -3844,9 +3844,9 @@ reports go to the GitHub security advisory flow (`SECURITY.md`).
 
 When the user posts this announcement:
 
-- [ ] HN: title "Show HN: Hermes Operator — Kubernetes-native lifecycle
+- [ ] HN: title "Show HN: Hermes Operator: Kubernetes-native lifecycle
       for nousresearch/hermes-agent". Body = the TL;DR section above.
-- [ ] r/kubernetes: title "Hermes Operator v1.0.0 — Kubernetes operator
+- [ ] r/kubernetes: title "Hermes Operator v1.0.0: Kubernetes operator
       for nousresearch/hermes-agent". Body = TL;DR + Links sections.
 - [ ] Kubernetes Slack `#operators`: paste the release notes URL plus the
       TL;DR section.
@@ -3868,7 +3868,7 @@ Merge once approved.
 
 ---
 
-## Task 23: `docs/post-launch-checklist.md` — first 30 days
+## Task 23: `docs/post-launch-checklist.md`: first 30 days
 
 **Files:**
 - Create: `docs/post-launch-checklist.md`
@@ -3878,7 +3878,7 @@ A short list of things to monitor in the first 30 days post-launch. Lives in-rep
 - [ ] **Step 1: Write the checklist**
 
 ```markdown
-# Hermes Operator — post-launch checklist (first 30 days)
+# Hermes Operator: post-launch checklist (first 30 days)
 
 Things to monitor and small follow-ups for the first 30 days after v1.0.0
 ships. None of these are committed surface; treat the list as a maintainer
@@ -3908,7 +3908,7 @@ diary.
 ## Week 2
 
 - [ ] **Grafana dashboard adoption.** If we have access to grafana.com
-      metrics (we don't yet — this is a v1.1 item), check the dashboard's
+      metrics (we don't yet: this is a v1.1 item), check the dashboard's
       install count. Until then, sample issue/Discussion traffic for
       mentions of the dashboard.
 - [ ] **Which examples get used.** GitHub repo insights → "Traffic" → see
@@ -3977,7 +3977,7 @@ Merge once approved.
 
 ---
 
-## Task 24: GATED — flip the repo public (manual confirmation required)
+## Task 24: GATED: flip the repo public (manual confirmation required)
 
 **Files:** none.
 
@@ -4006,14 +4006,14 @@ git log --all --pretty=format: --name-only --diff-filter=A | \
 #         docs/examples manifests, none of which contain real secrets).
 ```
 
-- [ ] **Step 2: Surface the command to the user — do NOT auto-execute**
+- [ ] **Step 2: Surface the command to the user: do NOT auto-execute**
 
 The agent posts the following message to the user and waits for an explicit
 "yes, flip it public" reply:
 
 > The hermes-operator repository is currently private. Flipping it to public
 > makes the v1.0.0 release, badges, and install URLs work for unauthenticated
-> users — this is the launch.
+> users: this is the launch.
 >
 > Run **manually**, only after confirming the launch is ready:
 >
@@ -4025,7 +4025,7 @@ The agent posts the following message to the user and waits for an explicit
 >
 > This action is irreversible-ish (re-privating a public repo is allowed by
 > GitHub but obviously breaks every link that the world has indexed in the
-> meantime — treat the flip as one-way).
+> meantime: treat the flip as one-way).
 >
 > The agent will NOT run this command automatically. Reply with explicit
 > confirmation, or run it yourself, before continuing.
@@ -4091,7 +4091,7 @@ references it claims to satisfy and a per-task delivery check.
       Plan 1 (`+kubebuilder:storageversion` marker, kustomize patches,
       `make conversion-stub` target).
 - [ ] **Spec §11.4 (Status condition catalogue):** delivered by Task 3
-      (`docs/conditions.md`). Every condition type emitted by Plans 1–5
+      (`docs/conditions.md`). Every condition type emitted by Plans 1-5
       is present. Reason codes enumerated. Aggregate `Ready` formula
       documented. Naming convention documented.
 - [ ] **Spec §11.5 (Supported Kubernetes versions):** documented in
@@ -4104,7 +4104,7 @@ references it claims to satisfy and a per-task delivery check.
       spec §1 mirrored.
 - [ ] **Spec §1.G1 (full feature parity at v1.0.0):** the v1.0.0
       `CHANGELOG.md` entry in Task 18 enumerates every shipped capability;
-      cross-check against Plans 1–6.
+      cross-check against Plans 1-6.
 - [ ] **Spec §1.G2 (v1 API stable from day one):** the combination of
       Tasks 1, 2, 3 codifies this commitment in documentation.
 
@@ -4130,7 +4130,7 @@ references it claims to satisfy and a per-task delivery check.
       reference is a comment-explained placeholder.
 - [ ] **Task 6** `examples/README.md` exists with a table indexing the
       nine example sub-directories.
-- [ ] **Tasks 7–15** Every `examples/<scenario>/` directory contains a
+- [ ] **Tasks 7-15** Every `examples/<scenario>/` directory contains a
       `README.md` and at least one YAML manifest. Each YAML manifest is
       individually `kubectl apply --dry-run=client` valid. Run:
       `for f in examples/*/*.yaml; do kubectl apply --dry-run=client -f "$f" >/dev/null || echo "BROKEN: $f"; done`.
@@ -4181,7 +4181,7 @@ references it claims to satisfy and a per-task delivery check.
 - [ ] The Mermaid diagram in `README.md` renders on GitHub
       (visual check on the rendered README after PR merge).
 - [ ] `ROADMAP.md` does NOT list anything that breaks `hermes.agent/v1`
-      — its commitment in §"Planned for v1.1+" preamble.
+     : its commitment in §"Planned for v1.1+" preamble.
 
 ### v1 stability self-test (this plan's reason to exist)
 
@@ -4195,7 +4195,7 @@ references it claims to satisfy and a per-task delivery check.
       `docs/api-versioning.md` § "Worked example".
 - [ ] If a maintainer needs to deprecate a field, the 3-step flow in
       Task 2 produces the exact CHANGELOG row, webhook warning, and
-      Godoc shape — no judgement calls.
+      Godoc shape: no judgement calls.
 - [ ] If a dashboard developer asks "which conditions can `HermesInstance`
       emit?", Task 3 answers exhaustively. No grep through controller
       source required.

@@ -1,7 +1,7 @@
 # Full-featured `HermesInstance`
 
 A deliberately maximal example: every top-level sub-spec is exercised at
-least once. **Do not copy this into production as-is** — it is for
+least once. **Do not copy this into production as-is**: it is for
 discovery. Start from [`minimal/`](../minimal/) and add only what you
 need.
 
@@ -12,7 +12,7 @@ This example references several Secrets that you must create first:
 ```bash
 kubectl create namespace agents
 
-# Gateway tokens (placeholder values — replace with real ones).
+# Gateway tokens (placeholder values: replace with real ones).
 kubectl create secret generic hermes-telegram \
   -n agents --from-literal=token=REPLACE_WITH_TELEGRAM_BOT_TOKEN
 kubectl create secret generic hermes-discord \
@@ -69,7 +69,7 @@ kubectl apply -n agents -f hermesinstance.yaml
 | `sidecars` | One custom sidecar. |
 | `extraVolumes` / `extraVolumeMounts` | Extra hostPath for tracing. |
 | `envFrom` / `env` | A configMapRef + a literal env var. |
-| `suspended` | Set to `false` (default) — flip to `true` to scale to zero. |
+| `suspended` | Set to `false` (default): flip to `true` to scale to zero. |
 
 The corresponding conditions on `kubectl describe hi full-featured` are:
 `Ready`, `StorageReady`, `ConfigReady`, `SecretsReady`, `NetworkPolicyReady`,

@@ -1,8 +1,8 @@
-# `HermesClusterDefaults` — cluster-wide defaults
+# `HermesClusterDefaults`: cluster-wide defaults
 
 The defaulting webhook fills `nil` fields on every `HermesInstance` from
 the cluster-scoped singleton named `cluster`. Explicit values on the
-instance always win — `HermesClusterDefaults` never overrides.
+instance always win: `HermesClusterDefaults` never overrides.
 
 Use this to:
 
@@ -28,7 +28,7 @@ kubectl apply -f clusterdefaults.yaml
 kubectl get hcd cluster -o jsonpath='{.status.conditions[?(@.type=="Active")]}'
 # { "status":"True", "reason":"Applied", ... }
 
-# Apply a minimal HermesInstance that omits image, storage, networking —
+# Apply a minimal HermesInstance that omits image, storage, networking:
 # they will all be filled by the defaults.
 kubectl create namespace agents
 kubectl apply -n agents -f - <<'YAML'
@@ -65,7 +65,7 @@ kubectl get hi defaulted -n agents -o jsonpath='{.spec.image}'
 The defaulter runs once per admission, *before* the validator. Defaults
 filled from `HermesClusterDefaults` are persisted to etcd as part of the
 admitted object. Editing the singleton later does not retroactively
-re-default existing objects — only new admissions pick up the new
+re-default existing objects: only new admissions pick up the new
 defaults. This is intentional and matches how `LimitRange` works.
 
 To force-resync, re-apply the affected instances with `kubectl replace`.

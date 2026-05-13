@@ -1,8 +1,8 @@
-# Hermes Operator — Plan 3: Hermes Runtime Specifics
+# Hermes Operator: Plan 3: Hermes Runtime Specifics
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Land every Python/uv-shaped runtime concern that distinguishes hermes-operator from openclaw-operator — build and publish the `ghcr.io/stubbi/hermes-agent` container image, wire `spec.runtime`/`spec.gateways`/`spec.profileStore` into the `HermesInstance` builders, stand up the Honcho companion service, and document the platform-gateway token surface — so that a `HermesInstance` declaring `gateways.telegram.enabled: true` + `profileStore.honcho.enabled: true` reconciles into a working hermes-agent pod with Honcho beside it, on a default-deny NetworkPolicy that allows exactly the upstream endpoints required.
+**Goal:** Land every Python/uv-shaped runtime concern that distinguishes hermes-operator from openclaw-operator: build and publish the `ghcr.io/stubbi/hermes-agent` container image, wire `spec.runtime`/`spec.gateways`/`spec.profileStore` into the `HermesInstance` builders, stand up the Honcho companion service, and document the platform-gateway token surface: so that a `HermesInstance` declaring `gateways.telegram.enabled: true` + `profileStore.honcho.enabled: true` reconciles into a working hermes-agent pod with Honcho beside it, on a default-deny NetworkPolicy that allows exactly the upstream endpoints required.
 
 **Architecture:** Three new builder files (`internal/resources/runtime_init.go`, `internal/resources/gateways.go`, `internal/resources/honcho.go`) extend the StatefulSet/ConfigMap/NetworkPolicy primitives from Plans 1+2. The agent image is built from the upstream Python package against a committed `uv.lock`, multi-arch via QEMU+buildx, signed and SBOM-attested by the same GoReleaser/Cosign pipeline Plan 1 set up for the operator image. Webhook warnings (not denials) cover secret-not-found cases so that GitOps users can apply a HermesInstance and its secrets in either order without races. The Honcho profile store runs as a sibling Deployment + headless Service + PVC in the same namespace as the HermesInstance, with NetworkPolicy isolating it to the parent hermes pod only.
 
@@ -10,7 +10,7 @@
 
 **Prerequisite:** Plans 1 (Foundation) and 2 (Full reconciler + webhooks) merged. Plan 2 must have shipped: full `spec.image`/`spec.config`/`spec.networking`/`spec.security`/`spec.env`/`spec.envFrom`/`spec.skills`/`spec.selfConfigure` typed sub-specs on `HermesInstanceSpec`; the `HermesInstance` validating webhook + defaulter wired through cert-manager; the workspace ConfigMap builder at `internal/resources/configmap.go` with a `workspace.go` companion file; `internal/resources/networkpolicy.go` returning a default-deny `NetworkPolicy` with a typed extension point (`func ExtraEgressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPolicyEgressRule`); the validator stub at `internal/webhook/hermesinstance_validator.go` that this plan extends; and the `+listType=map +listMapKey=name` markers on `spec.env`/`spec.envFrom`/`spec.skills`. Reconcile Guard CI is enabled.
 
-**Spec reference:** [`docs/superpowers/specs/2026-05-12-hermes-operator-design.md`](../specs/2026-05-12-hermes-operator-design.md) §1 (Context & Goals), §4.1 (Hermes-specific deltas), §4 (`gateways`, `profileStore`, `runtime` top-level sub-specs), §7.4 (operational guardrails — esp. tini PID 1 and init-container full-volume-mount rule).
+**Spec reference:** [`docs/superpowers/specs/2026-05-12-hermes-operator-design.md`](../specs/2026-05-12-hermes-operator-design.md) §1 (Context & Goals), §4.1 (Hermes-specific deltas), §4 (`gateways`, `profileStore`, `runtime` top-level sub-specs), §7.4 (operational guardrails: esp. tini PID 1 and init-container full-volume-mount rule).
 
 ---
 
@@ -85,7 +85,7 @@ mkdir -p images/hermes-agent
 gh repo view nousresearch/hermes-agent
 gh api repos/nousresearch/hermes-agent/contents/pyproject.toml --jq .content | base64 -d | grep -E '^name|^version|^\[project|scripts' | head -20
 ```
-Expected: confirm `name = "hermes-agent"` and a `hermes-agent` console script under `[project.scripts]`. Note the upstream **package version** that you will pin in the next step (call it `HERMES_VERSION` — default to the latest release tag returned by `gh release view --repo nousresearch/hermes-agent --json tagName --jq .tagName`).
+Expected: confirm `name = "hermes-agent"` and a `hermes-agent` console script under `[project.scripts]`. Note the upstream **package version** that you will pin in the next step (call it `HERMES_VERSION`: default to the latest release tag returned by `gh release view --repo nousresearch/hermes-agent --json tagName --jq .tagName`).
 
 If upstream uses a different package name (`hermes_agent` vs `hermes-agent`), record the actual name as `HERMES_PKG_NAME` for the next step.
 
@@ -142,7 +142,7 @@ packages it into a multi-arch container that the operator can pull by default.
 |---|---|
 | `Dockerfile` | Multi-stage build (uv builder + slim runtime). |
 | `pyproject.toml` | uv project pinning `hermes-agent`. |
-| `uv.lock` | Committed lockfile — reproducible builds. |
+| `uv.lock` | Committed lockfile: reproducible builds. |
 | `entrypoint.sh` | tini-wrapped startup; sources `~/.hermes/config.yaml`. |
 
 ## Common workflows
@@ -194,12 +194,12 @@ git commit -m "feat(images): scaffold hermes-agent image build context (pyprojec
 # copies only the venv + minimal apt deps and runs as the non-root `hermes` user.
 #
 # Build args:
-#   HERMES_VERSION   — the exact hermes-agent release to package (e.g. "1.4.3").
+#   HERMES_VERSION  : the exact hermes-agent release to package (e.g. "1.4.3").
 #                     Required. The CI workflow at .github/workflows/agent-image.yaml
 #                     drives this from a matrix.
-#   PYTHON_VERSION   — Python interpreter version. Default 3.11.
-#   UV_VERSION       — uv tool version. Default 0.5.0 (pinned for reproducibility).
-#   TINI_VERSION     — tini release tag (lesson openclaw #471: tini as PID 1).
+#   PYTHON_VERSION  : Python interpreter version. Default 3.11.
+#   UV_VERSION      : uv tool version. Default 0.5.0 (pinned for reproducibility).
+#   TINI_VERSION    : tini release tag (lesson openclaw #471: tini as PID 1).
 #
 # Output: a runtime image that, with no further configuration, runs
 #         `hermes-agent --config ~/.hermes/config.yaml` as UID 1000.
@@ -322,7 +322,7 @@ if [[ "${1:-serve}" == "serve" ]]; then
     exec hermes-agent run --config "${HERMES_CONFIG}" "$@"
 fi
 
-# Otherwise pass through verbatim — supports `migrate from-openclaw ...`, `version`, etc.
+# Otherwise pass through verbatim: supports `migrate from-openclaw ...`, `version`, etc.
 exec hermes-agent "$@"
 ```
 
@@ -401,7 +401,7 @@ agent-image-smoke:
 ```bash
 make agent-image-relock HERMES_VERSION=1.4.2
 ```
-Expected: `images/hermes-agent/uv.lock` is created. Inspect with `head -20 images/hermes-agent/uv.lock` — should be a TOML file with `[[package]]` entries including `hermes-agent`.
+Expected: `images/hermes-agent/uv.lock` is created. Inspect with `head -20 images/hermes-agent/uv.lock`: should be a TOML file with `[[package]]` entries including `hermes-agent`.
 
 > If the relock command fails because upstream hermes-agent is not yet published to PyPI at the requested version, fall back to the latest published version (`uv pip index versions hermes-agent | head -3`) and pin to that. The Plan 3 deliverable is the *mechanism*; tracking the latest upstream is the responsibility of the matrix workflow added in Task 5.
 
@@ -412,7 +412,7 @@ cp images/hermes-agent/uv.lock /tmp/uv.lock.first
 make agent-image-relock HERMES_VERSION=1.4.2
 diff /tmp/uv.lock.first images/hermes-agent/uv.lock
 ```
-Expected: no diff. If a diff appears, the resolver is non-deterministic — investigate before proceeding (almost always a missing pin in `pyproject.toml`).
+Expected: no diff. If a diff appears, the resolver is non-deterministic: investigate before proceeding (almost always a missing pin in `pyproject.toml`).
 
 - [ ] **Step 4: Build the image locally and smoke-test it**
 
@@ -420,7 +420,7 @@ Expected: no diff. If a diff appears, the resolver is non-deterministic — inve
 make agent-image-build HERMES_VERSION=1.4.2
 make agent-image-smoke HERMES_VERSION=1.4.2
 ```
-Expected: `agent-image-smoke OK for ghcr.io/stubbi/hermes-agent:1.4.2`. If the upstream CLI flag is `-h` rather than `--help`, adjust the smoke target accordingly — but document the rename.
+Expected: `agent-image-smoke OK for ghcr.io/stubbi/hermes-agent:1.4.2`. If the upstream CLI flag is `-h` rather than `--help`, adjust the smoke target accordingly: but document the rename.
 
 - [ ] **Step 5: Commit**
 
@@ -431,7 +431,7 @@ git commit -m "feat(images): add agent-image-{build,buildx,relock,smoke} Makefil
 
 ---
 
-## Task 4: GitHub Actions workflow — agent image build on tag
+## Task 4: GitHub Actions workflow: agent image build on tag
 
 **Files:**
 - Create: `.github/workflows/agent-image.yaml`, `.github/workflows/agent-image-smoke.yaml`
@@ -444,7 +444,7 @@ git commit -m "feat(images): add agent-image-{build,buildx,relock,smoke} Makefil
 # Builds and publishes ghcr.io/stubbi/hermes-agent for every hermes-agent
 # release in the supported matrix. Triggered:
 #   - Manually via workflow_dispatch (engineer picks the HERMES_VERSION).
-#   - On every push of a tag matching `agent/vX.Y.Z` — this is the explicit
+#   - On every push of a tag matching `agent/vX.Y.Z`: this is the explicit
 #     "ship this agent version" signal; the operator's own release tags
 #     (`vX.Y.Z`) do NOT auto-build agents.
 #
@@ -598,10 +598,10 @@ jobs:
             -t hermes-agent:smoke \
             images/hermes-agent
 
-      - name: Smoke — --help exits 0
+      - name: Smoke: --help exits 0
         run: docker run --rm hermes-agent:smoke hermes-agent --help >/dev/null
 
-      - name: Smoke — entrypoint refuses missing config with EX_CONFIG (78)
+      - name: Smoke: entrypoint refuses missing config with EX_CONFIG (78)
         run: |
           set +e
           docker run --rm --entrypoint /usr/local/bin/hermes-entrypoint hermes-agent:smoke
@@ -611,7 +611,7 @@ jobs:
             exit 1
           fi
 
-      - name: Smoke — non-root by default
+      - name: Smoke: non-root by default
         run: |
           uid=$(docker run --rm --entrypoint id hermes-agent:smoke -u)
           [ "${uid}" = "1000" ] || { echo "Expected UID 1000, got ${uid}"; exit 1; }
@@ -657,7 +657,7 @@ At the end of the file (above the `init()` function), append:
 ```go
 // RuntimeSpec controls Python/uv runtime concerns for the agent container.
 type RuntimeSpec struct {
-    // Python is informational only — the agent image's Python version is fixed
+    // Python is informational only: the agent image's Python version is fixed
     // at build time. Setting this does NOT pull a different interpreter; it
     // exists so downstream tooling can assert the runtime it expects.
     // +kubebuilder:default="3.11"
@@ -705,7 +705,7 @@ type UVSpec struct {
     ExtraIndexURL string `json:"extraIndexURL,omitempty"`
 
     // CacheVolume controls the volume mounted at /home/hermes/.cache/uv.
-    // Defaults to an emptyDir with a 1Gi sizeLimit — fast and ephemeral.
+    // Defaults to an emptyDir with a 1Gi sizeLimit: fast and ephemeral.
     // +optional
     CacheVolume UVCacheVolumeSpec `json:"cacheVolume,omitempty"`
 }
@@ -1017,7 +1017,7 @@ Plan 4 explicitly requires `+listType=map +listMapKey=source` on `.spec.skills` 
 ```bash
 grep -n "listType\|listMapKey" api/v1/hermesinstance_types.go
 ```
-Expected: shows `+listType=map +listMapKey=name` above `Env`/`EnvFrom`, `+listType=map +listMapKey=source` above `Skills`. If missing, **stop and fix Plan 2** before continuing — Plan 4's SSA logic will produce wrong field-ownership merges otherwise.
+Expected: shows `+listType=map +listMapKey=name` above `Env`/`EnvFrom`, `+listType=map +listMapKey=source` above `Skills`. If missing, **stop and fix Plan 2** before continuing: Plan 4's SSA logic will produce wrong field-ownership merges otherwise.
 
 - [ ] **Step 6: Commit**
 
@@ -1028,12 +1028,12 @@ git commit -m "feat(api): add spec.profileStore.honcho (image, persistence, reso
 
 ---
 
-## Task 8: Builder — `internal/resources/runtime_init.go` (unit-tested first)
+## Task 8: Builder: `internal/resources/runtime_init.go` (unit-tested first)
 
 **Files:**
 - Create: `internal/resources/runtime_init.go`, `internal/resources/runtime_init_test.go`
 
-This task builds the init containers that prepare the data PVC before the main hermes container starts. **Critical invariant (lesson openclaw #450):** every init container mounts the *full* data volume at `/home/hermes/.hermes` — never a `subPath`. The Plan 1 hostPath PVC breakage that motivated this rule was caused by an init container with a subPath mount.
+This task builds the init containers that prepare the data PVC before the main hermes container starts. **Critical invariant (lesson openclaw #450):** every init container mounts the *full* data volume at `/home/hermes/.hermes`: never a `subPath`. The Plan 1 hostPath PVC breakage that motivated this rule was caused by an init container with a subPath mount.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1101,7 +1101,7 @@ func TestBuildRuntimeInitContainers_ExtraApt(t *testing.T) {
 	if !assert.NotNil(t, aptC, "init-apt container missing") {
 		return
 	}
-	// Must run as root (uid 0) — document the security implication.
+	// Must run as root (uid 0): document the security implication.
 	assert.NotNil(t, aptC.SecurityContext)
 	assert.NotNil(t, aptC.SecurityContext.RunAsUser)
 	assert.Equal(t, int64(0), *aptC.SecurityContext.RunAsUser)
@@ -1126,7 +1126,7 @@ func TestBuildRuntimeInitContainers_ExtraPip(t *testing.T) {
 	assert.Contains(t, pipC.Command[2], "uv pip install")
 	assert.Contains(t, pipC.Command[2], "pandas==2.2.0")
 	assert.Contains(t, pipC.Command[2], "polars")
-	// Persistent venv on the PVC — must live under /home/hermes/.hermes.
+	// Persistent venv on the PVC: must live under /home/hermes/.hermes.
 	assert.Contains(t, pipC.Command[2], "/home/hermes/.hermes/.venv-extras")
 }
 
@@ -1375,15 +1375,15 @@ git commit -m "feat(resources): add runtime init containers (uv sync, extraApt a
 
 ---
 
-## Task 9: Builder — `internal/resources/gateways.go` (envFrom + config fragments)
+## Task 9: Builder: `internal/resources/gateways.go` (envFrom + config fragments)
 
 **Files:**
 - Create: `internal/resources/gateways.go`, `internal/resources/gateways_test.go`
 
 The gateways builder produces three outputs:
-1. **`BuildGatewayEnvFrom(inst) []corev1.EnvFromSource`** — appended to the hermes container's `envFrom`. Each enabled gateway contributes one or more `SecretRef`s, so platform tokens land as env vars (the names follow the upstream hermes-agent convention).
-2. **`BuildGatewayEnv(inst) []corev1.EnvVar`** — for non-Secret values like `DISCORD_APPLICATION_ID` and `TELEGRAM_ALLOWED_USER_IDS`.
-3. **`BuildGatewayConfigFragments(inst) map[string]any`** — YAML-shaped sub-trees merged into the rendered `config.yaml` by `configmap.go` (Task 11). Configmap builder concatenates these under `gateways:`.
+1. **`BuildGatewayEnvFrom(inst) []corev1.EnvFromSource`**: appended to the hermes container's `envFrom`. Each enabled gateway contributes one or more `SecretRef`s, so platform tokens land as env vars (the names follow the upstream hermes-agent convention).
+2. **`BuildGatewayEnv(inst) []corev1.EnvVar`**: for non-Secret values like `DISCORD_APPLICATION_ID` and `TELEGRAM_ALLOWED_USER_IDS`.
+3. **`BuildGatewayConfigFragments(inst) map[string]any`**: YAML-shaped sub-trees merged into the rendered `config.yaml` by `configmap.go` (Task 11). Configmap builder concatenates these under `gateways:`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1671,7 +1671,7 @@ func BuildGatewayConfigFragments(inst *hermesv1.HermesInstance) map[string]any {
 
 // BuildGatewayEgressEndpoints returns the set of upstream hosts each enabled
 // gateway needs to reach. Consumed by networkpolicy.go to widen the egress
-// allowlist. Kept as a flat string slice (port 443/TCP is implied — see
+// allowlist. Kept as a flat string slice (port 443/TCP is implied: see
 // docs/conventions.md "Well-known egress endpoints").
 func BuildGatewayEgressEndpoints(inst *hermesv1.HermesInstance) []string {
 	var out []string
@@ -1740,7 +1740,7 @@ git commit -m "feat(resources): add gateway builders (env, envFrom, config fragm
 
 ---
 
-## Task 10: Builder — `internal/resources/honcho.go` (Deployment + Service + PVC)
+## Task 10: Builder: `internal/resources/honcho.go` (Deployment + Service + PVC)
 
 **Files:**
 - Create: `internal/resources/honcho.go`, `internal/resources/honcho_test.go`
@@ -1816,7 +1816,7 @@ func TestBuildHonchoDeployment(t *testing.T) {
 	assert.Len(t, require, 1)
 	assert.Equal(t, "ghcr.io/plastic-labs/honcho:0.2.0", require[0].Image)
 
-	// Explicit k8s defaults (Plan 1 lesson — generation thrash).
+	// Explicit k8s defaults (Plan 1 lesson: generation thrash).
 	assert.Equal(t, corev1.RestartPolicyAlways, dep.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, corev1.DNSClusterFirst, dep.Spec.Template.Spec.DNSPolicy)
 	assert.NotNil(t, dep.Spec.RevisionHistoryLimit)
@@ -2201,7 +2201,7 @@ Expected: failures because the current builder does not yet merge gateway fragme
 
 - [ ] **Step 3: Update `configmap.go` to merge gateway fragments**
 
-Modify the body of `BuildConfigMap` so that after producing the user's raw config, it deep-merges the result of `BuildGatewayConfigFragments(inst)` under the top-level key `gateways`. Use `sigs.k8s.io/yaml` (already a transitive dep via kubebuilder) for YAML marshal/unmarshal. The merge rule is "structural deep-merge, gateway fragments win" — users who want full control over a sub-key can disable the gateway and write their own config.
+Modify the body of `BuildConfigMap` so that after producing the user's raw config, it deep-merges the result of `BuildGatewayConfigFragments(inst)` under the top-level key `gateways`. Use `sigs.k8s.io/yaml` (already a transitive dep via kubebuilder) for YAML marshal/unmarshal. The merge rule is "structural deep-merge, gateway fragments win": users who want full control over a sub-key can disable the gateway and write their own config.
 
 Add this helper to `internal/resources/configmap.go`:
 
@@ -2253,7 +2253,7 @@ if raw == "" {
 }
 merged, err := mergeGatewayFragments(raw, BuildGatewayConfigFragments(inst))
 if err != nil {
-    // Refuse to silently drop a bad user config — surface via panic; callers
+    // Refuse to silently drop a bad user config: surface via panic; callers
     // catch this via the controller's recover. The validating webhook should
     // reject malformed YAML before we get here.
     panic(fmt.Sprintf("invalid spec.config.raw: %v", err))
@@ -2412,7 +2412,7 @@ sts.Spec.Template.Spec.Volumes = append(
 c.VolumeMounts = append(c.VolumeMounts, BuildRuntimeVolumeMounts(inst)...)
 ```
 
-Place these mutations *after* `sts` is fully constructed by the existing builder body but *before* the `return sts` statement. The mutations are additive — they cannot remove anything Plan 1/2 set.
+Place these mutations *after* `sts` is fully constructed by the existing builder body but *before* the `return sts` statement. The mutations are additive: they cannot remove anything Plan 1/2 set.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -2421,7 +2421,7 @@ go test ./internal/resources/... -run TestBuildStatefulSet -v
 ```
 Expected: all PASS (new + pre-existing).
 
-- [ ] **Step 5: Idempotency canary — full `BuildStatefulSet` twice on same input yields identical output**
+- [ ] **Step 5: Idempotency canary: full `BuildStatefulSet` twice on same input yields identical output**
 
 This re-confirms Plan 1's idempotency canary against the new wiring. Append to `statefulset_test.go`:
 
@@ -2463,14 +2463,14 @@ git commit -m "feat(resources): wire runtime init containers + gateway env + hon
 
 ---
 
-## Task 13: NetworkPolicy — gateway egress + Honcho ingress isolation
+## Task 13: NetworkPolicy: gateway egress + Honcho ingress isolation
 
 **Files:**
 - Modify: `internal/resources/networkpolicy.go`, `internal/resources/networkpolicy_test.go`
 
 Plan 2 produced a default-deny `NetworkPolicy` for the hermes pod (`BuildNetworkPolicy(inst)`) plus an extension hook `ExtraEgressRules(inst)`. This task:
 1. Implements `ExtraEgressRules` to return one rule per enabled gateway endpoint (port 443/TCP).
-2. Adds a second NetworkPolicy `BuildHonchoNetworkPolicy(inst)` that allows ingress only from the parent hermes pod and denies egress entirely (Honcho is a closed appliance — see lesson `honcho service:8000` in spec §4.1).
+2. Adds a second NetworkPolicy `BuildHonchoNetworkPolicy(inst)` that allows ingress only from the parent hermes pod and denies egress entirely (Honcho is a closed appliance: see lesson `honcho service:8000` in spec §4.1).
 
 - [ ] **Step 1: Add failing tests in `networkpolicy_test.go`**
 
@@ -2571,7 +2571,7 @@ func ExtraEgressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPolic
 
 	// Gateway endpoints: a single rule per gateway, port 443/TCP, peer = "any"
 	// (since these are public internet endpoints). We do NOT translate
-	// hostnames to CIDRs here — that's a NetworkPolicy-implementation concern
+	// hostnames to CIDRs here: that's a NetworkPolicy-implementation concern
 	// and the well-known endpoints are documented in docs/conventions.md.
 	if endpoints := BuildGatewayEgressEndpoints(inst); len(endpoints) > 0 {
 		port443 := intstr.FromInt(443)
@@ -2665,7 +2665,7 @@ git commit -m "feat(resources): per-gateway egress rules + Honcho-scoped Network
 
 ---
 
-## Task 14: Reconciler — orchestrate Honcho resources
+## Task 14: Reconciler: orchestrate Honcho resources
 
 **Files:**
 - Modify: `internal/controller/hermesinstance_controller.go`
@@ -2683,7 +2683,7 @@ Inside `internal/controller/hermesinstance_controller.go`, add the following met
 func (r *HermesInstanceReconciler) reconcileHoncho(ctx context.Context, inst *hermesv1.HermesInstance) error {
 	enabled := inst.Spec.ProfileStore.Honcho.Enabled != nil && *inst.Spec.ProfileStore.Honcho.Enabled
 
-	// PVC — create-only when enabled, never deleted automatically.
+	// PVC: create-only when enabled, never deleted automatically.
 	if enabled && (inst.Spec.ProfileStore.Honcho.Persistence.Enabled == nil || *inst.Spec.ProfileStore.Honcho.Persistence.Enabled) {
 		desired := resources.BuildHonchoPVC(inst)
 		if err := r.ensurePVC(ctx, inst, desired); err != nil {
@@ -2757,7 +2757,7 @@ if err := r.reconcileHoncho(ctx, &inst); err != nil {
 }
 ```
 
-- [ ] **Step 3: RBAC marker — Deployments**
+- [ ] **Step 3: RBAC marker: Deployments**
 
 Add to the existing `+kubebuilder:rbac:` block at the top of the reconciler:
 
@@ -2784,7 +2784,7 @@ git commit -m "feat(controller): reconcile Honcho Deployment/Service/PVC/Network
 
 ---
 
-## Task 15: Status — `ProfileStoreReady` condition
+## Task 15: Status: `ProfileStoreReady` condition
 
 **Files:**
 - Modify: `internal/controller/hermesinstance_controller.go`, `docs/conditions.md`
@@ -2879,12 +2879,12 @@ git commit -m "feat(status): add ProfileStoreReady condition on HermesInstance"
 
 ---
 
-## Task 16: Validating webhook — gateway secret existence warnings + `profiles` allowedAction
+## Task 16: Validating webhook: gateway secret existence warnings + `profiles` allowedAction
 
 **Files:**
 - Modify: `internal/webhook/hermesinstance_validator.go`, `internal/webhook/hermesinstance_validator_test.go`
 
-Per spec §7.3: the validator **warns** (does not deny) when a gateway is `enabled: true` but its referenced Secret is missing at admission time. This avoids races with GitOps applying instance + secrets out of order. The validator also validates that `spec.selfConfigure.allowedActions` is a subset of `{skills, config, envVars, workspaceFiles, profiles}` — adding `profiles`.
+Per spec §7.3: the validator **warns** (does not deny) when a gateway is `enabled: true` but its referenced Secret is missing at admission time. This avoids races with GitOps applying instance + secrets out of order. The validator also validates that `spec.selfConfigure.allowedActions` is a subset of `{skills, config, envVars, workspaceFiles, profiles}`: adding `profiles`.
 
 - [ ] **Step 1: Add failing tests**
 
@@ -2908,7 +2908,7 @@ func TestValidateGateways_TelegramSecretMissingProducesWarning(t *testing.T) {
 		},
 	}
 	warnings, err := v.ValidateCreate(context.Background(), inst)
-	assert.NoError(t, err, "missing secret must NOT deny — only warn")
+	assert.NoError(t, err, "missing secret must NOT deny: only warn")
 	assert.NotEmpty(t, warnings, "expect at least one warning")
 	joined := strings.Join(warnings, " | ")
 	assert.Contains(t, joined, "gateways.telegram.botTokenSecretRef")
@@ -3114,7 +3114,7 @@ git commit -m "feat(webhook): warn on missing gateway/honcho secrets; allow 'pro
 
 ---
 
-## Task 17: envtest — gateway env vars and egress rules end-to-end
+## Task 17: envtest: gateway env vars and egress rules end-to-end
 
 **Files:**
 - Modify: `internal/controller/hermesinstance_controller_test.go`
@@ -3124,7 +3124,7 @@ git commit -m "feat(webhook): warn on missing gateway/honcho secrets; allow 'pro
 Append to `internal/controller/hermesinstance_controller_test.go`:
 
 ```go
-var _ = Describe("HermesInstance reconciler — gateways", func() {
+var _ = Describe("HermesInstance reconciler: gateways", func() {
 	const (
 		instName = "gateways-it"
 		ns       = "default"
@@ -3256,7 +3256,7 @@ git commit -m "test(controller): envtest gateway env + NetworkPolicy egress life
 
 ---
 
-## Task 18: envtest — Honcho resources lifecycle
+## Task 18: envtest: Honcho resources lifecycle
 
 **Files:**
 - Modify: `internal/controller/hermesinstance_controller_test.go`
@@ -3266,7 +3266,7 @@ git commit -m "test(controller): envtest gateway env + NetworkPolicy egress life
 Append:
 
 ```go
-var _ = Describe("HermesInstance reconciler — Honcho profile store", func() {
+var _ = Describe("HermesInstance reconciler: Honcho profile store", func() {
 	const (
 		instName = "honcho-it"
 		ns       = "default"
@@ -3357,7 +3357,7 @@ var _ = Describe("HermesInstance reconciler — Honcho profile store", func() {
 			return apierrors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho", Namespace: ns}, &svc))
 		}, "10s", "200ms").Should(BeTrue())
 
-		// PVC retained intentionally — operator does not delete data PVCs.
+		// PVC retained intentionally: operator does not delete data PVCs.
 		var pvc corev1.PersistentVolumeClaim
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-honcho-data", Namespace: ns}, &pvc)).To(Succeed())
 	})
@@ -3380,7 +3380,7 @@ git commit -m "test(controller): envtest Honcho lifecycle (create on enable, del
 
 ---
 
-## Task 19: Idempotency canary — full HermesInstance with all features enabled
+## Task 19: Idempotency canary: full HermesInstance with all features enabled
 
 **Files:**
 - Modify: `internal/controller/hermesinstance_controller_test.go`
@@ -3392,7 +3392,7 @@ Plan 1 established the idempotency canary pattern: reconcile the same spec 10× 
 Append:
 
 ```go
-var _ = Describe("HermesInstance reconciler — idempotency canary (Plan 3 surface)", func() {
+var _ = Describe("HermesInstance reconciler: idempotency canary (Plan 3 surface)", func() {
 	const (
 		instName = "canary-plan3"
 		ns       = "default"
@@ -3481,7 +3481,7 @@ git commit -m "test(controller): idempotency canary for full Plan 3 surface (run
 
 ---
 
-## Task 20: E2E — apply a HermesInstance with telegram + Honcho on kind
+## Task 20: E2E: apply a HermesInstance with telegram + Honcho on kind
 
 **Files:**
 - Create: `test/e2e/gateways_honcho_test.go`, `test/e2e/testdata/hermesinstance-gateways.yaml`
@@ -3653,7 +3653,7 @@ var _ = corev1.Secret{} // keep import
 ```bash
 make e2e
 ```
-Expected: PASS. If the kind cluster's CNI does not support hostname-based egress, only the port-level assertion is reliable — that's why the test asserts on port number, not destination.
+Expected: PASS. If the kind cluster's CNI does not support hostname-based egress, only the port-level assertion is reliable: that's why the test asserts on port number, not destination.
 
 - [ ] **Step 4: Commit**
 
@@ -3770,7 +3770,7 @@ git commit -m "docs(api-reference): document spec.runtime, spec.gateways, spec.p
 
 ---
 
-## Task 22: `docs/conventions.md` — well-known egress endpoints
+## Task 22: `docs/conventions.md`: well-known egress endpoints
 
 **Files:**
 - Modify: `docs/conventions.md`
@@ -3787,12 +3787,12 @@ the box. Each `spec.gateways.<platform>.enabled: true` adds an egress allow for
 the upstream's well-known endpoints. CNI plugins that support FQDN peers
 (Cilium, Calico with `dns` selector) should match the hostnames below;
 plugins without FQDN support fall back to a port-only rule (443/TCP to any
-destination), which is wider than ideal — document the trade-off when
+destination), which is wider than ideal: document the trade-off when
 shipping the cluster.
 
 | Gateway | Hostnames | Port | Protocol | Notes |
 |---|---|---|---|---|
-| Telegram | `api.telegram.org` | 443 | TCP | Long-poll OR webhook. Webhook also needs ingress from Telegram's IP ranges to the agent's webhook URL — out of scope for the egress NetworkPolicy. |
+| Telegram | `api.telegram.org` | 443 | TCP | Long-poll OR webhook. Webhook also needs ingress from Telegram's IP ranges to the agent's webhook URL: out of scope for the egress NetworkPolicy. |
 | Discord | `discord.com`, `gateway.discord.gg` | 443 | TCP | gateway.discord.gg is the WebSocket endpoint. |
 | Slack | `slack.com`, `wss-primary.slack.com` | 443 | TCP | wss-primary.slack.com is the Socket Mode endpoint. |
 | WhatsApp (Meta Cloud) | `graph.facebook.com` | 443 | TCP | Provider-specific. Twilio users should replace with `api.twilio.com`. |
@@ -3800,7 +3800,7 @@ shipping the cluster.
 | Honcho (sibling) | sibling pod selector | 8000 | TCP | In-namespace pod-selector peer, not internet. |
 
 The operator does NOT cover ingress from those providers (Telegram, Slack
-webhook callbacks, etc.) — surface that via `spec.networking.ingress` or a
+webhook callbacks, etc.): surface that via `spec.networking.ingress` or a
 dedicated Ingress object in your cluster.
 ```
 
@@ -3813,7 +3813,7 @@ git commit -m "docs(conventions): document well-known gateway egress endpoints"
 
 ---
 
-## Task 23: `docs/runbook-platform-gateways.md` — per-platform token/scope/rotation
+## Task 23: `docs/runbook-platform-gateways.md`: per-platform token/scope/rotation
 
 **Files:**
 - Create: `docs/runbook-platform-gateways.md`
@@ -3850,7 +3850,7 @@ scoping; restrict instead by:
 1. DM `@BotFather` → `/revoke` → choose your bot → confirm.
 2. BotFather issues a new token.
 3. Update the Kubernetes Secret (`kubectl create secret generic tg-secret --from-literal=token=... --dry-run=client -o yaml | kubectl apply -f -`).
-4. Restart the agent pod: `kubectl rollout restart statefulset/<inst>` —
+4. Restart the agent pod: `kubectl rollout restart statefulset/<inst>`:
    the operator does NOT auto-restart pods on Secret updates by design (lesson:
    surprise restarts on rotation cause incident noise).
 
@@ -3923,7 +3923,7 @@ removing a scope from a deployed app does NOT auto-revoke active tokens.
 
 - **Socket Mode vs HTTP.** Hermes-agent supports both. Socket Mode requires
   egress to `wss-primary.slack.com:443`; HTTP mode requires ingress into your
-  cluster. Pick one and don't enable both — they fight over `app_home_opened`
+  cluster. Pick one and don't enable both: they fight over `app_home_opened`
   events.
 
 ## WhatsApp
@@ -3981,7 +3981,7 @@ signal-cli-rest-api.
 ### Pitfalls
 
 - **Self-hosted endpoint discovery.** `spec.gateways.signal` does NOT specify
-  the signal-cli-rest-api URL — that's a config-level concern. Set it via
+  the signal-cli-rest-api URL: that's a config-level concern. Set it via
   `spec.config.raw.signal.apiURL` or via the `SIGNAL_API_URL` env var
   (`spec.env`).
 
@@ -3996,7 +3996,7 @@ signal-cli-rest-api.
   the operator only consumes a corev1.Secret by the time it reaches reconcile.
 - **Admission warnings.** If the validating webhook emits
   `gateways.X.Y.SecretRef references Secret "..." which is not present yet`,
-  the instance is still admitted — apply the Secret and the next reconcile
+  the instance is still admitted: apply the Secret and the next reconcile
   will pick it up.
 ```
 
@@ -4044,7 +4044,7 @@ gatewayEgressEndpoints:
   signal: ["chat.signal.org"]
 ```
 
-> **Note:** the chart values are *informational* in v1 — the operator itself reads them only through `HermesClusterDefaults`. Plan 6 (distribution) wires them into a default `HermesClusterDefaults` template.
+> **Note:** the chart values are *informational* in v1: the operator itself reads them only through `HermesClusterDefaults`. Plan 6 (distribution) wires them into a default `HermesClusterDefaults` template.
 
 - [ ] **Step 2: Update the README feature table**
 
@@ -4052,7 +4052,7 @@ In `README.md`, find the feature table (created by Plan 1) and add three rows (o
 
 ```markdown
 | Python runtime + uv lockfile | `spec.runtime` controls init containers for `uv sync`, extra apt/pip packages. The agent image bundles a committed lockfile for reproducibility. |
-| Multi-platform gateways | `spec.gateways.{telegram,discord,slack,whatsapp,signal}` — per-platform Secret refs, NetworkPolicy egress, and config.yaml fragments. |
+| Multi-platform gateways | `spec.gateways.{telegram,discord,slack,whatsapp,signal}`: per-platform Secret refs, NetworkPolicy egress, and config.yaml fragments. |
 | Honcho profile store | `spec.profileStore.honcho.enabled` stands up a sibling Deployment + Service + PVC + scoped NetworkPolicy. `HONCHO_BASE_URL`/`HONCHO_API_KEY` are auto-injected. |
 ```
 
@@ -4065,7 +4065,7 @@ git commit -m "feat(chart,docs): default agent + honcho image tags; document run
 
 ---
 
-## Task 25: Integration verification — full Plan 3 surface end-to-end
+## Task 25: Integration verification: full Plan 3 surface end-to-end
 
 **Files:**
 - None (read-only verification + a final integration commit gate)
@@ -4145,7 +4145,7 @@ Expected: empty (or only pre-existing entries from Plans 1/2 that this plan did 
 
 - [ ] **Step 10: Final commit**
 
-If steps 1–9 surface any leftover untracked/unstaged change:
+If steps 1-9 surface any leftover untracked/unstaged change:
 
 ```bash
 git status
@@ -4153,7 +4153,7 @@ git add -A
 git commit -m "chore: final Plan 3 cleanup (regenerated manifests, etc.)"
 ```
 
-If everything is clean, no commit is needed — Plan 3 is done.
+If everything is clean, no commit is needed: Plan 3 is done.
 
 ---
 
@@ -4165,62 +4165,62 @@ spec.
 
 ### Cross-plan naming consistency
 
-- [ ] `HonchoPVCName(inst) == inst.Name + "-honcho-data"` — matches Plan 4
+- [ ] `HonchoPVCName(inst) == inst.Name + "-honcho-data"`: matches Plan 4
   Task 11 which mounts this PVC in the `addProfileSnapshot` Job at
   `/data/snapshots/<profileID>/<timestamp>.json`.
 - [ ] `HonchoServiceName(inst) == inst.Name + "-honcho"` and the agent receives
-  `HONCHO_BASE_URL=http://<inst>-honcho:8000` — matches Plan 4 webhook test
+  `HONCHO_BASE_URL=http://<inst>-honcho:8000`: matches Plan 4 webhook test
   that gates `addProfileSnapshot` on `spec.profileStore.honcho.enabled`.
 - [ ] `+listType=map +listMapKey=source` is on `.spec.skills` (Plan 4
   expectation) and `+listType=map +listMapKey=name` on `.spec.env`,
-  `.spec.envFrom` — these markers come from Plan 2, but Plan 3 Task 7 Step 5
+  `.spec.envFrom`: these markers come from Plan 2, but Plan 3 Task 7 Step 5
   verifies them and refuses to continue if missing.
-- [ ] `spec.selfConfigure.allowedActions` accepts `profiles` (Task 16) — Plan
+- [ ] `spec.selfConfigure.allowedActions` accepts `profiles` (Task 16): Plan
   4 SSA reconciler validates the action against this list.
 - [ ] The `hermes-agent migrate from-openclaw --source ... --dest ...` CLI
-  shape (Plan 5 §3.B) is supported by the agent image — Task 2's
+  shape (Plan 5 §3.B) is supported by the agent image: Task 2's
   entrypoint.sh delegates non-`serve` subcommands verbatim to the
   `hermes-agent` binary, so `docker run <img> migrate from-openclaw ...`
   works for the Plan 5 init container.
 
 ### Spec coverage
 
-- [ ] §4.1 row "runtime" — implemented in Tasks 5, 8, 12 (RuntimeSpec types,
+- [ ] §4.1 row "runtime": implemented in Tasks 5, 8, 12 (RuntimeSpec types,
   runtime_init.go builder, StatefulSet wiring).
-- [ ] §4.1 row "gateways" — implemented in Tasks 6, 9, 11, 12, 13, 16
+- [ ] §4.1 row "gateways": implemented in Tasks 6, 9, 11, 12, 13, 16
   (GatewaysSpec types, gateways.go builder, ConfigMap merge, StatefulSet
   wiring, NetworkPolicy egress, webhook warnings).
-- [ ] §4.1 row "profileStore" — implemented in Tasks 7, 10, 12, 13, 14, 15
+- [ ] §4.1 row "profileStore": implemented in Tasks 7, 10, 12, 13, 14, 15
   (ProfileStoreSpec types, honcho.go builder, env wiring, NetworkPolicy
   scope, reconciler orchestration, ProfileStoreReady condition).
-- [ ] §4.1 row "selfConfigure.allowedActions adds profiles" — Task 16
+- [ ] §4.1 row "selfConfigure.allowedActions adds profiles": Task 16
   webhook update.
-- [ ] §7.4 "tini as PID 1" — Task 2 Dockerfile entrypoint.
+- [ ] §7.4 "tini as PID 1": Task 2 Dockerfile entrypoint.
 - [ ] §7.4 "init containers mount the full data volume" (lesson openclaw
-  #450) — Task 8 unit test explicitly asserts `SubPath == ""` and the
+  #450): Task 8 unit test explicitly asserts `SubPath == ""` and the
   builder uses `dataVolumeMount()` for every init container.
-- [ ] §7.4 "read-only root FS with explicit writable subPaths" — Task 8 init
+- [ ] §7.4 "read-only root FS with explicit writable subPaths": Task 8 init
   containers all set `ReadOnlyRootFilesystem: true` except the apt init
   (documented exception).
-- [ ] Operator-published `ghcr.io/stubbi/hermes-agent` — Tasks 1–4 (build
+- [ ] Operator-published `ghcr.io/stubbi/hermes-agent`: Tasks 1-4 (build
   context, Dockerfile, lockfile, CI matrix).
 
 ### Lessons baked in (from spec §1 G3 / openclaw issue log)
 
-- [ ] **#446/#447 — third-party label/annotation preservation:** the
+- [ ] **#446/#447: third-party label/annotation preservation:** the
   `MergePreservingForeign` helper from Plan 1 is used in the new builders
   via the existing CreateOrUpdate wrappers. Honcho's labels include both
-  `app.kubernetes.io/*` and `hermes.agent/instance` — none of these collide
+  `app.kubernetes.io/*` and `hermes.agent/instance`: none of these collide
   with foreign keys, but the merge function still preserves anything
   outside the `hermes.agent/` prefix.
-- [ ] **#450 — init containers mount full volume:** asserted by unit test in
+- [ ] **#450: init containers mount full volume:** asserted by unit test in
   Task 8.
-- [ ] **#458 — read-only root FS:** every container (agent, init-uv,
+- [ ] **#458: read-only root FS:** every container (agent, init-uv,
   init-pip, Honcho) has `ReadOnlyRootFilesystem: true`. init-apt is the
   documented exception.
-- [ ] **#471 — zombie-process reaper:** tini as PID 1 in the agent image
+- [ ] **#471: zombie-process reaper:** tini as PID 1 in the agent image
   (Task 2).
-- [ ] **#479/#480 — ClusterRole aggregation labels:** unchanged by Plan 3
+- [ ] **#479/#480: ClusterRole aggregation labels:** unchanged by Plan 3
   (Plan 6 handles distribution).
 - [ ] **Generation thrash:** Task 19 idempotency canary against the full
   Plan 3 surface.
@@ -4231,9 +4231,9 @@ spec.
   reconciler uses `controllerutil.CreateOrUpdate` via the Plan 2
   `ensureDeployment`/`ensureService`/`ensurePVC` wrappers. The webhook
   changes only call `r.Client.Get` (read-only).
-- [ ] No `r.Update()` on the `HermesInstance` itself — only
+- [ ] No `r.Update()` on the `HermesInstance` itself: only
   `r.Status().Update` for the new condition.
-- [ ] Finalizer add/remove still uses `r.Patch()` (Plan 1 rule §7.2.5) —
+- [ ] Finalizer add/remove still uses `r.Patch()` (Plan 1 rule §7.2.5):
   Plan 3 adds no finalizers.
 
 ### Webhook behaviour
@@ -4262,15 +4262,15 @@ spec.
 
 ### Distribution + docs
 
-- [ ] `docs/api-reference.md` — Task 21 appended runtime + gateways +
+- [ ] `docs/api-reference.md`: Task 21 appended runtime + gateways +
   profileStore sections.
-- [ ] `docs/conventions.md` — Task 22 appended well-known egress endpoints.
-- [ ] `docs/conditions.md` — Task 15 appended `ProfileStoreReady` entry.
-- [ ] `docs/runbook-platform-gateways.md` — Task 23 created.
-- [ ] `README.md` feature table — Task 24 updated.
-- [ ] `charts/hermes-operator/values.yaml` — Task 24 added agent + Honcho
+- [ ] `docs/conventions.md`: Task 22 appended well-known egress endpoints.
+- [ ] `docs/conditions.md`: Task 15 appended `ProfileStoreReady` entry.
+- [ ] `docs/runbook-platform-gateways.md`: Task 23 created.
+- [ ] `README.md` feature table: Task 24 updated.
+- [ ] `charts/hermes-operator/values.yaml`: Task 24 added agent + Honcho
   defaults.
-- [ ] `.github/workflows/agent-image.yaml` + `agent-image-smoke.yaml` —
+- [ ] `.github/workflows/agent-image.yaml` + `agent-image-smoke.yaml`:
   Task 4.
 - [ ] `images/hermes-agent/uv.lock` committed and reproducible (Task 3
   Step 3 diff check).
@@ -4278,16 +4278,16 @@ spec.
 ### Things deferred to other plans (do NOT implement here)
 
 - The `addProfileSnapshot` one-shot Job that writes to the Honcho PVC at
-  `/data/snapshots/<profileID>/<timestamp>.json` — Plan 4 Task 11.
+  `/data/snapshots/<profileID>/<timestamp>.json`: Plan 4 Task 11.
 - `HermesClusterDefaults` defaulting of `runtime`, `gateways`,
-  `profileStore` — Plan 4 (`hermesclusterdefaults_controller.go`) or
+  `profileStore`: Plan 4 (`hermesclusterdefaults_controller.go`) or
   Plan 6 (default `HermesClusterDefaults` chart template).
 - The `migration.fromOpenClaw` init container that invokes `hermes-agent
-  migrate from-openclaw` — Plan 5. Plan 3 only ensures the agent image's
+  migrate from-openclaw`: Plan 5. Plan 3 only ensures the agent image's
   entrypoint supports the subcommand.
 - Conformance suite (`test/conformance/`) covering the negative gateway
-  cases — Plan 6.
-- Backup/restore that captures the Honcho PVC alongside the data PVC —
+  cases: Plan 6.
+- Backup/restore that captures the Honcho PVC alongside the data PVC:
   Plan 5.
 
 ### Forward references for downstream plans

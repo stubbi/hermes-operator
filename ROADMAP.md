@@ -1,4 +1,4 @@
-# Hermes Operator — Roadmap
+# Hermes Operator: Roadmap
 
 > Public, non-binding roadmap. Things on this list may shift between minor
 > releases. The v1 API stability contract in
@@ -24,7 +24,7 @@ adapted to hermes-agent's Python/uv runtime") items are in v1.0.0:
 - `HermesClusterDefaults` cluster-scoped singleton with the defaulting
   webhook that fills `nil` fields only (never overrides).
 - StatefulSet-based runtime with explicit Kubernetes defaults set in every
-  builder (no generation thrash on update — Reconcile Guard CI enforces).
+  builder (no generation thrash on update: Reconcile Guard CI enforces).
 - Default-deny NetworkPolicy + per-gateway allow rules.
 - S3-compatible scheduled / on-delete / pre-update backups; declarative
   one-shot restore via `spec.restoreFrom`.
@@ -55,13 +55,13 @@ introduce breaking changes to `hermes.agent/v1`.
 A `kubectl` plugin (`kubectl hermes`) installable via
 [krew](https://krew.sigs.k8s.io/). Initial commands:
 
-- `kubectl hermes diag <instance>` — pull conditions + recent events +
+- `kubectl hermes diag <instance>`: pull conditions + recent events +
   pod status + recent logs into a single triage report.
-- `kubectl hermes shell <instance>` — `kubectl attach` shortcut for the
+- `kubectl hermes shell <instance>`: `kubectl attach` shortcut for the
   optional web-terminal sidecar.
-- `kubectl hermes snapshot <instance>` — manual one-shot backup outside
+- `kubectl hermes snapshot <instance>`: manual one-shot backup outside
   the schedule.
-- `kubectl hermes migrate-from-openclaw <openclaw-instance>` — generate a
+- `kubectl hermes migrate-from-openclaw <openclaw-instance>`: generate a
   starter `HermesInstance` YAML with the right `migration.fromOpenClaw`
   sub-spec for the source.
 
@@ -102,7 +102,7 @@ periodic basis as Kubernetes Events on the instance:
 - "Provider X is timing out > 1%/h; consider a fallback in spec.providers
   ordering."
 
-Recommendations are advisory — the operator never auto-changes provider
+Recommendations are advisory: the operator never auto-changes provider
 config. Cost data needs an explicit `spec.observability.cost.enabled=true`
 opt-in for privacy reasons.
 
@@ -115,7 +115,7 @@ specific minor:
 
 A `HermesInstanceMirror` CRD that, when applied in a "primary" cluster,
 keeps a 1:1 mirror running in N "secondary" clusters with automatic
-failover. Non-trivial — depends on a clean way to share PVC contents
+failover. Non-trivial: depends on a clean way to share PVC contents
 (velero-based or via the existing backup/restore pipeline).
 
 Design constraint: must not require a control plane outside Kubernetes.
@@ -134,7 +134,7 @@ pods, configurable to keep running while the main agent scales to zero
 and pass the event through on wake).
 
 Note this is design §NG2 explicitly *not* about Modal/Daytona-style
-hibernation — it stays Kubernetes-native.
+hibernation: it stays Kubernetes-native.
 
 ### Per-gateway operator sub-modes
 
@@ -146,7 +146,7 @@ adds a new CRD alongside.
 
 ## Non-goals
 
-From design spec §1 — these are deliberately not on the roadmap:
+From design spec §1: these are deliberately not on the roadmap:
 
 - **Multi-cluster federation as a hard product feature** beyond the
   "future" item above. Single-cluster control loop only by default.

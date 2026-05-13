@@ -18,7 +18,7 @@ func ConfigMapName(inst *hermesv1.HermesInstance) string {
 // BuildConfigMap returns the desired ConfigMap holding ~/.hermes/config.yaml.
 //
 // `resolvedBody` is the body the reconciler has already resolved for the case
-// where spec.config.configMapRef is set. The builder is pure — it does not
+// where spec.config.configMapRef is set. The builder is pure: it does not
 // reach out to the apiserver.
 //
 //   - Empty resolvedBody + Raw set         → use Raw verbatim (YAML-serialised).
@@ -40,7 +40,7 @@ func BuildConfigMap(inst *hermesv1.HermesInstance, resolvedBody string) *corev1.
 	if merged, err := mergeGatewayFragments(body, BuildGatewayConfigFragments(inst)); err == nil {
 		body = merged
 	}
-	// On parse error we keep the original body — the validating webhook is
+	// On parse error we keep the original body: the validating webhook is
 	// responsible for rejecting malformed config; we don't want a pure builder
 	// to panic.
 	return &corev1.ConfigMap{

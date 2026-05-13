@@ -35,13 +35,13 @@ meta.json                 # sidecar (not under ./)
 
 ## Compression
 
-`zstd -T0 -19` (long-range, max compression, all cores). Typical compression ratio on hermes data is 5–8× (FTS5 indexes compress especially well).
+`zstd -T0 -19` (long-range, max compression, all cores). Typical compression ratio on hermes data is 5-8× (FTS5 indexes compress especially well).
 
 ## Encryption
 
 Encryption is **not** built into the snapshot format. Two options:
-1. **Bucket-side encryption** (SSE-S3, SSE-KMS) — recommended.
-2. **Restic native encryption** — set `RESTIC_PASSWORD` in the credentials Secret. The operator passes it through. The default builders do not enable this; opt in by adding the env var.
+1. **Bucket-side encryption** (SSE-S3, SSE-KMS): recommended.
+2. **Restic native encryption**: set `RESTIC_PASSWORD` in the credentials Secret. The operator passes it through. The default builders do not enable this; opt in by adding the env var.
 
 ## Cross-instance restore
 
@@ -52,7 +52,7 @@ spec:
   restoreFrom: "<source-snapshot-key>"
 ```
 
-The operator does **not** rewrite `meta.json.instance_uid`. The hermes-agent runtime will see a new UID on the running instance and treat the imported data as foreign. This is intentional — if you don't want that, do the restore manually with `mc cp` + extract + manual edit.
+The operator does **not** rewrite `meta.json.instance_uid`. The hermes-agent runtime will see a new UID on the running instance and treat the imported data as foreign. This is intentional: if you don't want that, do the restore manually with `mc cp` + extract + manual edit.
 
 ## Format evolution
 

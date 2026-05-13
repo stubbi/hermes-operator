@@ -34,7 +34,7 @@ import (
 // workspace ConfigMap via Server-Side Apply.
 //
 // SSA mechanics in this controller:
-//  1. Never call client.Update on the parent HermesInstance — that reconciler
+//  1. Never call client.Update on the parent HermesInstance: that reconciler
 //     owns the lifecycle of those objects; we only patch fields.
 //  2. Every write is `client.Patch(ctx, partial, client.Apply, ...)`
 //     with FieldOwner=SelfConfigFieldManager. SSA records ownership per
@@ -43,7 +43,7 @@ import (
 //     zero/empty field is not claimed.
 //  4. ForceOwnership is opt-in per HermesSelfConfig via the
 //     "hermes.agent/force-ownership: true" annotation. Default is
-//     collaborative — conflicts become Denied status entries.
+//     collaborative: conflicts become Denied status entries.
 type HermesSelfConfigReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme

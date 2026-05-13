@@ -1,28 +1,28 @@
-# Hermes Operator — Plan 2: Full HermesInstance Reconciler + Webhooks
+# Hermes Operator: Plan 2: Full HermesInstance Reconciler + Webhooks
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Take `HermesInstance` from Plan 1's minimal four-resource happy path to the full v1 spec — every sub-spec from design §4 *except* hermes-runtime / gateways / profileStore (those land in Plan 3) — backed by a defaulting webhook reading `HermesClusterDefaults`, a validating webhook enforcing immutability and one-of constraints, per-instance RBAC, NetworkPolicy / PDB / HPA / Ingress / ServiceMonitor / PrometheusRule / Secret / workspace-ConfigMap builders, and an envtest matrix that exercises every new subsystem with the idempotency canary expanded to cover the full spec.
+**Goal:** Take `HermesInstance` from Plan 1's minimal four-resource happy path to the full v1 spec: every sub-spec from design §4 *except* hermes-runtime / gateways / profileStore (those land in Plan 3): backed by a defaulting webhook reading `HermesClusterDefaults`, a validating webhook enforcing immutability and one-of constraints, per-instance RBAC, NetworkPolicy / PDB / HPA / Ingress / ServiceMonitor / PrometheusRule / Secret / workspace-ConfigMap builders, and an envtest matrix that exercises every new subsystem with the idempotency canary expanded to cover the full spec.
 
-**Architecture:** API types stay in `api/v1/hermesinstance_types.go` / `hermesclusterdefaults_types.go`; resource construction stays a pure-function library under `internal/resources/` (one file per kind); the controller in `internal/controller/hermesinstance_controller.go` orchestrates `controllerutil.CreateOrUpdate` in a strict dependency order, status conditions are set per-subsystem via `meta.SetStatusCondition`, and webhooks live in `internal/webhook/` registered through `cmd/manager/main.go`. cert-manager fronts the webhook TLS; the Helm chart templates `Issuer` + `Certificate` + `inject-ca-from`-annotated `ValidatingWebhookConfiguration` / `MutatingWebhookConfiguration`. A separate `HermesClusterDefaultsReconciler` validates the singleton-name invariant and surfaces a `Ready` condition; it does not reconcile downstream resources — the defaulting webhook reads the singleton directly each admission. The idempotency canary from Plan 1 is generalised: a `TestFullSpecNoOpAfterSettling` test applies a *maximal* `HermesInstance` and asserts no managed resource bumps `metadata.generation` across ten reconciles.
+**Architecture:** API types stay in `api/v1/hermesinstance_types.go` / `hermesclusterdefaults_types.go`; resource construction stays a pure-function library under `internal/resources/` (one file per kind); the controller in `internal/controller/hermesinstance_controller.go` orchestrates `controllerutil.CreateOrUpdate` in a strict dependency order, status conditions are set per-subsystem via `meta.SetStatusCondition`, and webhooks live in `internal/webhook/` registered through `cmd/manager/main.go`. cert-manager fronts the webhook TLS; the Helm chart templates `Issuer` + `Certificate` + `inject-ca-from`-annotated `ValidatingWebhookConfiguration` / `MutatingWebhookConfiguration`. A separate `HermesClusterDefaultsReconciler` validates the singleton-name invariant and surfaces a `Ready` condition; it does not reconcile downstream resources: the defaulting webhook reads the singleton directly each admission. The idempotency canary from Plan 1 is generalised: a `TestFullSpecNoOpAfterSettling` test applies a *maximal* `HermesInstance` and asserts no managed resource bumps `metadata.generation` across ten reconciles.
 
-**Tech Stack:** Go 1.24, kubebuilder v4 / controller-runtime, Ginkgo v2 + Gomega + envtest, cert-manager v1.16+ (runtime dependency of the chart, not the operator binary), Prometheus Operator CRDs (ServiceMonitor / PrometheusRule — schemas read at startup but not required at runtime when disabled), `sigs.k8s.io/yaml` for YAML merge, `github.com/stretchr/testify` (already added in Plan 1), `k8s.io/api/policy/v1` (PDB), `k8s.io/api/autoscaling/v2` (HPA), `k8s.io/api/networking/v1` (Ingress + NetworkPolicy), `k8s.io/api/rbac/v1`.
+**Tech Stack:** Go 1.24, kubebuilder v4 / controller-runtime, Ginkgo v2 + Gomega + envtest, cert-manager v1.16+ (runtime dependency of the chart, not the operator binary), Prometheus Operator CRDs (ServiceMonitor / PrometheusRule: schemas read at startup but not required at runtime when disabled), `sigs.k8s.io/yaml` for YAML merge, `github.com/stretchr/testify` (already added in Plan 1), `k8s.io/api/policy/v1` (PDB), `k8s.io/api/autoscaling/v2` (HPA), `k8s.io/api/networking/v1` (Ingress + NetworkPolicy), `k8s.io/api/rbac/v1`.
 
 **Prerequisite:** Plan 1 (Foundation) is merged. Plan 1's File Structure section is on disk; `internal/resources/{common,pvc,configmap,service,statefulset}.go` exist with their tests; the `HermesInstanceReconciler` reconciles those four resources; the Reconcile Guard CI job is wired; envtest binaries are downloaded by `make envtest`. **No webhooks** have been registered yet, **no `HermesClusterDefaults` controller** has been wired into `cmd/manager/main.go`.
 
 **Plan 1 conventions referenced (do not redefine):**
-- `resources.Ptr[T]`, `resources.LabelsForInstance(inst)`, `resources.MergePreservingForeign(existing, desired, "hermes.agent/")` — defined in Plan 1 Task 4.
-- The idempotency canary pattern — Plan 1 Task 10 step 3 ("second reconcile does not change generation"). Plan 2 generalises it across the full spec.
-- The explicit-k8s-defaults rule — Plan 1 Task 8 enumerates every server-side default a builder must set (`RevisionHistoryLimit`, `ProgressDeadlineSeconds`, `RestartPolicy`, `DNSPolicy`, `SchedulerName`, `TerminationGracePeriodSeconds`, `TerminationMessagePath`, `TerminationMessagePolicy`, `ImagePullPolicy`, `SuccessThreshold` on every probe, `DefaultMode` on volume sources, `SessionAffinity: None` on Service).
-- `BuildPVC` / `PVCName`, `BuildConfigMap` / `ConfigMapName`, `BuildService` / `ServiceName`, `BuildStatefulSet` / `StatefulSetName` are the established naming pattern — every new builder in this plan follows it (`BuildNetworkPolicy` / `NetworkPolicyName`, `BuildPDB` / `PDBName`, etc.).
+- `resources.Ptr[T]`, `resources.LabelsForInstance(inst)`, `resources.MergePreservingForeign(existing, desired, "hermes.agent/")`: defined in Plan 1 Task 4.
+- The idempotency canary pattern: Plan 1 Task 10 step 3 ("second reconcile does not change generation"). Plan 2 generalises it across the full spec.
+- The explicit-k8s-defaults rule: Plan 1 Task 8 enumerates every server-side default a builder must set (`RevisionHistoryLimit`, `ProgressDeadlineSeconds`, `RestartPolicy`, `DNSPolicy`, `SchedulerName`, `TerminationGracePeriodSeconds`, `TerminationMessagePath`, `TerminationMessagePolicy`, `ImagePullPolicy`, `SuccessThreshold` on every probe, `DefaultMode` on volume sources, `SessionAffinity: None` on Service).
+- `BuildPVC` / `PVCName`, `BuildConfigMap` / `ConfigMapName`, `BuildService` / `ServiceName`, `BuildStatefulSet` / `StatefulSetName` are the established naming pattern: every new builder in this plan follows it (`BuildNetworkPolicy` / `NetworkPolicyName`, `BuildPDB` / `PDBName`, etc.).
 - Commit prefixes: `feat:`, `fix:`, `docs:`, `ci:`, `chore:`, `refactor:`, `test:`. Release-please uses `feat:`/`fix:` for the changelog.
 - Worktree discipline: `git worktree add ../hermes-operator-plan-2 -b feat/plan-2-full-reconciler main` before starting; `git worktree remove` at the end.
 
 **Forward references (do not implement here):**
-- `spec.runtime`, `spec.gateways`, `spec.profileStore`, `spec.ollama`, `spec.webTerminal`, `spec.tailscale`, `spec.autoUpdate` body wiring — Plan 3.
-- `HermesSelfConfig` reconciler + selfconfig validator real body — Plan 4 (we land a *stub* validator in this plan so the webhook server registers cleanly; Plan 4 replaces it).
-- `spec.backup`, `spec.restoreFrom`, `spec.migration` — Plan 5.
-- OLM bundle, GoReleaser, conformance suite — Plan 6.
+- `spec.runtime`, `spec.gateways`, `spec.profileStore`, `spec.ollama`, `spec.webTerminal`, `spec.tailscale`, `spec.autoUpdate` body wiring: Plan 3.
+- `HermesSelfConfig` reconciler + selfconfig validator real body: Plan 4 (we land a *stub* validator in this plan so the webhook server registers cleanly; Plan 4 replaces it).
+- `spec.backup`, `spec.restoreFrom`, `spec.migration`: Plan 5.
+- OLM bundle, GoReleaser, conformance suite: Plan 6.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-12-hermes-operator-design.md` §4 (full HermesInstance spec), §6 (HermesClusterDefaults), §7.2 (reconciliation rules), §7.3 (webhook design), §7.4 (operational guardrails).
 
@@ -35,7 +35,7 @@ api/v1/
 ├── hermesinstance_types.go                # MODIFY: expand to full v1 spec (Tasks 3-9)
 ├── hermesclusterdefaults_types.go         # MODIFY: real spec mirroring HermesInstance sub-specs (Task 10)
 ├── webhook_hermesinstance.go              # NEW: Defaulter + Validator (kubebuilder-generated shell) (Task 22)
-├── webhook_hermesselfconfig.go            # NEW: Validator *stub* — Plan 4 replaces the body (Task 25)
+├── webhook_hermesselfconfig.go            # NEW: Validator *stub*: Plan 4 replaces the body (Task 25)
 ├── webhook_hermesclusterdefaults.go       # NEW: Validator (singleton-name rule) (Task 24)
 └── zz_generated.deepcopy.go               # REGEN
 
@@ -69,13 +69,13 @@ internal/resources/
 internal/resources/statefulset_test.go     # MODIFY (Tasks 26-29)
 
 internal/webhook/
-├── webhook_hermesinstance_default.go      # NEW: Defaulter — read HermesClusterDefaults singleton (Task 22)
+├── webhook_hermesinstance_default.go      # NEW: Defaulter: read HermesClusterDefaults singleton (Task 22)
 ├── webhook_hermesinstance_default_test.go # NEW
-├── webhook_hermesinstance_validate.go     # NEW: Validator — required/immutable/one-of (Task 23)
+├── webhook_hermesinstance_validate.go     # NEW: Validator: required/immutable/one-of (Task 23)
 ├── webhook_hermesinstance_validate_test.go# NEW
-├── webhook_hermesclusterdefaults.go       # NEW: Validator — name must be "cluster" (Task 24)
+├── webhook_hermesclusterdefaults.go       # NEW: Validator: name must be "cluster" (Task 24)
 ├── webhook_hermesclusterdefaults_test.go  # NEW
-├── webhook_hermesselfconfig.go            # NEW: Validator STUB — always-allow + TODO (Task 25)
+├── webhook_hermesselfconfig.go            # NEW: Validator STUB: always-allow + TODO (Task 25)
 └── webhook_hermesselfconfig_test.go       # NEW
 
 internal/controller/
@@ -124,7 +124,7 @@ git fetch origin
 git log --oneline -1 origin/main
 ```
 
-Expected: most recent commit looks like `feat(ci): wire kind e2e workflow` or similar — the end of Plan 1.
+Expected: most recent commit looks like `feat(ci): wire kind e2e workflow` or similar: the end of Plan 1.
 
 - [ ] **Step 2: Create the worktree**
 
@@ -150,7 +150,7 @@ grep -q "LabelsForInstance" internal/resources/common.go && echo "labels helper 
 grep -q "MergePreservingForeign" internal/resources/common.go && echo "merge helper OK"
 ```
 
-Expected: all ten echo lines print. If any are missing, the assumed precondition is wrong — stop and flag the dispatching agent.
+Expected: all ten echo lines print. If any are missing, the assumed precondition is wrong: stop and flag the dispatching agent.
 
 - [ ] **Step 4: Confirm green baseline**
 
@@ -167,11 +167,11 @@ Expected: build succeeds; envtest suite green (Plan 1's happy-path + idempotency
 git log --oneline -1
 ```
 
-Record the SHA — we'll reference it in the Plan-2 milestone tag at the end of Task 34.
+Record the SHA: we'll reference it in the Plan-2 milestone tag at the end of Task 34.
 
 ---
 
-## Task 2: Spec scaffold — top-level shape and the type tree
+## Task 2: Spec scaffold: top-level shape and the type tree
 
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
@@ -192,7 +192,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestHermesInstanceSpec_HasAllSubSpecs is the schema canary — every sub-spec
+// TestHermesInstanceSpec_HasAllSubSpecs is the schema canary: every sub-spec
 // from design §4 must be addressable on HermesInstanceSpec. Tasks 3-9 fill the
 // bodies; this test only guards the shape so the field-tag / json-name choices
 // are reviewable in one place.
@@ -331,34 +331,34 @@ type HermesInstanceSpec struct {
 At the bottom of the file (above `HermesInstanceStatus`), append placeholder structs:
 
 ```go
-// ConfigSpec — populated in Task 3.
+// ConfigSpec: populated in Task 3.
 type ConfigSpec struct{}
 
-// WorkspaceSpec — populated in Task 4.
+// WorkspaceSpec: populated in Task 4.
 type WorkspaceSpec struct{}
 
-// ResourcesSpec — populated in Task 5.
+// ResourcesSpec: populated in Task 5.
 type ResourcesSpec struct{}
 
-// SecuritySpec — populated in Task 6.
+// SecuritySpec: populated in Task 6.
 type SecuritySpec struct{}
 
-// NetworkingSpec — populated in Task 7.
+// NetworkingSpec: populated in Task 7.
 type NetworkingSpec struct{}
 
-// ObservabilitySpec — populated in Task 8.
+// ObservabilitySpec: populated in Task 8.
 type ObservabilitySpec struct{}
 
-// AvailabilitySpec — populated in Task 9.
+// AvailabilitySpec: populated in Task 9.
 type AvailabilitySpec struct{}
 
-// ProbesSpec — populated in Task 9.
+// ProbesSpec: populated in Task 9.
 type ProbesSpec struct{}
 
-// SchedulingSpec — populated in Task 9.
+// SchedulingSpec: populated in Task 9.
 type SchedulingSpec struct{}
 
-// InstanceSkill — Plan 3 fills the runtime semantics. The field exists here so
+// InstanceSkill: Plan 3 fills the runtime semantics. The field exists here so
 // SSA from HermesSelfConfig (Plan 4) can patch the slice with listMapKey=source.
 type InstanceSkill struct {
 	// Source is the uv/pip-compatible install source.
@@ -366,7 +366,7 @@ type InstanceSkill struct {
 	Source string `json:"source"`
 }
 
-// SelfConfigureSpec — populated in Task 9.
+// SelfConfigureSpec: populated in Task 9.
 type SelfConfigureSpec struct{}
 ```
 
@@ -399,7 +399,7 @@ git commit -m "feat(api): scaffold full HermesInstance spec sub-fields (empty bo
 
 ---
 
-## Task 3: `ConfigSpec` — raw / configMapRef / mergeMode
+## Task 3: `ConfigSpec`: raw / configMapRef / mergeMode
 
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
@@ -432,7 +432,7 @@ Add the `runtime "k8s.io/apimachinery/pkg/runtime"` import at the top of the tes
 go test ./api/v1/... -run TestConfigSpec -v
 ```
 
-Expected: build error — `ConfigSpec.Raw`, `RawConfig`, etc. undefined.
+Expected: build error: `ConfigSpec.Raw`, `RawConfig`, etc. undefined.
 
 - [ ] **Step 3: Replace the `ConfigSpec` placeholder with the real body**
 
@@ -444,10 +444,10 @@ In `api/v1/hermesinstance_types.go`, replace `type ConfigSpec struct{}` with:
 type ConfigMergeMode string
 
 const (
-	// ConfigMergeModeReplace — Raw replaces ConfigMapRef entirely when both are set.
+	// ConfigMergeModeReplace: Raw replaces ConfigMapRef entirely when both are set.
 	// This is the default to avoid surprising merges.
 	ConfigMergeModeReplace ConfigMergeMode = "replace"
-	// ConfigMergeModeMerge — YAML deep-merge Raw onto ConfigMapRef. Raw wins on conflict.
+	// ConfigMergeModeMerge: YAML deep-merge Raw onto ConfigMapRef. Raw wins on conflict.
 	ConfigMergeModeMerge ConfigMergeMode = "merge"
 )
 
@@ -534,7 +534,7 @@ git commit -m "feat(api): add ConfigSpec (raw / configMapRef / mergeMode)"
 
 ---
 
-## Task 4: `WorkspaceSpec` — initial files & dirs with nested-path support
+## Task 4: `WorkspaceSpec`: initial files & dirs with nested-path support
 
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
@@ -582,7 +582,7 @@ Replace `type WorkspaceSpec struct{}` with:
 // WorkspaceSpec seeds initial files and directories into ~/.hermes on first
 // start. Path values support arbitrary nested directories ("a/b/c.md" is fine);
 // the workspace ConfigMap encodes nested paths using "__" as the separator so a
-// single-level ConfigMap data map can express them — Plan 3's runtime-init
+// single-level ConfigMap data map can express them: Plan 3's runtime-init
 // container decodes the keys back to filesystem paths before invoking the agent.
 //
 // Lesson from openclaw #482: do not constrain Path to a single segment; that
@@ -629,7 +629,7 @@ type WorkspaceFile struct {
 
 // WorkspaceBootstrap toggles the first-start bootstrap script.
 type WorkspaceBootstrap struct {
-	// Enabled — default false. Plan 3 wires the actual init-container.
+	// Enabled: default false. Plan 3 wires the actual init-container.
 	// +kubebuilder:default=false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -662,7 +662,7 @@ git commit -m "feat(api): add WorkspaceSpec with nested-path InitialFiles (lesso
 
 ---
 
-## Task 5: `ResourcesSpec` — requests + limits
+## Task 5: `ResourcesSpec`: requests + limits
 
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
@@ -703,7 +703,7 @@ Replace `type ResourcesSpec struct{}` with:
 
 ```go
 // ResourcesSpec sets CPU/memory requests + limits on the agent container.
-// Defaults intentionally omitted — the defaulting webhook fills from
+// Defaults intentionally omitted: the defaulting webhook fills from
 // HermesClusterDefaults if available, otherwise the field is left empty
 // (meaning the agent inherits whatever Pod-level defaults the namespace's
 // LimitRange applies).
@@ -743,17 +743,17 @@ git commit -m "feat(api): add ResourcesSpec (requests + limits)"
 
 ---
 
-## Task 6: `SecuritySpec` — pod/container contexts, RBAC, NetworkPolicy, CA bundle
+## Task 6: `SecuritySpec`: pod/container contexts, RBAC, NetworkPolicy, CA bundle
 
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
 
 Three concerns bundled because they share a logical "security posture" surface:
 
-1. `PodSecurityContext` + `ContainerSecurityContext` — straight pass-through.
-2. `RBAC` — opt out of the operator creating an SA / opt in to bring-your-own SA; SA-level annotations carry IRSA / Workload Identity bindings.
-3. `NetworkPolicy` — operator-default deny-all with selective allows. The instance scope only chooses on/off and allow-list extras (DNS, namespaces, CIDRs, additional egress).
-4. `CABundle` — optional ConfigMap/Secret mounted into the agent so HTTPS calls trust an internal CA (corporate proxy / private registries).
+1. `PodSecurityContext` + `ContainerSecurityContext`: straight pass-through.
+2. `RBAC`: opt out of the operator creating an SA / opt in to bring-your-own SA; SA-level annotations carry IRSA / Workload Identity bindings.
+3. `NetworkPolicy`: operator-default deny-all with selective allows. The instance scope only chooses on/off and allow-list extras (DNS, namespaces, CIDRs, additional egress).
+4. `CABundle`: optional ConfigMap/Secret mounted into the agent so HTTPS calls trust an internal CA (corporate proxy / private registries).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -828,13 +828,13 @@ type SecuritySpec struct {
 
 // RBACSpec controls per-instance ServiceAccount + Role + RoleBinding creation.
 type RBACSpec struct {
-	// CreateServiceAccount — when true (the default), the operator creates and
+	// CreateServiceAccount: when true (the default), the operator creates and
 	// owns a ServiceAccount named after the instance.
 	// +kubebuilder:default=true
 	// +optional
 	CreateServiceAccount *bool `json:"createServiceAccount,omitempty"`
 
-	// ServiceAccountName — when CreateServiceAccount is false, the agent uses
+	// ServiceAccountName: when CreateServiceAccount is false, the agent uses
 	// this externally-managed ServiceAccount. Must exist in the same namespace.
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
@@ -848,14 +848,14 @@ type RBACSpec struct {
 
 // NetworkPolicySpec controls per-instance NetworkPolicy creation.
 type NetworkPolicySpec struct {
-	// Enabled — when true (the default), the operator creates a deny-all
+	// Enabled: when true (the default), the operator creates a deny-all
 	// NetworkPolicy plus selective allow rules (DNS + 443 egress + Service ingress
 	// from the same namespace).
 	// +kubebuilder:default=true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// AllowDNS — emit the standard DNS egress rule (UDP+TCP 53 to any peer).
+	// AllowDNS: emit the standard DNS egress rule (UDP+TCP 53 to any peer).
 	// Default true. Disable only when CoreDNS is reachable via a different
 	// transport (e.g. node-local DNS via hostNetwork).
 	// +kubebuilder:default=true
@@ -930,7 +930,7 @@ git commit -m "feat(api): add SecuritySpec (PSC/CSC, RBAC, NetworkPolicy, CABund
 
 ---
 
-## Task 7: `NetworkingSpec` — Service + Ingress
+## Task 7: `NetworkingSpec`: Service + Ingress
 
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
@@ -985,7 +985,7 @@ type NetworkingSpec struct {
 
 // ServiceSpec controls the agent's Service.
 type ServiceSpec struct {
-	// Type is the Service kind. Default ClusterIP (headed) — Plan 1 emitted a
+	// Type is the Service kind. Default ClusterIP (headed): Plan 1 emitted a
 	// headless Service; v1 keeps ClusterIP as the default and lets users opt
 	// into Headless via Type=ClusterIP with ClusterIP="None" through the spec.
 	// +kubebuilder:default=ClusterIP
@@ -993,7 +993,7 @@ type ServiceSpec struct {
 	// +optional
 	Type corev1.ServiceType `json:"type,omitempty"`
 
-	// ClusterIP — set to "None" for a headless Service. Default empty (api-server allocates).
+	// ClusterIP: set to "None" for a headless Service. Default empty (api-server allocates).
 	// +optional
 	ClusterIP string `json:"clusterIP,omitempty"`
 
@@ -1044,7 +1044,7 @@ type NamedServicePort struct {
 
 // IngressSpec controls optional Ingress creation.
 type IngressSpec struct {
-	// Enabled — when true, the operator creates an Ingress for the agent.
+	// Enabled: when true, the operator creates an Ingress for the agent.
 	// Default false.
 	// +kubebuilder:default=false
 	// +optional
@@ -1067,18 +1067,18 @@ type IngressSpec struct {
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 
-	// PathType — default Prefix.
+	// PathType: default Prefix.
 	// +kubebuilder:default=Prefix
 	// +kubebuilder:validation:Enum=Exact;Prefix;ImplementationSpecific
 	// +optional
 	PathType networkingv1.PathType `json:"pathType,omitempty"`
 
-	// Path — default "/".
+	// Path: default "/".
 	// +kubebuilder:default="/"
 	// +optional
 	Path string `json:"path,omitempty"`
 
-	// ServicePortName — name of the Service port the Ingress should route to.
+	// ServicePortName: name of the Service port the Ingress should route to.
 	// Default "gateway".
 	// +kubebuilder:default="gateway"
 	// +optional
@@ -1110,7 +1110,7 @@ git commit -m "feat(api): add NetworkingSpec (Service + Ingress)"
 
 ---
 
-## Task 8: `ObservabilitySpec` — metrics, ServiceMonitor, PrometheusRule, logging
+## Task 8: `ObservabilitySpec`: metrics, ServiceMonitor, PrometheusRule, logging
 
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
@@ -1173,7 +1173,7 @@ type MetricsSpec struct {
 	// +optional
 	Port int32 `json:"port,omitempty"`
 
-	// Secure — when true, /metrics requires bearer-token auth and uses HTTPS.
+	// Secure: when true, /metrics requires bearer-token auth and uses HTTPS.
 	// The ServiceMonitor scheme/scrape settings must agree (lesson #435/#440).
 	// +kubebuilder:default=false
 	// +optional
@@ -1193,13 +1193,13 @@ type ServiceMonitorSpec struct {
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
 
-	// Interval — default "30s".
+	// Interval: default "30s".
 	// +kubebuilder:default="30s"
 	// +kubebuilder:validation:Pattern=`^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$`
 	// +optional
 	Interval string `json:"interval,omitempty"`
 
-	// ScrapeTimeout — default "10s".
+	// ScrapeTimeout: default "10s".
 	// +kubebuilder:default="10s"
 	// +kubebuilder:validation:Pattern=`^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$`
 	// +optional
@@ -1250,7 +1250,7 @@ type LoggingSpec struct {
 	// +optional
 	Format LogFormat `json:"format,omitempty"`
 
-	// Level — Plan 3 wires HERMES_LOG_LEVEL on the agent container.
+	// Level: Plan 3 wires HERMES_LOG_LEVEL on the agent container.
 	// +kubebuilder:default=info
 	// +kubebuilder:validation:Enum=trace;debug;info;warn;error
 	// +optional
@@ -1279,7 +1279,7 @@ git commit -m "feat(api): add ObservabilitySpec (metrics, ServiceMonitor, Promet
 **Files:**
 - Modify: `api/v1/hermesinstance_types.go`
 
-Bundle the four remaining sub-specs because each one is small. `SelfConfigure` is the *schema only* — Plan 4's controller is what actually consumes it; we land the field here so Plan 4 doesn't have to back-modify the CRD.
+Bundle the four remaining sub-specs because each one is small. `SelfConfigure` is the *schema only*: Plan 4's controller is what actually consumes it; we land the field here so Plan 4 doesn't have to back-modify the CRD.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1362,11 +1362,11 @@ type PDBSpec struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// MinAvailable — optional, mutually exclusive with MaxUnavailable.
+	// MinAvailable: optional, mutually exclusive with MaxUnavailable.
 	// +optional
 	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
 
-	// MaxUnavailable — optional, mutually exclusive with MinAvailable.
+	// MaxUnavailable: optional, mutually exclusive with MinAvailable.
 	// Default 1 when neither is set and PDB is enabled.
 	// +optional
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
@@ -1378,26 +1378,26 @@ type HPASpec struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// MinReplicas — default 1.
+	// MinReplicas: default 1.
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
-	// MaxReplicas — default 5.
+	// MaxReplicas: default 5.
 	// +kubebuilder:default=5
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MaxReplicas *int32 `json:"maxReplicas,omitempty"`
 
-	// TargetCPUUtilization — default 80 (percent).
+	// TargetCPUUtilization: default 80 (percent).
 	// +kubebuilder:default=80
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=100
 	// +optional
 	TargetCPUUtilization *int32 `json:"targetCPUUtilization,omitempty"`
 
-	// TargetMemoryUtilization — optional, when set adds a memory metric.
+	// TargetMemoryUtilization: optional, when set adds a memory metric.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=100
 	// +optional
@@ -1410,7 +1410,7 @@ type HPASpec struct {
 }
 
 // ProbesSpec overrides the operator's built-in probes. Each field is a complete
-// probe — set every value you want non-default because we apply it verbatim.
+// probe: set every value you want non-default because we apply it verbatim.
 type ProbesSpec struct {
 	// +optional
 	Liveness *corev1.Probe `json:"liveness,omitempty"`
@@ -1436,7 +1436,7 @@ type SchedulingSpec struct {
 // Plan 4 wires the controller; the field exists here so Plan 4 doesn't need a
 // CRD change. The validator rejects Enabled=true with ProtectedKeys empty.
 type SelfConfigureSpec struct {
-	// Enabled — explicit *bool so the defaulter can distinguish "user said false"
+	// Enabled: explicit *bool so the defaulter can distinguish "user said false"
 	// from "user did not set it" (Plan 4 relies on this).
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1537,12 +1537,12 @@ git commit -m "feat(api): add Availability/Probes/Scheduling/SelfConfigure specs
 
 ---
 
-## Task 10: `HermesClusterDefaults` — full spec + singleton invariant
+## Task 10: `HermesClusterDefaults`: full spec + singleton invariant
 
 **Files:**
 - Modify: `api/v1/hermesclusterdefaults_types.go`
 
-Design §6: cluster-scoped, name **must** be `cluster`, body mirrors the HermesInstance defaultable sub-specs (image, registry, storage, security, observability, networking). ClusterDefaults only fills `nil` fields on the instance — never overrides.
+Design §6: cluster-scoped, name **must** be `cluster`, body mirrors the HermesInstance defaultable sub-specs (image, registry, storage, security, observability, networking). ClusterDefaults only fills `nil` fields on the instance: never overrides.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1589,7 +1589,7 @@ func TestHermesClusterDefaults_Shape(t *testing.T) {
 	assert.Equal(t, "ghcr-pull", hcd.Spec.Registry.PullSecretName)
 	assert.NotNil(t, hcd.Spec.Storage.Persistence.StorageClassName)
 
-	// Sanity: a non-cluster name should still parse — the *webhook* rejects it,
+	// Sanity: a non-cluster name should still parse: the *webhook* rejects it,
 	// not the type system.
 	other := &HermesClusterDefaults{ObjectMeta: metav1.ObjectMeta{Name: "not-cluster"}}
 	_ = corev1.ObjectReference{Name: other.Name}
@@ -1602,7 +1602,7 @@ func TestHermesClusterDefaults_Shape(t *testing.T) {
 go test ./api/v1/... -run TestHermesClusterDefaults_Shape -v
 ```
 
-Expected: build error — most fields undefined.
+Expected: build error: most fields undefined.
 
 - [ ] **Step 3: Replace `HermesClusterDefaultsSpec` with the real body**
 
@@ -1749,7 +1749,7 @@ Expected: deepcopy regenerated; CRD YAML at `config/crd/bases/hermes.agent_herme
 grep -A2 "names:" config/crd/bases/hermes.agent_hermesclusterdefaults.yaml | grep scope
 ```
 
-Expected: `scope: Cluster`. If `Namespaced`, the kubebuilder marker was lost in regeneration — re-add and rerun `make manifests`.
+Expected: `scope: Cluster`. If `Namespaced`, the kubebuilder marker was lost in regeneration: re-add and rerun `make manifests`.
 
 - [ ] **Step 7: Commit**
 
@@ -1760,7 +1760,7 @@ git commit -m "feat(api): full HermesClusterDefaults spec (image/registry/storag
 
 ---
 
-## Task 11: `internal/resources/common.go` — port constants + builder option helpers
+## Task 11: `internal/resources/common.go`: port constants + builder option helpers
 
 **Files:**
 - Modify: `internal/resources/common.go`, `internal/resources/common_test.go`
@@ -1774,7 +1774,7 @@ Append to `internal/resources/common_test.go`:
 ```go
 func TestPortConstants(t *testing.T) {
 	t.Parallel()
-	// Constants must be stable — Plan 3-6 reference these by name.
+	// Constants must be stable: Plan 3-6 reference these by name.
 	assert.Equal(t, int32(8443), GatewayPort)
 	assert.Equal(t, int32(9090), DefaultMetricsPort)
 	assert.Equal(t, "gateway", GatewayPortName)
@@ -1896,7 +1896,7 @@ git commit -m "feat(resources): add port constants, SelectorLabels, ServiceAccou
 
 ---
 
-## Task 12: ConfigMap builder — honor `spec.config.raw` / `configMapRef` / `mergeMode`
+## Task 12: ConfigMap builder: honor `spec.config.raw` / `configMapRef` / `mergeMode`
 
 **Files:**
 - Modify: `internal/resources/configmap.go`, `internal/resources/configmap_test.go`
@@ -1998,7 +1998,7 @@ func TestMergeYAMLBodies(t *testing.T) {
 go test ./internal/resources/... -run TestBuildConfigMap -v
 ```
 
-Expected: build error — `BuildConfigMap` signature changed; `MergeYAMLBodies` undefined.
+Expected: build error: `BuildConfigMap` signature changed; `MergeYAMLBodies` undefined.
 
 - [ ] **Step 3: Update `internal/resources/configmap.go`**
 
@@ -2024,7 +2024,7 @@ func ConfigMapName(inst *hermesv1.HermesInstance) string {
 // BuildConfigMap returns the desired ConfigMap holding ~/.hermes/config.yaml.
 //
 // `resolvedBody` is the body the reconciler has already resolved for the case
-// where spec.config.configMapRef is set. The builder is pure — it does not
+// where spec.config.configMapRef is set. The builder is pure: it does not
 // reach out to the apiserver.
 //
 //   - Empty resolvedBody + Raw set         → use Raw verbatim (YAML-serialised).
@@ -2409,7 +2409,7 @@ git commit -m "feat(resources): add gateway-token Secret builder (placeholder; P
 
 ---
 
-## Task 15: NetworkPolicy builder — deny-all + DNS + 443 + allow-lists
+## Task 15: NetworkPolicy builder: deny-all + DNS + 443 + allow-lists
 
 **Files:**
 - Create: `internal/resources/networkpolicy.go`, `internal/resources/networkpolicy_test.go`
@@ -2443,7 +2443,7 @@ func TestBuildNetworkPolicy_DenyAllBase(t *testing.T) {
 	assert.Equal(t, "agents", np.Namespace)
 	assert.Contains(t, np.Spec.PolicyTypes, networkingv1.PolicyTypeIngress)
 	assert.Contains(t, np.Spec.PolicyTypes, networkingv1.PolicyTypeEgress)
-	// PodSelector matches the instance selector labels (not all labels — those evolve).
+	// PodSelector matches the instance selector labels (not all labels: those evolve).
 	assert.Equal(t, "demo", np.Spec.PodSelector.MatchLabels["app.kubernetes.io/instance"])
 	assert.Equal(t, "hermes-agent", np.Spec.PodSelector.MatchLabels["app.kubernetes.io/name"])
 }
@@ -2602,7 +2602,7 @@ func NetworkPolicyName(inst *hermesv1.HermesInstance) string {
 //
 //	Egress:
 //	  - To: any peer; UDP+TCP 53 (DNS) when AllowDNS (default true)
-//	  - To: any peer; TCP 443 (HTTPS) — required for AI provider APIs
+//	  - To: any peer; TCP 443 (HTTPS): required for AI provider APIs
 //	  - To: AllowedEgressCIDRs[*] (no port restriction; common for proxy fan-out)
 //	  - Verbatim AdditionalEgress[*]
 func BuildNetworkPolicy(inst *hermesv1.HermesInstance) *networkingv1.NetworkPolicy {
@@ -2655,7 +2655,7 @@ func buildIngressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPoli
 	rules := []networkingv1.NetworkPolicyIngressRule{}
 	ports := networkPolicyIngressPorts(inst)
 
-	// Same namespace — always allowed.
+	// Same namespace: always allowed.
 	rules = append(rules, networkingv1.NetworkPolicyIngressRule{
 		From: []networkingv1.NetworkPolicyPeer{
 			{
@@ -2706,7 +2706,7 @@ func buildEgressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPolic
 		})
 	}
 
-	// HTTPS — always allowed (AI provider APIs etc.)
+	// HTTPS: always allowed (AI provider APIs etc.)
 	rules = append(rules, networkingv1.NetworkPolicyEgressRule{
 		To: []networkingv1.NetworkPolicyPeer{},
 		Ports: []networkingv1.NetworkPolicyPort{
@@ -2829,7 +2829,7 @@ func PDBName(inst *hermesv1.HermesInstance) string {
 }
 
 // BuildPDB constructs the desired PodDisruptionBudget. When both MinAvailable
-// and MaxUnavailable are set, MinAvailable wins (k8s forbids both — the
+// and MaxUnavailable are set, MinAvailable wins (k8s forbids both: the
 // validating webhook rejects the spec). When neither is set, MaxUnavailable=1.
 func BuildPDB(inst *hermesv1.HermesInstance) *policyv1.PodDisruptionBudget {
 	spec := inst.Spec.Availability.PodDisruptionBudget
@@ -3166,7 +3166,7 @@ func TestBuildIngress_BasicShape(t *testing.T) {
 	assert.Equal(t, "nginx", *ing.Spec.IngressClassName)
 	assert.Len(t, ing.Spec.Rules, 1)
 	assert.Equal(t, "hermes.example.com", ing.Spec.Rules[0].Host)
-	// Default nginx annotation set (force-https) — Plan 3 may extend.
+	// Default nginx annotation set (force-https): Plan 3 may extend.
 	assert.Equal(t, "true", ing.Annotations["nginx.ingress.kubernetes.io/ssl-redirect"])
 }
 
@@ -3393,7 +3393,7 @@ git commit -m "feat(resources): Ingress builder with provider-aware annotations 
 
 ---
 
-## Task 19: Per-instance RBAC — ServiceAccount + Role + RoleBinding
+## Task 19: Per-instance RBAC: ServiceAccount + Role + RoleBinding
 
 **Files:**
 - Create: `internal/resources/rbac.go`, `internal/resources/rbac_test.go`
@@ -3456,7 +3456,7 @@ func TestBuildServiceAccount_AutomountTokenWhenSelfConfigureEnabled(t *testing.T
 
 func TestBuildRole_BaseRulesAndSelfConfigure(t *testing.T) {
 	t.Parallel()
-	// Base — only read own ConfigMap.
+	// Base: only read own ConfigMap.
 	inst := &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: "demo"}}
 	r := BuildRole(inst)
 	assert.Equal(t, "demo", r.Name)
@@ -3470,7 +3470,7 @@ func TestBuildRole_BaseRulesAndSelfConfigure(t *testing.T) {
 	}
 	assert.True(t, require, "base Role must grant configmap reads")
 
-	// Self-configure on — extra verbs.
+	// Self-configure on: extra verbs.
 	inst2 := &hermesv1.HermesInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: "demo"},
 		Spec: hermesv1.HermesInstanceSpec{
@@ -3652,7 +3652,7 @@ git commit -m "feat(resources): per-instance ServiceAccount + Role + RoleBinding
 **Files:**
 - Create: `internal/resources/servicemonitor.go`, `internal/resources/servicemonitor_test.go`, `internal/resources/prometheusrule.go`, `internal/resources/prometheusrule_test.go`
 
-Prometheus-Operator CRDs aren't a hard dep; we emit `*unstructured.Unstructured` and the reconciler creates them only when those CRDs exist (Task 30 wires the runtime check). `metrics.secure` must agree with the ServiceMonitor's scheme (lesson #435/#440) — if `secure=true`, scheme=https; else scheme=http.
+Prometheus-Operator CRDs aren't a hard dep; we emit `*unstructured.Unstructured` and the reconciler creates them only when those CRDs exist (Task 30 wires the runtime check). `metrics.secure` must agree with the ServiceMonitor's scheme (lesson #435/#440): if `secure=true`, scheme=https; else scheme=http.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -4005,7 +4005,7 @@ git commit -m "feat(resources): ServiceMonitor + PrometheusRule builders (unstru
 
 ---
 
-## Task 21: Service builder — honor `spec.networking.service`
+## Task 21: Service builder: honor `spec.networking.service`
 
 **Files:**
 - Modify: `internal/resources/service.go`, `internal/resources/service_test.go`
@@ -4253,7 +4253,7 @@ git commit -m "feat(resources): Service builder honors spec.networking.service +
 **Files:**
 - Create: `api/v1/webhook_hermesinstance.go`, `internal/webhook/webhook_hermesinstance_default.go`, `internal/webhook/webhook_hermesinstance_default_test.go`
 
-The defaulter reads the `HermesClusterDefaults` singleton (name `cluster`) and fills `nil` fields on the instance. Explicit values on the instance always win. Splitting the implementation between `api/v1/webhook_hermesinstance.go` (kubebuilder marker shell — minimal, just `SetupWebhookWithManager`) and `internal/webhook/` (logic + tests) keeps the API package clean of side-effecting code.
+The defaulter reads the `HermesClusterDefaults` singleton (name `cluster`) and fills `nil` fields on the instance. Explicit values on the instance always win. Splitting the implementation between `api/v1/webhook_hermesinstance.go` (kubebuilder marker shell: minimal, just `SetupWebhookWithManager`) and `internal/webhook/` (logic + tests) keeps the API package clean of side-effecting code.
 
 - [ ] **Step 1: Run kubebuilder webhook generator**
 
@@ -4360,7 +4360,7 @@ func TestDefaulter_NoClusterDefaultsIsNotAnError(t *testing.T) {
 	d := &HermesInstanceDefaulter{Client: c}
 	inst := &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: "demo"}}
 	err := d.Default(context.Background(), inst)
-	assert.NoError(t, err, "missing HermesClusterDefaults is allowed — operator works without it")
+	assert.NoError(t, err, "missing HermesClusterDefaults is allowed: operator works without it")
 	// Sanity: defaulter is also tolerant of other not-found errors.
 	_ = apierrors.IsNotFound(nil)
 }
@@ -4372,7 +4372,7 @@ func TestDefaulter_NoClusterDefaultsIsNotAnError(t *testing.T) {
 go test ./internal/webhook/... -run TestDefaulter -v
 ```
 
-Expected: build error — `HermesInstanceDefaulter` type undefined.
+Expected: build error: `HermesInstanceDefaulter` type undefined.
 
 - [ ] **Step 4: Implement the defaulter**
 
@@ -4702,7 +4702,7 @@ type HermesInstanceValidator struct{}
 
 var _ admission.CustomValidator = &HermesInstanceValidator{}
 
-// Ptr is a tiny copy of the resources package helper — webhook package must
+// Ptr is a tiny copy of the resources package helper: webhook package must
 // not depend on internal/resources (cycle risk).
 func Ptr[T any](v T) *T { return &v }
 
@@ -4810,7 +4810,7 @@ git commit -m "feat(webhook): validator for HermesInstance (required, immutable,
 
 ---
 
-## Task 24: Validating webhook for HermesClusterDefaults — name must be `cluster`
+## Task 24: Validating webhook for HermesClusterDefaults: name must be `cluster`
 
 **Files:**
 - Create: `api/v1/webhook_hermesclusterdefaults.go`, `internal/webhook/webhook_hermesclusterdefaults.go`, `internal/webhook/webhook_hermesclusterdefaults_test.go`
@@ -5069,12 +5069,12 @@ git commit -m "feat(webhook): HermesSelfConfig validator stub (Plan 4 will fill 
 
 ---
 
-## Task 26: HermesClusterDefaults reconciler — singleton + Ready condition
+## Task 26: HermesClusterDefaults reconciler: singleton + Ready condition
 
 **Files:**
 - Create: `internal/controller/hermesclusterdefaults_controller.go`, `internal/controller/hermesclusterdefaults_controller_test.go`
 
-No downstream resources to reconcile — the defaulting webhook reads the singleton synchronously each admission. The controller's job is:
+No downstream resources to reconcile: the defaulting webhook reads the singleton synchronously each admission. The controller's job is:
 
 1. Verify the singleton-name invariant (defence in depth alongside the webhook).
 2. Set a `Ready` condition with `ObservedGeneration`.
@@ -5198,7 +5198,7 @@ func (r *HermesClusterDefaultsReconciler) Reconcile(ctx context.Context, req ctr
 	if err := r.Status().Update(ctx, hcd); err != nil {
 		return ctrl.Result{}, fmt.Errorf("update status: %w", err)
 	}
-	// No downstream watches — RequeueAfter is fine for drift detection.
+	// No downstream watches: RequeueAfter is fine for drift detection.
 	return ctrl.Result{RequeueAfter: 10 * time.Minute}, nil
 }
 
@@ -5241,7 +5241,7 @@ git commit -m "feat(controller): HermesClusterDefaults reconciler (singleton inv
 
 ---
 
-## Task 27: StatefulSet — wire `resources`, `security`, `probes`
+## Task 27: StatefulSet: wire `resources`, `security`, `probes`
 
 **Files:**
 - Modify: `internal/resources/statefulset.go`, `internal/resources/statefulset_test.go`
@@ -5341,7 +5341,7 @@ Use `containerSecurityCtx` on the container.
 
 3. Set `c.Resources = inst.Spec.Resources.ToContainerResourceRequirements()` on the agent container.
 
-4. Apply probe overrides — after declaring the default `ReadinessProbe`:
+4. Apply probe overrides: after declaring the default `ReadinessProbe`:
 
 ```go
 if inst.Spec.Probes.Liveness != nil {
@@ -5365,7 +5365,7 @@ git commit -m "feat(resources): StatefulSet honors resources, security overrides
 
 ---
 
-## Task 28: StatefulSet — wire scheduling, initContainers, sidecars, extraVolumes/Mounts, env/envFrom
+## Task 28: StatefulSet: wire scheduling, initContainers, sidecars, extraVolumes/Mounts, env/envFrom
 
 **Files:**
 - Modify: `internal/resources/statefulset.go`, `internal/resources/statefulset_test.go`
@@ -5509,7 +5509,7 @@ After the `Containers: []corev1.Container{...}` block, append the user-supplied 
 podSpec.Containers = append(podSpec.Containers, inst.Spec.Sidecars...)
 ```
 
-(Restructure the existing literal so `podSpec` is built incrementally — declare it as a local first, then assign `Template.Spec = podSpec`.)
+(Restructure the existing literal so `podSpec` is built incrementally: declare it as a local first, then assign `Template.Spec = podSpec`.)
 
 After `Volumes:` initialiser, append:
 
@@ -5541,7 +5541,7 @@ git commit -m "feat(resources): StatefulSet wires scheduling, init/sidecars, ext
 
 ---
 
-## Task 29: StatefulSet — workspace ConfigMap mount, CA bundle, `suspended` scale-to-zero
+## Task 29: StatefulSet: workspace ConfigMap mount, CA bundle, `suspended` scale-to-zero
 
 **Files:**
 - Modify: `internal/resources/statefulset.go`, `internal/resources/statefulset_test.go`
@@ -5610,7 +5610,7 @@ func TestBuildStatefulSet_NotSuspendedDefaultReplica(t *testing.T) {
 After the existing `Volumes` block:
 
 ```go
-// Workspace volume — always mount (empty data is still a valid mount).
+// Workspace volume: always mount (empty data is still a valid mount).
 podSpec.Volumes = append(podSpec.Volumes, corev1.Volume{
     Name: "workspace",
     VolumeSource: corev1.VolumeSource{
@@ -5688,7 +5688,7 @@ git commit -m "feat(resources): StatefulSet mounts workspace + CA bundle; honors
 
 ---
 
-## Task 30: HermesInstance reconciler — full subsystem orchestration
+## Task 30: HermesInstance reconciler: full subsystem orchestration
 
 **Files:**
 - Modify: `internal/controller/hermesinstance_controller.go`
@@ -5819,7 +5819,7 @@ func (r *HermesInstanceReconciler) reconcileSecret(ctx context.Context, inst *he
 		obj.Labels = resources.MergePreservingForeign(obj.Labels, desired.Labels, operatorLabelPrefix)
 		obj.Annotations = resources.MergePreservingForeign(obj.Annotations, desired.Annotations, operatorLabelPrefix)
 		obj.Type = desired.Type
-		// Do NOT overwrite Data — Plan 3 fills it; reconciler is content-preserving here.
+		// Do NOT overwrite Data: Plan 3 fills it; reconciler is content-preserving here.
 		if obj.Data == nil {
 			obj.Data = desired.Data
 		}
@@ -5877,7 +5877,7 @@ func (r *HermesInstanceReconciler) resolveConfigBody(ctx context.Context, inst *
 	if cs.MergeMode == hermesv1.ConfigMergeModeMerge {
 		return resources.MergeYAMLBodies(base, string(cs.Raw.Raw))
 	}
-	// replace mode (default): Raw wins — return empty so BuildConfigMap uses Raw verbatim.
+	// replace mode (default): Raw wins: return empty so BuildConfigMap uses Raw verbatim.
 	return "", nil
 }
 
@@ -6181,7 +6181,7 @@ Expected: exit 0. If imports are missing add them per the import block above.
 
 ```bash
 git add -A
-git commit -m "feat(controller): full HermesInstance reconciler — 13 subsystems + per-subsystem conditions"
+git commit -m "feat(controller): full HermesInstance reconciler: 13 subsystems + per-subsystem conditions"
 ```
 
 ---
@@ -6212,7 +6212,7 @@ Expect(err).ToNot(HaveOccurred())
 Append to `internal/controller/hermesinstance_controller_test.go`:
 
 ```go
-var _ = Describe("HermesInstance — full subsystems", func() {
+var _ = Describe("HermesInstance: full subsystems", func() {
 	const (
 		name      = "demo-full"
 		namespace = "default"
@@ -6419,7 +6419,7 @@ func Ptr[T any](v T) *T { return &v }
 make test
 ```
 
-Expected: all Plan 1 specs + Plan 2's four new specs PASS. If the full-spec idempotency test fails with "STS generation bumped", a builder field is still not explicitly set or merged on update — bisect by removing fields from `maximalInstance` until the bump disappears.
+Expected: all Plan 1 specs + Plan 2's four new specs PASS. If the full-spec idempotency test fails with "STS generation bumped", a builder field is still not explicitly set or merged on update: bisect by removing fields from `maximalInstance` until the bump disappears.
 
 - [ ] **Step 4: Commit**
 
@@ -6430,7 +6430,7 @@ git commit -m "test(controller): envtest covers full-spec subsystems + 10-reconc
 
 ---
 
-## Task 32: Wire the manager — webhooks + cluster-defaults reconciler + Prometheus-CRD probe
+## Task 32: Wire the manager: webhooks + cluster-defaults reconciler + Prometheus-CRD probe
 
 **Files:**
 - Modify: `cmd/manager/main.go`
@@ -6532,7 +6532,7 @@ Add the import:
 go build ./...
 ```
 
-Expected: exit 0. Don't actually `make run` here — that requires cert-manager. Task 33's chart additions make `helm install` viable.
+Expected: exit 0. Don't actually `make run` here: that requires cert-manager. Task 33's chart additions make `helm install` viable.
 
 - [ ] **Step 5: Commit**
 
@@ -6543,7 +6543,7 @@ git commit -m "feat(manager): wire HermesClusterDefaults reconciler + webhooks +
 
 ---
 
-## Task 33: Helm chart — cert-manager Issuer + Certificate + webhook configurations
+## Task 33: Helm chart: cert-manager Issuer + Certificate + webhook configurations
 
 **Files:**
 - Create: `charts/hermes-operator/templates/certmanager.yaml`, `charts/hermes-operator/templates/webhook-configuration.yaml`
@@ -6551,7 +6551,7 @@ git commit -m "feat(manager): wire HermesClusterDefaults reconciler + webhooks +
 
 The operator's webhook server needs TLS. The chart provisions a cert-manager `Issuer` (self-signed) and `Certificate` named `hermes-operator-serving-cert`, plus `ValidatingWebhookConfiguration` and `MutatingWebhookConfiguration` resources annotated with `cert-manager.io/inject-ca-from` so cert-manager injects the CA bundle automatically.
 
-Toggling `webhook.certManager.enabled=false` skips the cert-manager bits — useful when the cluster already provides the cert via another mechanism (`webhook.caBundle` is then read directly).
+Toggling `webhook.certManager.enabled=false` skips the cert-manager bits: useful when the cluster already provides the cert via another mechanism (`webhook.caBundle` is then read directly).
 
 - [ ] **Step 1: Extend `values.yaml`**
 
@@ -6799,7 +6799,7 @@ git commit -m "feat(chart): cert-manager Issuer + Certificate + Validating/Mutat
 
 ---
 
-## Task 34: Documentation — api-reference, conditions, README
+## Task 34: Documentation: api-reference, conditions, README
 
 **Files:**
 - Create: `docs/api-reference.md`
@@ -6807,7 +6807,7 @@ git commit -m "feat(chart): cert-manager Issuer + Certificate + Validating/Mutat
 
 - [ ] **Step 1: Create `docs/api-reference.md`**
 
-Use the following skeleton (fill in every field; do not leave a "TODO" — every spec field defined in Tasks 2-9 must appear):
+Use the following skeleton (fill in every field; do not leave a "TODO": every spec field defined in Tasks 2-9 must appear):
 
 ```markdown
 # API Reference
@@ -6819,7 +6819,7 @@ Use the following skeleton (fill in every field; do not leave a "TODO" — every
 
 - [`HermesInstance`](#hermesinstance) (`hermes.agent/v1`, namespaced)
 - [`HermesClusterDefaults`](#hermesclusterdefaults) (`hermes.agent/v1`, cluster-scoped singleton)
-- [`HermesSelfConfig`](#hermesselfconfig) — Plan 4 documents this; reference stub here.
+- [`HermesSelfConfig`](#hermesselfconfig): Plan 4 documents this; reference stub here.
 
 ---
 
@@ -6920,7 +6920,7 @@ Plan 1 listed StatefulSet / Service / Probe defaults. Plan 2 adds these:
 |---|---|---|
 | HorizontalPodAutoscaler | `spec.metrics[].resource.target.type` | `Utilization` (set explicitly) |
 | Ingress | `spec.rules[].http.paths[].pathType` | `Prefix` (set when nil) |
-| ServiceMonitor | `spec.endpoints[].scheme` | `http`; `https` when `metrics.secure=true` (must agree — lesson #435/#440) |
+| ServiceMonitor | `spec.endpoints[].scheme` | `http`; `https` when `metrics.secure=true` (must agree: lesson #435/#440) |
 | NetworkPolicy | `spec.policyTypes` | both `Ingress` and `Egress` explicitly (k8s defaults to only `Ingress` when omitted) |
 | PodDisruptionBudget | one of `MinAvailable` / `MaxUnavailable` | when neither set, `MaxUnavailable: 1` |
 | Role | `apiGroups` | empty string `""` for core resources, explicit other groups |
@@ -6975,7 +6975,7 @@ make lint
 make test
 ```
 
-Expected: all green. If `make lint` flags unused imports in the webhook shim files, drop them; if golangci-lint complains about `errcheck` on `_ = r.Status().Update(...)` style lines, those are intentional — silence the rule with `//nolint:errcheck // best-effort status update` and re-run.
+Expected: all green. If `make lint` flags unused imports in the webhook shim files, drop them; if golangci-lint complains about `errcheck` on `_ = r.Status().Update(...)` style lines, those are intentional: silence the rule with `//nolint:errcheck // best-effort status update` and re-run.
 
 - [ ] **Step 2: Run the e2e kind cycle**
 
@@ -7003,7 +7003,7 @@ git tag plan-2-complete -m "Plan 2: Full HermesInstance reconciler + webhooks"
 ```bash
 git push -u origin feat/plan-2-full-reconciler
 gh pr create \
-  --title "feat: Plan 2 — Full HermesInstance reconciler + webhooks" \
+  --title "feat: Plan 2: Full HermesInstance reconciler + webhooks" \
   --body "$(cat <<'EOF'
 ## Summary
 
@@ -7038,7 +7038,7 @@ This section maps every requirement from the dispatching brief and design spec b
 
 | Spec section | Requirement | Task(s) |
 |---|---|---|
-| §4 `spec.image` | (already in Plan 1) | — |
+| §4 `spec.image` | (already in Plan 1) |: |
 | §4 `spec.config` (raw / configMapRef / mergeMode, YAML only) | Task 3 (types), Task 12 (builder + merge), Task 30 (reconciler resolves ref) |
 | §4 `spec.workspace` (NESTED PATH SUPPORT, lesson #482) | Task 4 (types + nested-path validation), Task 13 (workspace ConfigMap builder + encoder), Task 29 (mount in STS) |
 | §4 `spec.resources` (requests + limits) | Task 5 (types), Task 27 (wired in STS) |
@@ -7050,7 +7050,7 @@ This section maps every requirement from the dispatching brief and design spec b
 | §4 `spec.scheduling` (nodeSelector, tolerations, affinity, priorityClassName) | Task 9 (types), Task 28 (wired in STS) |
 | §4 `spec.initContainers`, `sidecars`, `extraVolumes`, `extraVolumeMounts` | Task 2 (types), Task 28 (wired in STS) |
 | §4 `spec.envFrom`, `spec.env` (+listMapKey=name) | Task 2 (types + markers), Task 28 (wired in STS) |
-| §4 `spec.skills` (+listMapKey=source — declared here for Plan 4 SSA) | Task 2 (types + markers) |
+| §4 `spec.skills` (+listMapKey=source: declared here for Plan 4 SSA) | Task 2 (types + markers) |
 | §4 `spec.selfConfigure` (Enabled `*bool`, AllowedActions []string, ProtectedKeys []string) | Task 9 (types), Task 23 (validator rejects Enabled=true with empty ProtectedKeys / AllowedActions) |
 | §4 `spec.suspended` | Task 2 (types), Task 29 (STS replicas=0), Task 30 (status.phase=Suspended), Task 31 (envtest) |
 | §6 HermesClusterDefaults (singleton, name=cluster, mirrors instance sub-specs) | Task 10 (types + singleton scope marker), Task 24 (validator), Task 26 (reconciler), Task 22 (defaulter reads it) |
@@ -7072,31 +7072,31 @@ This section maps every requirement from the dispatching brief and design spec b
 ### Naming consistency checks
 
 - [ ] Every builder follows Plan 1's `BuildX(inst) *X` / `XName(inst) string` pattern: confirmed for `BuildNetworkPolicy`/`NetworkPolicyName`, `BuildPDB`/`PDBName`, `BuildHPA`/`HPAName`, `BuildIngress`/`IngressName`, `BuildServiceAccount`/`ServiceAccountName`, `BuildRole`/`RoleName`, `BuildRoleBinding`/`RoleBindingName`, `BuildServiceMonitor`/`ServiceMonitorName`, `BuildPrometheusRule`/`PrometheusRuleName`, `BuildGatewayTokenSecret`/`GatewayTokenSecretName`, `BuildWorkspaceConfigMap`/`WorkspaceConfigMapName`.
-- [ ] `+listType=map +listMapKey=source` on `.spec.skills` — Task 2.
-- [ ] `+listType=map +listMapKey=name` on `.spec.env` — Task 2.
-- [ ] `+listType=map +listMapKey=path` on `.spec.workspace.initialFiles` — Task 4 (Plan 4 references this for SSA on `addWorkspaceFiles`).
-- [ ] `SelfConfigure.Enabled` typed as `*bool` per Plan 4's prerequisite — Task 9.
-- [ ] Condition type strings (`StorageReady`, `ConfigReady`, ...) declared once in `api/v1/hermesinstance_types.go` as constants — Task 9 Step 5; reused by reconciler in Task 30.
+- [ ] `+listType=map +listMapKey=source` on `.spec.skills`: Task 2.
+- [ ] `+listType=map +listMapKey=name` on `.spec.env`: Task 2.
+- [ ] `+listType=map +listMapKey=path` on `.spec.workspace.initialFiles`: Task 4 (Plan 4 references this for SSA on `addWorkspaceFiles`).
+- [ ] `SelfConfigure.Enabled` typed as `*bool` per Plan 4's prerequisite: Task 9.
+- [ ] Condition type strings (`StorageReady`, `ConfigReady`, ...) declared once in `api/v1/hermesinstance_types.go` as constants: Task 9 Step 5; reused by reconciler in Task 30.
 
 ### Type-consistency checks
 
-- [ ] `internal/resources/common.go` defines `Ptr[T]`, `LabelsForInstance`, `MergePreservingForeign` (Plan 1) plus new helpers `SelectorLabels`, `ServiceAccountNameFor`, `BoolValue`, `BoolValueOrDefault`, `GatewayPort`, `DefaultMetricsPort`, `GatewayPortName`, `MetricsPortName` — Task 11. No duplicates of these names anywhere else.
+- [ ] `internal/resources/common.go` defines `Ptr[T]`, `LabelsForInstance`, `MergePreservingForeign` (Plan 1) plus new helpers `SelectorLabels`, `ServiceAccountNameFor`, `BoolValue`, `BoolValueOrDefault`, `GatewayPort`, `DefaultMetricsPort`, `GatewayPortName`, `MetricsPortName`: Task 11. No duplicates of these names anywhere else.
 - [ ] The webhook package has a private `Ptr[T]` (Task 23) to avoid an import cycle with `internal/resources`.
 - [ ] The test files use local `Ptr` (in `api/v1`) and import-aliased Ptr from `internal/resources` (in resources tests).
-- [ ] `runtime.RawExtension` wrapped as `RawConfig` with a hand-written deepcopy when generators choke — Task 3.
+- [ ] `runtime.RawExtension` wrapped as `RawConfig` with a hand-written deepcopy when generators choke: Task 3.
 
 ### Placeholder check (must all be `false`)
 
-- [ ] Any line that reads `TODO`, `FIXME`, `XXX`, `<placeholder>`, `<fill-in>` in a code block? **No** — every step has actual code or commands.
-- [ ] Any task whose Step list is shorter than 4 actions? **No** — every task has ≥4 steps; most have 5-7.
-- [ ] Any commit message that's a generic "wip" / "fix tests"? **No** — every commit is conventional (`feat:`/`test:`/`docs:`/`chore:`) with a specific subject.
+- [ ] Any line that reads `TODO`, `FIXME`, `XXX`, `<placeholder>`, `<fill-in>` in a code block? **No**: every step has actual code or commands.
+- [ ] Any task whose Step list is shorter than 4 actions? **No**: every task has ≥4 steps; most have 5-7.
+- [ ] Any commit message that's a generic "wip" / "fix tests"? **No**: every commit is conventional (`feat:`/`test:`/`docs:`/`chore:`) with a specific subject.
 
 ### What this plan deliberately does NOT do
 
-- Implement `spec.runtime`, `spec.gateways`, `spec.profileStore`, `spec.ollama`, `spec.webTerminal`, `spec.tailscale`, `spec.autoUpdate` bodies — those are Plan 3. The fields are not declared on `HermesInstanceSpec` by Plan 2; Plan 3 adds them.
-- Implement the real `HermesSelfConfig` controller / validator — Plan 4. Plan 2 lands a stub validator that always allows and emits a warning.
-- Implement backup / restore / migration — Plan 5.
-- Run the conformance suite or OLM bundle build — Plan 6.
+- Implement `spec.runtime`, `spec.gateways`, `spec.profileStore`, `spec.ollama`, `spec.webTerminal`, `spec.tailscale`, `spec.autoUpdate` bodies: those are Plan 3. The fields are not declared on `HermesInstanceSpec` by Plan 2; Plan 3 adds them.
+- Implement the real `HermesSelfConfig` controller / validator: Plan 4. Plan 2 lands a stub validator that always allows and emits a warning.
+- Implement backup / restore / migration: Plan 5.
+- Run the conformance suite or OLM bundle build: Plan 6.
 
 ### When this plan is "done"
 

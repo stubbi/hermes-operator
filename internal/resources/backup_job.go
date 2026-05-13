@@ -18,7 +18,7 @@ const ResticImage = "restic/restic:0.16.4"
 type BackupJobOpts struct {
 	Name        string // Deterministic Job name (e.g. "<inst>-backup-final")
 	SnapshotKey string // Full S3 key the snapshot will be written to
-	Kind        string // "onDelete" | "preUpdate" | "scheduled" — recorded as a label
+	Kind        string // "onDelete" | "preUpdate" | "scheduled": recorded as a label
 }
 
 // BuildBackupOneShotJob returns a Job that snapshots the instance PVC to S3.

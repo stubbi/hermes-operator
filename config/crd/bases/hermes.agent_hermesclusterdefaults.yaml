@@ -110,8 +110,8 @@ spec:
                         type: string
                       level:
                         default: info
-                        description: Level — Plan 3 wires HERMES_LOG_LEVEL on the
-                          agent container.
+                        description: 'Level: Plan 3 wires HERMES_LOG_LEVEL on the
+                          agent container.'
                         enum:
                         - trace
                         - debug
@@ -137,7 +137,7 @@ spec:
                       secure:
                         default: false
                         description: |-
-                          Secure — when true, /metrics requires bearer-token auth and uses HTTPS.
+                          Secure: when true, /metrics requires bearer-token auth and uses HTTPS.
                           The ServiceMonitor scheme/scrape settings must agree (lesson #435/#440).
                         type: boolean
                     type: object
@@ -192,7 +192,7 @@ spec:
                         type: boolean
                       interval:
                         default: 30s
-                        description: Interval — default "30s".
+                        description: 'Interval: default "30s".'
                         pattern: ^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$
                         type: string
                       labels:
@@ -204,7 +204,7 @@ spec:
                         type: object
                       scrapeTimeout:
                         default: 10s
-                        description: ScrapeTimeout — default "10s".
+                        description: 'ScrapeTimeout: default "10s".'
                         pattern: ^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$
                         type: string
                     type: object

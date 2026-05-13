@@ -1,34 +1,34 @@
-# hermes-operator v1 — Design
+# hermes-operator v1: Design
 
 - **Status:** Approved (2026-05-12)
 - **Owner:** stubbi (jannes@aqora.io)
 - **Repo:** `stubbi/hermes-operator` (private at start)
-- **Target ship:** v1.0.0 — full feature parity with openclaw-operator v0.32 + hermes-specific bits, no v0.x grind
+- **Target ship:** v1.0.0: full feature parity with openclaw-operator v0.32 + hermes-specific bits, no v0.x grind
 - **Inspired by:** [openclaw-rocks/openclaw-operator](https://github.com/openclaw-rocks/openclaw-operator), iterated through v0.5 → v0.32 with substantial production feedback
-- **Manages:** [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent) — Python-based self-improving multi-platform AI agent
+- **Manages:** [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent): Python-based self-improving multi-platform AI agent
 
 ## 1. Context & Goals
 
 Hermes-agent is a Python 3.11+ AI agent that fronts multiple messaging platforms (Telegram, Discord, Slack, WhatsApp, Signal), self-improves through a built-in learning loop, persists session memory via FTS5, models users via Honcho dialectic profiles, and runs scheduled automations via a native cron scheduler. Upstream ships as a `uv`-installable Python package plus CLI; there is no canonical container image yet.
 
-The goal is a Kubernetes operator that deploys and manages hermes-agent instances with production-grade security, observability, and lifecycle management — *out of the gate* at v1.0, not after the v0.x grind openclaw-operator went through.
+The goal is a Kubernetes operator that deploys and manages hermes-agent instances with production-grade security, observability, and lifecycle management: *out of the gate* at v1.0, not after the v0.x grind openclaw-operator went through.
 
 ### Goals
 
-- **G1 — Full feature parity with openclaw-operator v0.32** adapted to hermes's Python/uv runtime and multi-platform gateway shape.
-- **G2 — v1 API stable from day one.** No `v1alpha1` spoke. Public versioning, deprecation, and conversion policies published with v1.0.
-- **G3 — Lessons baked in.** Openclaw issues #437, #446, #433, #471, #479, #458, #469, and the rest of the v0.x bug log informed concrete guardrails (Reconcile Guard CI, SSA for SelfConfig from day one, explicit k8s defaults in builders, zombie-process reaper, namespace-scoped RBAC option, etc.).
-- **G4 — GitOps coexistence.** SSA-based SelfConfig means FluxCD/Argo can manage the instance while the agent self-mutates allowed fields without flap.
-- **G5 — One declarative migration path from openclaw.** `spec.migration.fromOpenClaw` uses hermes-agent's built-in importer to drain a sibling OpenClawInstance or its S3 backup.
-- **G6 — Distribution from day one:** Helm chart, OLM bundle (OperatorHub submission), plain manifests, signed multi-arch container images with SBOMs.
+- **G1: Full feature parity with openclaw-operator v0.32** adapted to hermes's Python/uv runtime and multi-platform gateway shape.
+- **G2: v1 API stable from day one.** No `v1alpha1` spoke. Public versioning, deprecation, and conversion policies published with v1.0.
+- **G3: Lessons baked in.** Openclaw issues #437, #446, #433, #471, #479, #458, #469, and the rest of the v0.x bug log informed concrete guardrails (Reconcile Guard CI, SSA for SelfConfig from day one, explicit k8s defaults in builders, zombie-process reaper, namespace-scoped RBAC option, etc.).
+- **G4: GitOps coexistence.** SSA-based SelfConfig means FluxCD/Argo can manage the instance while the agent self-mutates allowed fields without flap.
+- **G5: One declarative migration path from openclaw.** `spec.migration.fromOpenClaw` uses hermes-agent's built-in importer to drain a sibling OpenClawInstance or its S3 backup.
+- **G6: Distribution from day one:** Helm chart, OLM bundle (OperatorHub submission), plain manifests, signed multi-arch container images with SBOMs.
 
 ### Non-goals
 
-- **NG1 — Multi-cluster federation.** Deferred; single-cluster control loop only.
-- **NG2 — Modal / Daytona "hibernation" integration.** K8s-native scale-to-zero (`spec.suspended`) is the equivalent; we don't reach into external serverless platforms.
-- **NG3 — Generic "AgentInstance" operator.** Hermes is the only runtime in v1. No premature abstraction.
-- **NG4 — kubectl plugin (krew) for v1.0.** Nice to have, not blocking; mirrors `kubectl-openclaw` later.
-- **NG5 — Public OpenClaw → Hermes data conversion guarantees beyond what hermes-agent's importer itself provides.**
+- **NG1: Multi-cluster federation.** Deferred; single-cluster control loop only.
+- **NG2: Modal / Daytona "hibernation" integration.** K8s-native scale-to-zero (`spec.suspended`) is the equivalent; we don't reach into external serverless platforms.
+- **NG3: Generic "AgentInstance" operator.** Hermes is the only runtime in v1. No premature abstraction.
+- **NG4: kubectl plugin (krew) for v1.0.** Nice to have, not blocking; mirrors `kubectl-openclaw` later.
+- **NG5: Public OpenClaw → Hermes data conversion guarantees beyond what hermes-agent's importer itself provides.**
 
 ## 2. Project basics
 
@@ -104,7 +104,7 @@ spec:
 | `runtime` | Replaces openclaw's `runtimeDeps`. Defaults: `python: "3.11"`, `uv: latest`, `ffmpeg.enabled: true`, `ripgrep.enabled: true`. Init container runs `uv sync` against a lockfile bundled in the agent image. | Hermes is Python-native; pnpm/Node init containers don't apply. FFmpeg + ripgrep are hard dependencies of hermes-agent. |
 | `gateways` | First-class section with `telegram`, `discord`, `slack`, `whatsapp`, `signal`. Each takes one or more `secretRef`s for tokens, exposes `enabled`, and contributes generated config + Service/Ingress allowances. | Hermes is a multi-platform gateway; tokens live in many secrets and must be auditable/rotatable independently. |
 | `profileStore` | New section for Honcho companion (Deployment + Service + PVC, optional). | Honcho is hermes-shaped, no openclaw analogue. |
-| `selfConfigure.allowedActions` | `[skills, config, envVars, workspaceFiles, profiles]` — adds `profiles` (Honcho snapshot persistence). | Hermes self-improves natively; SelfConfig is the audited cluster-side surface. |
+| `selfConfigure.allowedActions` | `[skills, config, envVars, workspaceFiles, profiles]`: adds `profiles` (Honcho snapshot persistence). | Hermes self-improves natively; SelfConfig is the audited cluster-side surface. |
 | `migration.fromOpenClaw` | Optional one-shot migration via hermes-agent's built-in importer. Source: in-cluster `OpenClawInstanceRef` or S3 backup snapshot. | Hermes-agent already ships the importer; surfacing it declaratively turns the OpenClaw → Hermes transition into a single resource change. |
 | No `chromium` sub-spec | Removed. If browser automation is needed, use generic `sidecars`. | Not first-class for hermes-agent. |
 | No `BOOTSTRAP.md` injection toggle | Removed. | Openclaw-specific. |
@@ -186,7 +186,7 @@ spec:
       enabled: true
 ```
 
-ClusterDefaults *only* fill `nil` fields; an explicit value on the instance always wins. This is the inverse of "policy overrides" — for hard enforcement, the validating webhook is the right mechanism, not defaults.
+ClusterDefaults *only* fill `nil` fields; an explicit value on the instance always wins. This is the inverse of "policy overrides": for hard enforcement, the validating webhook is the right mechanism, not defaults.
 
 ## 7. Reconciliation architecture
 
@@ -202,7 +202,7 @@ api/v1/                       hub types + webhook impls + groupversion_info.go
   webhook_hermesclusterdefaults.go
   zz_generated.deepcopy.go
 
-internal/controller/          orchestration only — no resource construction here
+internal/controller/          orchestration only: no resource construction here
   hermesinstance_controller.go
   hermesselfconfig_controller.go
   hermesclusterdefaults_controller.go
@@ -234,7 +234,7 @@ hack/                         boilerplate, kustomize bins, env helpers
 2. **Server-Side Apply (SSA)** for the `HermesSelfConfig` reconciler from day one (lesson #433/#439). Field manager = `hermes.agent/selfconfig`.
 3. **Set every server-side k8s default explicitly** in builders: `RevisionHistoryLimit`, `ProgressDeadlineSeconds`, `RestartPolicy`, `DNSPolicy`, `SchedulerName`, `TerminationGracePeriodSeconds`, `TerminationMessagePath`, `TerminationMessagePolicy`, `ImagePullPolicy` on every container, `SuccessThreshold` on every probe, `DefaultMode` on volume sources, `SessionAffinity: None` on Service. Skipping these is what produced openclaw's generation-thrash bugs.
 4. **Preserve third-party annotations and labels** on update (lesson #446/#447). Merge function whitelists operator-owned keys (`hermes.agent/*`, well-known kubebuilder/k8s labels) for overwrite; everything else is preserved.
-5. **Finalizer add/remove uses `r.Patch()` with a JSON patch**, never `r.Update()` (lesson #437 — finalizer add bumped generation and replaced the pod on first reconcile).
+5. **Finalizer add/remove uses `r.Patch()` with a JSON patch**, never `r.Update()` (lesson #437: finalizer add bumped generation and replaced the pod on first reconcile).
 6. **Preserve server-assigned fields** on update: `Service.ClusterIP/ClusterIPs`, `PVC.VolumeName`, etc. PVCs are never updated, only created (immutable per k8s).
 7. **Status updates are separate transactions** from spec/metadata (`r.Status().Update`).
 8. **Owner references on every managed resource** so deletion cascades.
@@ -242,14 +242,14 @@ hack/                         boilerplate, kustomize bins, env helpers
 
 ### 7.3 Webhook design
 
-**Defaulter:** populates `nil` fields from `HermesClusterDefaults` (singleton). ClusterDefaults fills `nil` only — explicit values on the instance always win.
+**Defaulter:** populates `nil` fields from `HermesClusterDefaults` (singleton). ClusterDefaults fills `nil` only: explicit values on the instance always win.
 
 **Validator (instance):**
 - Required fields (`image.repository` when no clusterDefault, valid storage size, exactly-one of `config.raw` / `config.configMapRef`).
 - Gateway/secret cross-checks: warn (not deny) if `gateways.telegram.enabled` and no resolvable token secret exists.
 - Unknown top-level config keys → warning (lesson from openclaw v0.10 provider-aware warnings).
 - Immutable fields after creation: `storage.persistence.storageClassName`, `storage.persistence.accessModes`, `metadata.name`.
-- Forbid `selfConfigure.enabled: true` with `selfConfigure.protectedKeys` empty — must be explicit allowlist.
+- Forbid `selfConfigure.enabled: true` with `selfConfigure.protectedKeys` empty: must be explicit allowlist.
 
 **Validator (selfconfig):** denies any request that touches a `protectedKeys` path; logs deny with reason as a k8s Event so it surfaces in `kubectl describe`.
 
@@ -305,7 +305,7 @@ spec:
 
 - Finalizer `hermes.agent/backup-on-delete` holds CR deletion until the backup Job finishes.
 - Backups run as one-shot Jobs using a `restic`/`rclone`-style image that snapshots the PVC.
-- `restoreFrom` triggers an init-container restore on a fresh PVC; once `status.restoredFrom == spec.restoreFrom`, the field is locked (immutable thereafter — preventing accidental re-restore on restart).
+- `restoreFrom` triggers an init-container restore on a fresh PVC; once `status.restoredFrom == spec.restoreFrom`, the field is locked (immutable thereafter: preventing accidental re-restore on restart).
 - Snapshot manifest: `tar.zst` of the PVC root + `meta.json` (instance UID, hermes-agent version, k8s version, timestamp).
 
 ### 8.3 Migration from OpenClaw
@@ -348,21 +348,21 @@ On first reconcile, if `migration.fromOpenClaw` is set and `status.migrationComp
 
 ## 10. Testing strategy
 
-This is where v1 earns its name — substantially stronger than openclaw's v0.x baseline.
+This is where v1 earns its name: substantially stronger than openclaw's v0.x baseline.
 
-1. **Unit tests** (`internal/resources/*_test.go`) — every builder is pure, no envtest, runs <2s.
-2. **envtest integration tests** (`internal/controller/*_test.go`) — reconcile loops against a fake apiserver; happy-path create/update/delete per CRD.
-3. **E2E tests** (`test/e2e/`) — kind cluster, real reconciliation, asserts on real resources. Required on every PR.
-4. **Conformance suite** (`test/conformance/`) — **new for v1, ships day one:**
-   - **Negative tests** — every webhook-rejection path asserts the rejection.
-   - **Idempotency** — 10 reconciles in a row must not change `metadata.generation` or `resourceVersion` after the first. This is the test that would have caught openclaw's #437 before it shipped.
-   - **Upgrade-path matrix** — install v1.0.0 → create resources → upgrade operator to vCurrent → assert resources unchanged. Runs for every minor release.
-   - **GitOps coexistence** — apply an instance via FluxCD with SSA, have a fake agent create a SelfConfig touching different fields, assert no flap and both reconcilers converge.
-   - **Failure injection** — kill the manager mid-reconcile, assert eventual consistency.
+1. **Unit tests** (`internal/resources/*_test.go`): every builder is pure, no envtest, runs <2s.
+2. **envtest integration tests** (`internal/controller/*_test.go`): reconcile loops against a fake apiserver; happy-path create/update/delete per CRD.
+3. **E2E tests** (`test/e2e/`): kind cluster, real reconciliation, asserts on real resources. Required on every PR.
+4. **Conformance suite** (`test/conformance/`): **new for v1, ships day one:**
+   - **Negative tests**: every webhook-rejection path asserts the rejection.
+   - **Idempotency**: 10 reconciles in a row must not change `metadata.generation` or `resourceVersion` after the first. This is the test that would have caught openclaw's #437 before it shipped.
+   - **Upgrade-path matrix**: install v1.0.0 → create resources → upgrade operator to vCurrent → assert resources unchanged. Runs for every minor release.
+   - **GitOps coexistence**: apply an instance via FluxCD with SSA, have a fake agent create a SelfConfig touching different fields, assert no flap and both reconcilers converge.
+   - **Failure injection**: kill the manager mid-reconcile, assert eventual consistency.
 5. **Performance benchmarks** (`*_bench_test.go` in both resources and controller). Tracked over time; CI fails on >20% regression.
-6. **Security scans** — gosec + Trivy CRITICAL/HIGH on every PR.
-7. **Reconcile Guard** — grep-banned patterns: `r.Update()` on managed resources, missing SSA on selfconfig path, finalizer-only `r.Update` on the CR.
-8. **Helm RBAC Sync** — diff kubebuilder RBAC markers vs Helm ClusterRole; fail on drift.
+6. **Security scans**: gosec + Trivy CRITICAL/HIGH on every PR.
+7. **Reconcile Guard**: grep-banned patterns: `r.Update()` on managed resources, missing SSA on selfconfig path, finalizer-only `r.Update` on the CR.
+8. **Helm RBAC Sync**: diff kubebuilder RBAC markers vs Helm ClusterRole; fail on drift.
 
 **CI matrix:** k8s 1.28, 1.29, 1.30, 1.31, 1.32. Drop the oldest as Kubernetes EOLs it.
 
@@ -387,7 +387,7 @@ A field is deprecated by:
 
 ### 11.3 Conversion-webhook scaffolding
 
-Set up at v1.0 with v1 as both hub and storage, no spokes yet. When v2 lands, the conversion plumbing is in place — no retrofit.
+Set up at v1.0 with v1 as both hub and storage, no spokes yet. When v2 lands, the conversion plumbing is in place: no retrofit.
 
 ### 11.4 Status condition catalogue (`docs/conditions.md`)
 
@@ -399,9 +399,9 @@ Declared in `README.md`. Drop happens on minor releases only, never patch.
 
 ### 11.6 Versioning surfaces
 
-- **Operator chart version** — semver of the chart itself.
-- **Operator appVersion** — semver of the operator image (chart `appVersion`).
-- **Hermes-agent image version** — `spec.image.tag` or `HermesClusterDefaults.spec.image.tag`. Decoupled from operator version; operator advertises supported agent versions in `README.md`.
+- **Operator chart version**: semver of the chart itself.
+- **Operator appVersion**: semver of the operator image (chart `appVersion`).
+- **Hermes-agent image version**: `spec.image.tag` or `HermesClusterDefaults.spec.image.tag`. Decoupled from operator version; operator advertises supported agent versions in `README.md`.
 
 ## 12. Post-v1.0 roadmap (non-binding)
 

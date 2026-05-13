@@ -95,7 +95,7 @@ func (r *HermesInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
-	// Deletion path — hand to backup finalizer if requested.
+	// Deletion path: hand to backup finalizer if requested.
 	if !inst.DeletionTimestamp.IsZero() {
 		if r.Backup != nil {
 			res, held, err := r.Backup.HandleDeletion(ctx, inst)
@@ -109,7 +109,7 @@ func (r *HermesInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	// Add the backup-on-delete finalizer when spec.backup.onDelete=true (uses r.Patch — lesson #437).
+	// Add the backup-on-delete finalizer when spec.backup.onDelete=true (uses r.Patch: lesson #437).
 	if r.Backup != nil {
 		if err := r.Backup.EnsureFinalizer(ctx, inst); err != nil {
 			return ctrl.Result{}, err
@@ -146,7 +146,7 @@ func (r *HermesInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		r.setCondition(inst, s.cond, metav1.ConditionTrue, "Reconciled", s.name+" up to date")
 	}
 
-	// Sub-controller chain — backup CronJob, migration latch, restore latch, autoupdate poll.
+	// Sub-controller chain: backup CronJob, migration latch, restore latch, autoupdate poll.
 	if r.Backup != nil {
 		if err := r.Backup.ReconcileCronJob(ctx, inst); err != nil {
 			logger.Error(err, "backup CronJob reconcile error")
@@ -392,7 +392,7 @@ func (r *HermesInstanceReconciler) reconcileIngress(ctx context.Context, inst *h
 }
 
 func (r *HermesInstanceReconciler) reconcileServiceMonitor(ctx context.Context, inst *hermesv1.HermesInstance) error {
-	// If the Prometheus Operator CRDs are not present there is nothing to manage —
+	// If the Prometheus Operator CRDs are not present there is nothing to manage:
 	// no ServiceMonitor can exist, so skip entirely (don't even try to delete).
 	if !r.PrometheusOperatorCRDsPresent {
 		return nil
@@ -423,7 +423,7 @@ func (r *HermesInstanceReconciler) reconcileServiceMonitor(ctx context.Context, 
 }
 
 func (r *HermesInstanceReconciler) reconcilePrometheusRule(ctx context.Context, inst *hermesv1.HermesInstance) error {
-	// If the Prometheus Operator CRDs are not present there is nothing to manage —
+	// If the Prometheus Operator CRDs are not present there is nothing to manage:
 	// no PrometheusRule can exist, so skip entirely (don't even try to delete).
 	if !r.PrometheusOperatorCRDsPresent {
 		return nil
@@ -494,7 +494,7 @@ func (r *HermesInstanceReconciler) reconcileHoncho(ctx context.Context, inst *he
 			if err := controllerutil.SetControllerReference(inst, desired, r.Scheme); err != nil {
 				return fmt.Errorf("honcho pvc owner ref: %w", err)
 			}
-			if err := r.Create(ctx, desired); err != nil { // reconcile-guard:allow — PVC is create-only (leave on disable for data safety)
+			if err := r.Create(ctx, desired); err != nil { // reconcile-guard:allow: PVC is create-only (leave on disable for data safety)
 				return fmt.Errorf("honcho pvc create: %w", err)
 			}
 		} else if err != nil {

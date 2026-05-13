@@ -7,13 +7,13 @@ is set. The field becomes immutable after `MigrationCompleted=True`.
 
 Two sources are supported:
 
-1. **Sibling in-cluster `OpenClawInstance`** — when openclaw-operator is
+1. **Sibling in-cluster `OpenClawInstance`**: when openclaw-operator is
    still installed in the cluster (typical for an in-place cutover).
-2. **S3 backup snapshot** — when openclaw is already gone and you only
+2. **S3 backup snapshot**: when openclaw is already gone and you only
    have the snapshot.
 
 You cannot combine `spec.migration.fromOpenClaw` with `spec.restoreFrom`
-on the same instance — the validator rejects this combination because
+on the same instance: the validator rejects this combination because
 the order of operations is ambiguous. To do both, run two instances and
 join the data manually.
 
@@ -61,11 +61,11 @@ The hermes-agent importer migrates:
 
 - The workspace tree (everything under `~/.openclaw/workspace` becomes
   `~/.hermes/workspace`).
-- The session-memory SQLite (mapped through a schema shim — the importer
+- The session-memory SQLite (mapped through a schema shim: the importer
   upgrades FTS5 indexes in place).
 - Skills (anything in `~/.openclaw/skills` that has a `hermes-compatible: true`
   marker in its `metadata.yaml`; everything else is logged and skipped).
-- Config — `~/.openclaw/config.yaml` is translated through a known field
+- Config: `~/.openclaw/config.yaml` is translated through a known field
   map.
 
 It does **not** migrate:

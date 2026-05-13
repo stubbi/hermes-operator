@@ -14,7 +14,7 @@ import (
 // If these regress, GitOps coexistence with HermesSelfConfig breaks silently.
 func TestCRDListTypesForSSA(t *testing.T) {
 	body, err := os.ReadFile("../../config/crd/bases/hermes.agent_hermesinstances.yaml")
-	require.NoError(t, err, "CRD YAML missing — run `make manifests`")
+	require.NoError(t, err, "CRD YAML missing: run `make manifests`")
 	s := string(body)
 
 	require.True(t, strings.Contains(s, "x-kubernetes-list-map-keys:\n                - name"),

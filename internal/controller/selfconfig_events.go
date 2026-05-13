@@ -17,8 +17,8 @@ const (
 )
 
 // emitSelfConfigEvent fires a paired event on the SelfConfig (and on the
-// parent HermesInstance when present). When the recorder is nil — e.g. unit
-// tests that don't wire one — the call is a no-op.
+// parent HermesInstance when present). When the recorder is nil: e.g. unit
+// tests that don't wire one: the call is a no-op.
 func emitSelfConfigEvent(
 	r record.EventRecorder,
 	sc *hermesv1.HermesSelfConfig,

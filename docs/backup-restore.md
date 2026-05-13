@@ -2,9 +2,9 @@
 
 The `hermes-operator` ships an S3-compatible backup subsystem with three trigger paths:
 
-1. **Scheduled** — via `spec.backup.schedule` (cron expression).
-2. **On delete** — via `spec.backup.onDelete = true` (`hermes.agent/backup-on-delete` finalizer).
-3. **Pre-update** — automatic when `spec.autoUpdate.backupBeforeUpdate = true` (default).
+1. **Scheduled**: via `spec.backup.schedule` (cron expression).
+2. **On delete**: via `spec.backup.onDelete = true` (`hermes.agent/backup-on-delete` finalizer).
+3. **Pre-update**: automatic when `spec.autoUpdate.backupBeforeUpdate = true` (default).
 
 All three paths produce a `tar.zst` snapshot of `/home/hermes/.hermes/` plus a `meta.json` sidecar, written to S3 under a deterministic key. The format is documented in [`docs/backup-format.md`](backup-format.md).
 
@@ -49,7 +49,7 @@ spec:
   restoreFrom: "prod/agents/my-hermes/2026-05-10T03-00-00Z.tar.zst"
 ```
 
-On the next reconcile, the operator injects an `init-restore` init container into the StatefulSet PodTemplate. It downloads + extracts the snapshot to the PVC at `/home/hermes/.hermes/`. When the init container exits 0, `status.restoredFrom` is latched. The field becomes immutable thereafter — see [API stability](#api-stability).
+On the next reconcile, the operator injects an `init-restore` init container into the StatefulSet PodTemplate. It downloads + extracts the snapshot to the PVC at `/home/hermes/.hermes/`. When the init container exits 0, `status.restoredFrom` is latched. The field becomes immutable thereafter: see [API stability](#api-stability).
 
 ### Empty-PVC guard
 
@@ -77,7 +77,7 @@ When `spec.backup.onDelete = true`, the operator adds the `hermes.agent/backup-o
 
 1. The CR enters `DeletionTimestamp != nil` but is not GC'd.
 2. The operator creates a one-shot `<name>-backup-final` Job.
-3. When the Job succeeds, the finalizer is removed via **`r.Patch`** (`client.MergeFrom`), not `r.Update`. This is critical — `r.Update` bumps `metadata.generation` and replaces the pod on the next reconcile. Lesson #437 from openclaw-operator.
+3. When the Job succeeds, the finalizer is removed via **`r.Patch`** (`client.MergeFrom`), not `r.Update`. This is critical: `r.Update` bumps `metadata.generation` and replaces the pod on the next reconcile. Lesson #437 from openclaw-operator.
 4. Kubernetes GC'es the CR + cascades to owned resources.
 
 ### Skipping the final backup

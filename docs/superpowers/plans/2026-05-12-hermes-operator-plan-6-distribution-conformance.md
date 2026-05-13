@@ -1,14 +1,14 @@
-# Hermes Operator — Plan 6: Distribution + v1 Conformance Suite
+# Hermes Operator: Plan 6: Distribution + v1 Conformance Suite
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship hermes-operator as a fully distributable v1.0 — signed multi-arch images, SBOMs, OLM bundle auto-submitted to OperatorHub, Helm + kustomize channels, and a conformance suite (negative + idempotency + upgrade-path + GitOps + failure-injection + benchmarks) that mechanically defends every v1 stability commitment in spec §11.
+**Goal:** Ship hermes-operator as a fully distributable v1.0: signed multi-arch images, SBOMs, OLM bundle auto-submitted to OperatorHub, Helm + kustomize channels, and a conformance suite (negative + idempotency + upgrade-path + GitOps + failure-injection + benchmarks) that mechanically defends every v1 stability commitment in spec §11.
 
 **Architecture:** release-please drives version bumps from conventional commits; merging the release PR creates a `vX.Y.Z` tag via a PAT; the tag fires GoReleaser, which builds and signs multi-arch operator + agent images, generates SBOMs via syft, attests them with cosign, and uploads release assets; a downstream OperatorHub workflow forks `k8s-operatorhub/community-operators` and opens a bundle-update PR. The conformance suite is a separate `test/conformance/` tree wired into a nightly CI job that exercises five mechanically distinct stability invariants and a benchmark suite that fails CI on >20% regression.
 
 **Tech Stack:** Go 1.24, GoReleaser v2, release-please-action v4, Cosign (keyless OIDC), Syft (anchore/sbom-action), operator-sdk v1.38.0, OPM, Helm 3, kustomize, kind, Ginkgo v2, Gomega, benchstat, GitHub Actions.
 
-**Prerequisite:** Plans 1–5 merged. Plan 1 established the kubebuilder scaffold, `internal/resources/` builders, `internal/controller/` reconciler, the Helm chart at `charts/hermes-operator/`, and the CI workflows `ci.yaml`, `reconcile-guard.yaml`, `helm-rbac.yaml`, `build.yaml`, `e2e.yaml`. Plan 2 fleshed out the full `HermesInstance` spec, validating/defaulting webhooks, conversion-webhook scaffolding. Plan 3 implemented gateways, runtime init, Honcho profileStore, networking, autoupdate. Plan 4 implemented the `HermesSelfConfig` controller with SSA + the cluster-scoped `HermesClusterDefaults`. Plan 5 implemented backup/restore + finalizer + migration.fromOpenClaw. This plan does not modify reconciler logic; it adds distribution plumbing and a conformance suite that exercises what Plans 1–5 already built.
+**Prerequisite:** Plans 1-5 merged. Plan 1 established the kubebuilder scaffold, `internal/resources/` builders, `internal/controller/` reconciler, the Helm chart at `charts/hermes-operator/`, and the CI workflows `ci.yaml`, `reconcile-guard.yaml`, `helm-rbac.yaml`, `build.yaml`, `e2e.yaml`. Plan 2 fleshed out the full `HermesInstance` spec, validating/defaulting webhooks, conversion-webhook scaffolding. Plan 3 implemented gateways, runtime init, Honcho profileStore, networking, autoupdate. Plan 4 implemented the `HermesSelfConfig` controller with SSA + the cluster-scoped `HermesClusterDefaults`. Plan 5 implemented backup/restore + finalizer + migration.fromOpenClaw. This plan does not modify reconciler logic; it adds distribution plumbing and a conformance suite that exercises what Plans 1-5 already built.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-12-hermes-operator-design.md` §9 (distribution), §10 (testing strategy), §11 (v1 stability commitments).
 
@@ -22,22 +22,22 @@
 
 ```
 .
-├── .goreleaser.yaml                                # new — operator + agent build, multi-arch, sign, SBOM
-├── release-please-config.json                      # new — extra-files: Chart.yaml, CSV, values.yaml
-├── .release-please-manifest.json                   # new — starts at 0.1.0
-├── bundle.Dockerfile                               # new — OLM bundle image
+├── .goreleaser.yaml                                # new: operator + agent build, multi-arch, sign, SBOM
+├── release-please-config.json                      # new: extra-files: Chart.yaml, CSV, values.yaml
+├── .release-please-manifest.json                   # new: starts at 0.1.0
+├── bundle.Dockerfile                               # new: OLM bundle image
 ├── bundle/
-│   ├── ci.yaml                                     # new — reviewers + updateGraph: semver-mode
+│   ├── ci.yaml                                     # new: reviewers + updateGraph: semver-mode
 │   ├── manifests/
-│   │   ├── hermes-operator.clusterserviceversion.yaml   # new — CSV (versioned via release-please)
+│   │   ├── hermes-operator.clusterserviceversion.yaml   # new: CSV (versioned via release-please)
 │   │   ├── hermes.agent_hermesinstances.yaml            # copied from config/crd/bases/
 │   │   ├── hermes.agent_hermesselfconfigs.yaml          # copied
 │   │   └── hermes.agent_hermesclusterdefaults.yaml      # copied
 │   ├── metadata/
-│   │   └── annotations.yaml                        # new — OLM channel metadata
+│   │   └── annotations.yaml                        # new: OLM channel metadata
 │   └── tests/scorecard/
-│       └── config.yaml                             # new — scorecard test config
-├── test/conformance/                               # new — all conformance tests
+│       └── config.yaml                             # new: scorecard test config
+├── test/conformance/                               # new: all conformance tests
 │   ├── conformance_suite_test.go                   # Ginkgo entrypoint + shared kind harness
 │   ├── helpers.go                                  # shared test helpers
 │   ├── negative_test.go                            # webhook deny-path table
@@ -56,22 +56,22 @@
 │       ├── networking-ingress.yaml
 │       ├── observability-full.yaml
 │       └── ollama-webterminal-tailscale.yaml
-├── internal/resources/resources_bench_test.go      # new — builder benchmarks
-├── internal/controller/controller_bench_test.go    # new — envtest full-reconcile microbench
+├── internal/resources/resources_bench_test.go      # new: builder benchmarks
+├── internal/controller/controller_bench_test.go    # new: envtest full-reconcile microbench
 ├── docs/
-│   ├── release-process.md                          # new — release SOP
-│   ├── conformance.md                              # new — what each conformance category protects
-│   ├── security/signing.md                         # new — Cosign verification commands
-│   └── supported-versions.md                       # new — k8s support matrix + EOL policy
+│   ├── release-process.md                          # new: release SOP
+│   ├── conformance.md                              # new: what each conformance category protects
+│   ├── security/signing.md                         # new: Cosign verification commands
+│   └── supported-versions.md                       # new: k8s support matrix + EOL policy
 └── .github/workflows/
-    ├── release-please.yaml                         # new — release PR + tag creation
-    ├── release.yaml                                # new — GoReleaser + Cosign + SBOM + chart publish
-    ├── operatorhub-submit.yaml                     # new — cross-fork PR to community-operators
-    ├── verify-signing.yaml                         # new — weekly drift check
-    ├── conformance.yaml                            # new — nightly + on-tag conformance
-    ├── benchmark.yaml                              # new — PR benchmark diff
-    ├── ci.yaml                                     # MODIFIED — ENVTEST_K8S_VERSION matrix
-    └── e2e.yaml                                    # MODIFIED — kind node-image matrix 1.28→1.32
+    ├── release-please.yaml                         # new: release PR + tag creation
+    ├── release.yaml                                # new: GoReleaser + Cosign + SBOM + chart publish
+    ├── operatorhub-submit.yaml                     # new: cross-fork PR to community-operators
+    ├── verify-signing.yaml                         # new: weekly drift check
+    ├── conformance.yaml                            # new: nightly + on-tag conformance
+    ├── benchmark.yaml                              # new: PR benchmark diff
+    ├── ci.yaml                                     # MODIFIED: ENVTEST_K8S_VERSION matrix
+    └── e2e.yaml                                    # MODIFIED: kind node-image matrix 1.28→1.32
 
 Makefile additions:
   installer  bundle  bundle-build  bundle-push  bundle-validate
@@ -92,9 +92,9 @@ This task is a *checklist* the user runs before merging this plan. The plan cann
 - [ ] **Step 1: Create the `RELEASE_PLEASE_TOKEN` PAT**
 
 In a browser:
-1. Visit `https://github.com/settings/tokens/new` (classic PAT — *not* fine-grained, because release-please needs cross-repo access for the OperatorHub fork).
+1. Visit `https://github.com/settings/tokens/new` (classic PAT: *not* fine-grained, because release-please needs cross-repo access for the OperatorHub fork).
 2. Note: `RELEASE_PLEASE_TOKEN for hermes-operator`.
-3. Expiration: 1 year (calendar a renewal — drift catches a stale token).
+3. Expiration: 1 year (calendar a renewal: drift catches a stale token).
 4. Scopes: tick `repo` (full) and `workflow`.
 5. Generate, copy the token.
 
@@ -215,12 +215,12 @@ Create `release-please-config.json`:
 ```
 
 Why each extra-file:
-- `Chart.yaml/$.version` — the Helm chart's own semver (consumers pin against this).
-- `Chart.yaml/$.appVersion` — operator image tag the chart deploys.
-- `values.yaml/$.image.tag` — default image tag if a user doesn't override.
-- CSV `metadata.name` — must be `hermes-operator.vX.Y.Z` per OLM convention; release-please rewrites the entire value to match.
-- CSV `metadata.annotations.containerImage` — `ghcr.io/stubbi/hermes-operator:vX.Y.Z` shown in OperatorHub UI.
-- CSV `spec.version` — the OLM-visible semver (without `v` prefix).
+- `Chart.yaml/$.version`: the Helm chart's own semver (consumers pin against this).
+- `Chart.yaml/$.appVersion`: operator image tag the chart deploys.
+- `values.yaml/$.image.tag`: default image tag if a user doesn't override.
+- CSV `metadata.name`: must be `hermes-operator.vX.Y.Z` per OLM convention; release-please rewrites the entire value to match.
+- CSV `metadata.annotations.containerImage`: `ghcr.io/stubbi/hermes-operator:vX.Y.Z` shown in OperatorHub UI.
+- CSV `spec.version`: the OLM-visible semver (without `v` prefix).
 
 - [ ] **Step 2: Write `.release-please-manifest.json`**
 
@@ -230,7 +230,7 @@ Why each extra-file:
 }
 ```
 
-Why `0.1.0` (not `0.0.0`): per the spec, the first cut is `v1.0.0` — but release-please needs a starting point that's *one less* than the first intended release so it can bump. Setting `0.1.0` with `bump-minor-pre-major: true` and the first `feat:` commit produces `v0.2.0`; we won't ship that — instead, the first time we want `v1.0.0`, we commit a `feat!: ...` (breaking change marker) which triggers a major bump from `0.1.0` to `1.0.0`. Document this in `docs/release-process.md`.
+Why `0.1.0` (not `0.0.0`): per the spec, the first cut is `v1.0.0`: but release-please needs a starting point that's *one less* than the first intended release so it can bump. Setting `0.1.0` with `bump-minor-pre-major: true` and the first `feat:` commit produces `v0.2.0`; we won't ship that: instead, the first time we want `v1.0.0`, we commit a `feat!: ...` (breaking change marker) which triggers a major bump from `0.1.0` to `1.0.0`. Document this in `docs/release-process.md`.
 
 - [ ] **Step 3: Sanity-check JSON**
 
@@ -480,7 +480,7 @@ git commit -m "build: add GoReleaser v2 config for multi-arch operator image"
 
 ---
 
-## Task 5: `release.yaml` workflow — GoReleaser + Cosign + SBOM
+## Task 5: `release.yaml` workflow: GoReleaser + Cosign + SBOM
 
 **Files:**
 - Create: `.github/workflows/release.yaml`
@@ -649,7 +649,7 @@ git commit -m "ci: add release workflow (GoReleaser + Cosign + SBOM + Helm OCI p
 
 ---
 
-## Task 6: `make installer` — emit `dist/install.yaml`
+## Task 6: `make installer`: emit `dist/install.yaml`
 
 **Files:**
 - Modify: `Makefile`
@@ -697,7 +697,7 @@ git commit -m "build: add make installer target (emits dist/install.yaml for rel
 
 ---
 
-## Task 7: OLM bundle scaffold — `bundle.Dockerfile` and `bundle/`
+## Task 7: OLM bundle scaffold: `bundle.Dockerfile` and `bundle/`
 
 **Files:**
 - Create: `bundle.Dockerfile`, `bundle/ci.yaml`, `bundle/metadata/annotations.yaml`, `bundle/tests/scorecard/config.yaml`
@@ -803,7 +803,7 @@ git commit -m "build(bundle): scaffold OLM bundle (Dockerfile, annotations, scor
 
 ---
 
-## Task 8: ClusterServiceVersion — `bundle/manifests/hermes-operator.clusterserviceversion.yaml`
+## Task 8: ClusterServiceVersion: `bundle/manifests/hermes-operator.clusterserviceversion.yaml`
 
 **Files:**
 - Create: `bundle/manifests/hermes-operator.clusterserviceversion.yaml`
@@ -850,7 +850,7 @@ metadata:
     createdAt: "2026-05-12T00:00:00Z"
     support: stubbi
     repository: https://github.com/stubbi/hermes-operator
-    description: "A production-grade Kubernetes operator for deploying and managing nousresearch/hermes-agent — a Python-based self-improving multi-platform AI agent."
+    description: "A production-grade Kubernetes operator for deploying and managing nousresearch/hermes-agent: a Python-based self-improving multi-platform AI agent."
     alm-examples: |-
       [
         {
@@ -938,7 +938,7 @@ spec:
     ## Hermes Kubernetes Operator
 
     A production-grade Kubernetes operator for deploying and managing
-    [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent) —
+    [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent):
     a Python-based, self-improving, multi-platform AI agent.
 
     ### What is hermes-agent?
@@ -950,25 +950,25 @@ spec:
 
     ### Key Capabilities
 
-    - **Declarative Deployment** — every aspect of an agent's runtime, gateways,
+    - **Declarative Deployment**: every aspect of an agent's runtime, gateways,
       storage, networking, observability, and security through a single
       `HermesInstance` resource.
-    - **Self-Configuration with Audit** — the agent persists learned skills, env
+    - **Self-Configuration with Audit**: the agent persists learned skills, env
       vars, config patches, and workspace files via `HermesSelfConfig` CRs that
       the operator validates against an explicit allowlist, then applies via
       Server-Side Apply (no GitOps flap).
-    - **Cluster Defaults** — `HermesClusterDefaults` (cluster-scoped singleton)
+    - **Cluster Defaults**: `HermesClusterDefaults` (cluster-scoped singleton)
       supplies organization-wide defaults for image, storage class, IRSA, etc.
-    - **Auto-Update with Rollback** — OCI registry polling with pre-update backup
+    - **Auto-Update with Rollback**: OCI registry polling with pre-update backup
       and probe-driven rollback.
-    - **Backup / Restore** — S3-compatible (R2, MinIO, AWS), backup-on-delete
+    - **Backup / Restore**: S3-compatible (R2, MinIO, AWS), backup-on-delete
       finalizer, declarative restore from snapshot.
-    - **OpenClaw Migration** — one-shot `spec.migration.fromOpenClaw` invokes
+    - **OpenClaw Migration**: one-shot `spec.migration.fromOpenClaw` invokes
       hermes-agent's built-in importer.
-    - **Honcho Profile Store** — optional companion Deployment with persistence
+    - **Honcho Profile Store**: optional companion Deployment with persistence
       for dialectic user profiles.
-    - **Multi-Platform Gateways** — first-class config for Telegram, Discord,
-      Slack, WhatsApp, Signal — each with isolated secret rotation.
+    - **Multi-Platform Gateways**: first-class config for Telegram, Discord,
+      Slack, WhatsApp, Signal: each with isolated secret rotation.
 
     ### Default Security Posture
 
@@ -993,7 +993,7 @@ spec:
     1. Install the operator via OLM or `helm install`.
     2. Create a Secret with your AI provider keys and platform tokens.
     3. Create a `HermesInstance` referencing the Secret.
-    4. The operator handles the rest — deployment, networking, security,
+    4. The operator handles the rest: deployment, networking, security,
        lifecycle.
 
     ### Prerequisites
@@ -1398,7 +1398,7 @@ sync-bundle-rbac-check: ## Verify the bundle CSV RBAC is in sync (CI use).
 make sync-bundle-rbac
 git diff bundle/manifests/hermes-operator.clusterserviceversion.yaml
 ```
-Expected: either no diff (already in sync) or a clean rules block update. Inspect the diff — it should look like the rules block we pasted in Task 8 Step 3.
+Expected: either no diff (already in sync) or a clean rules block update. Inspect the diff: it should look like the rules block we pasted in Task 8 Step 3.
 
 - [ ] **Step 4: Extend `helm-rbac.yaml` workflow to also check bundle drift**
 
@@ -1717,7 +1717,7 @@ git commit -m "ci: auto-submit OLM bundle to community-operators on release"
 
 ---
 
-## Task 12: Cosign verification — `make verify-signing` + weekly drift check
+## Task 12: Cosign verification: `make verify-signing` + weekly drift check
 
 **Files:**
 - Modify: `Makefile`
@@ -1793,9 +1793,9 @@ for users who can't (or won't) hit the registry.
 
 Every published release signs three image tags pointing to the same digest:
 
-- `vX.Y.Z` — exact version
-- `X.Y` — minor channel (moves on patch releases)
-- `latest` — most recent stable (moves on every release)
+- `vX.Y.Z`: exact version
+- `X.Y`: minor channel (moves on patch releases)
+- `latest`: most recent stable (moves on every release)
 
 Pinning by digest (`@sha256:...`) is recommended for production.
 
@@ -2020,7 +2020,7 @@ The oldest minor is dropped only on a **minor** release of hermes-operator
 
 1. Is announced in the CHANGELOG of the preceding minor (one release of notice).
 2. Removes the corresponding cell from the CI matrix in the *first commit of
-   the new minor* — never piecemeal.
+   the new minor*: never piecemeal.
 3. Updates this table, `README.md`, and the OLM CSV `minKubeVersion` in the
    same commit.
 
@@ -2059,13 +2059,13 @@ git commit -m "ci: matrix CI across k8s 1.28-1.32 (envtest + kind) + EOL policy 
 
 ---
 
-## Task 14: Conformance suite scaffold — shared harness
+## Task 14: Conformance suite scaffold: shared harness
 
 **Files:**
 - Create: `test/conformance/conformance_suite_test.go`, `test/conformance/helpers.go`
 
 The conformance tree is a Ginkgo suite of its own (independent of `test/e2e/`).
-It spawns kind clusters per "category" — each top-level `Describe` block is
+It spawns kind clusters per "category": each top-level `Describe` block is
 isolated so failure injection in one test can't poison the others.
 
 - [ ] **Step 1: Conformance suite entrypoint**
@@ -2089,7 +2089,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// Conformance suite — see test/conformance/README in plan or docs/conformance.md.
+// Conformance suite: see test/conformance/README in plan or docs/conformance.md.
 //
 // Categories (one Describe block each, in separate files):
 //   - negative_test.go             webhook deny paths
@@ -2300,13 +2300,13 @@ func captureFingerprint(ctx context.Context, c client.Client, ns, name string) r
 	if err := c.Get(ctx, types.NamespacedName{Namespace: ns, Name: name + "-data"}, pvc); err == nil {
 		fp.PVC = metaTuple{pvc.Generation, pvc.ResourceVersion}
 	}
-	// NetworkPolicy, SA, Role, RoleBinding — all share the instance name.
-	// PDB/HPA/Ingress/ServiceMonitor/Honcho — set conditionally if found.
+	// NetworkPolicy, SA, Role, RoleBinding: all share the instance name.
+	// PDB/HPA/Ingress/ServiceMonitor/Honcho: set conditionally if found.
 	return fp
 }
 
 // expectFingerprintUnchanged compares two fingerprints and reports the first
-// diverging field with a humane message — much better than %+v.
+// diverging field with a humane message: much better than %+v.
 func expectFingerprintUnchanged(before, after resourceFingerprint) {
 	check := func(field string, b, a metaTuple) {
 		Expect(a.Generation).To(Equal(b.Generation),
@@ -2422,7 +2422,7 @@ func readFile(path string) string {
 }
 ```
 
-Also strip the unused `ctrl.GetConfigOrDie()` scheme stub from `newClient` — use the operator's scheme:
+Also strip the unused `ctrl.GetConfigOrDie()` scheme stub from `newClient`: use the operator's scheme:
 
 ```go
 import (
@@ -2831,7 +2831,7 @@ git commit -m "test(conformance): add 10-manifest testdata corpus"
 
 ---
 
-## Task 16: Negative tests — every webhook deny path
+## Task 16: Negative tests: every webhook deny path
 
 **Files:**
 - Create: `test/conformance/negative_test.go`
@@ -3133,7 +3133,7 @@ spec:
 	{
 		name: "HermesSelfConfig: action not in allowedActions",
 		// allowedActions on the test instance is [skills, config, envVars, workspaceFiles, profiles].
-		// addProfileSnapshot is in the list — we instead try addEnvVars when the instance has it disabled.
+		// addProfileSnapshot is in the list: we instead try addEnvVars when the instance has it disabled.
 		// For the simpler case, use a mutation type the operator knows ("addContainerImages") which
 		// no instance ever allows (we never added it to allowedActions); webhook denies on unknown action.
 		kind: "HermesSelfConfig",
@@ -3227,7 +3227,7 @@ git commit -m "test(conformance): add negative test table (every webhook deny pa
 
 ---
 
-## Task 17: Idempotency suite — the canary for lesson #437
+## Task 17: Idempotency suite: the canary for lesson #437
 
 **Files:**
 - Create: `test/conformance/idempotency_test.go`
@@ -3533,7 +3533,7 @@ spec:
 
 - [ ] **Step 2: Document the allow-list pattern in `docs/conformance.md`** (Task 23 writes that file; we just lay out the pattern here):
 
-When a release intentionally changes the shape of a managed resource (e.g. adds a label to the StatefulSet because a new observability stack requires it), the engineer adds a `case "vX.Y.Z":` arm to the `switch tag` block. The arm copies the *post-upgrade* metaTuple over the baseline for the specific resource, so the comparison still verifies "everything else is unchanged" — only the documented field is exempt. The CHANGELOG entry for that release must reference the allow-list addition.
+When a release intentionally changes the shape of a managed resource (e.g. adds a label to the StatefulSet because a new observability stack requires it), the engineer adds a `case "vX.Y.Z":` arm to the `switch tag` block. The arm copies the *post-upgrade* metaTuple over the baseline for the specific resource, so the comparison still verifies "everything else is unchanged": only the documented field is exempt. The CHANGELOG entry for that release must reference the allow-list addition.
 
 - [ ] **Step 3: Build**
 
@@ -3551,7 +3551,7 @@ git commit -m "test(conformance): add upgrade-path matrix (prior-release -> HEAD
 
 ---
 
-## Task 19: GitOps coexistence — FluxCD + SelfConfig SSA no-flap
+## Task 19: GitOps coexistence: FluxCD + SelfConfig SSA no-flap
 
 **Files:**
 - Create: `test/conformance/gitops_test.go`
@@ -3775,7 +3775,7 @@ git commit -m "test(conformance): add GitOps coexistence test (FluxCD SSA + Self
 
 ---
 
-## Task 20: Failure injection — SIGKILL the manager mid-reconcile
+## Task 20: Failure injection: SIGKILL the manager mid-reconcile
 
 **Files:**
 - Create: `test/conformance/failure_injection_test.go`
@@ -4265,7 +4265,7 @@ import (
 	hermesv1 "github.com/stubbi/hermes-operator/api/v1"
 )
 
-// newBenchInstanceMinimal — only the fields the spec marks required.
+// newBenchInstanceMinimal: only the fields the spec marks required.
 func newBenchInstanceMinimal() *hermesv1.HermesInstance {
 	return &hermesv1.HermesInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: "bench", Namespace: "bench-ns"},
@@ -4284,7 +4284,7 @@ func newBenchInstanceMinimal() *hermesv1.HermesInstance {
 	}
 }
 
-// newBenchInstanceFull — every sub-spec populated for stress testing.
+// newBenchInstanceFull: every sub-spec populated for stress testing.
 func newBenchInstanceFull() *hermesv1.HermesInstance {
 	inst := newBenchInstanceMinimal()
 	inst.Name = "bench-full"
@@ -4517,7 +4517,7 @@ func BenchmarkBuildRBAC(b *testing.B) {
 }
 ```
 
-Note: builder signature names (`BuildStatefulSet(inst, defaults)`, `BuildWorkspaceConfigMap`, etc.) should match exactly what Plans 2–5 actually produced. If the actual function names differ, fix the bench file to match — the bench file follows, it doesn't define, the API.
+Note: builder signature names (`BuildStatefulSet(inst, defaults)`, `BuildWorkspaceConfigMap`, etc.) should match exactly what Plans 2-5 actually produced. If the actual function names differ, fix the bench file to match: the bench file follows, it doesn't define, the API.
 
 - [ ] **Step 2: Controller microbenchmark**
 
@@ -4550,7 +4550,7 @@ import (
 // HermesInstance with every sub-spec populated. Measures whole-loop ns/op +
 // allocs, against the envtest apiserver established in suite_test.go.
 //
-// The envtest binary is wired up by the existing suite — this benchmark
+// The envtest binary is wired up by the existing suite: this benchmark
 // piggy-backs on its lifecycle and uses the same Reconciler.
 func BenchmarkReconcile_FullSpec(b *testing.B) {
 	if k8sClient == nil {
@@ -4626,13 +4626,13 @@ func fullSpecInstance(ns, name string) *hermesv1.HermesInstance {
 func createNS(ctx context.Context, name string) error {
 	// Reuse the existing test/envtest helper if one exists; otherwise inline
 	// a minimal Namespace create. The kubebuilder suite_test.go provides ctx
-	// and k8sClient — the engineer wires this to whatever helper already
+	// and k8sClient: the engineer wires this to whatever helper already
 	// creates test namespaces.
 	return nil
 }
 ```
 
-Note: `ctrl.ObjectMeta` is shorthand for `metav1.ObjectMeta` — the engineer's package-level imports may already alias. Adjust as needed.
+Note: `ctrl.ObjectMeta` is shorthand for `metav1.ObjectMeta`: the engineer's package-level imports may already alias. Adjust as needed.
 
 - [ ] **Step 3: PR diff comment script**
 
@@ -4857,7 +4857,7 @@ manually:
 gh workflow run "OperatorHub Submission" -f tag=vX.Y.Z
 ```
 
-If a release was tagged but the release workflow didn't run (very rare —
+If a release was tagged but the release workflow didn't run (very rare:
 usually because the PAT expired), retag:
 
 ```bash
@@ -4884,7 +4884,7 @@ See `docs/security/signing.md` for the full verification ritual.
   `ghcr.io/stubbi/hermes-operator:vX.Y.Z` and `:X.Y` and `:latest`
 - Multi-arch agent image:
   `ghcr.io/stubbi/hermes-agent:vX.Y.Z` (built by a separate hermes-agent
-  release; the operator's `appVersion` doesn't pin agent versions —
+  release; the operator's `appVersion` doesn't pin agent versions:
   `spec.image.tag` does)
 - OLM bundle image:
   `ghcr.io/stubbi/hermes-operator-bundle:vX.Y.Z`
@@ -4967,8 +4967,8 @@ populates from v1.1 onward.
 
 ### GitOps coexistence (`gitops_test.go`)
 
-Two concurrent SSA writers — a FluxCD-style manager and the operator's
-`hermes.agent/selfconfig` field-manager — race against the same
+Two concurrent SSA writers: a FluxCD-style manager and the operator's
+`hermes.agent/selfconfig` field-manager: race against the same
 `HermesInstance` for 200 iterations (each ~100ms apart, simulating 10
 minutes of load). The test asserts at most one ownership flip on the
 contended path (the initial settle), then both managers' fields coexist in
@@ -4979,10 +4979,10 @@ the final spec. >1 flip indicates SSA isolation is broken.
 Four reconcile paths, each killed mid-flight via `kubectl delete pod
 --force --grace-period=0`:
 
-1. Instance create — assert Ready within 3 minutes after restart.
-2. Instance update (patched resources) — assert StatefulSet reflects the patch.
-3. SelfConfig apply — assert phase=Applied + spec change visible.
-4. Backup-on-delete finalizer — assert instance fully deleted.
+1. Instance create: assert Ready within 3 minutes after restart.
+2. Instance update (patched resources): assert StatefulSet reflects the patch.
+3. SelfConfig apply: assert phase=Applied + spec change visible.
+4. Backup-on-delete finalizer: assert instance fully deleted.
 
 ## Running locally
 
@@ -5000,10 +5000,10 @@ make conformance-kind-down
 
 ## What CI does
 
-- **PRs touching `test/conformance/`** — runs all five categories. Advisory.
-- **Nightly on `main`** — runs all five. Required to be green before the next
+- **PRs touching `test/conformance/`**: runs all five categories. Advisory.
+- **Nightly on `main`**: runs all five. Required to be green before the next
   release.
-- **On tag `v*`** — runs all five. Required.
+- **On tag `v*`**: runs all five. Required.
 
 ## When to add a row
 
@@ -5073,7 +5073,7 @@ git commit -m "docs: fill out release-process + conformance + README badges"
 
 ## Task 24: End-to-end smoke of the distribution pipeline (no actual release)
 
-**Files:** none new — just walk the pipeline.
+**Files:** none new: just walk the pipeline.
 
 - [ ] **Step 1: Dry-run release-please locally**
 
@@ -5131,7 +5131,7 @@ make conformance-install IMG=hermes-operator:dev
 make conformance-negative
 make conformance-kind-down
 ```
-Expected: negative suite passes (it doesn't depend on a working hermes-agent image — only the webhook responses).
+Expected: negative suite passes (it doesn't depend on a working hermes-agent image: only the webhook responses).
 
 - [ ] **Step 7: Push and watch CI**
 
@@ -5139,7 +5139,7 @@ Expected: negative suite passes (it doesn't depend on a working hermes-agent ima
 git push origin main
 gh run watch
 ```
-Expected: all workflows green. If `release-please.yaml` opens a release PR, that's expected — leave it open until you're actually ready to cut a release.
+Expected: all workflows green. If `release-please.yaml` opens a release PR, that's expected: leave it open until you're actually ready to cut a release.
 
 - [ ] **Step 8: Commit any tweaks**
 
@@ -5165,12 +5165,12 @@ git commit -m "chore: smoke-test outputs from Plan 6 Task 24" --allow-empty
   - GoReleaser builds + Cosign + SBOM + SBOM upload + publish (Task 5).
 
 - [ ] **Spec §10 testing strategy (this plan owns items 4, 5, partly 6/7/8)**
-  - §10.4 negative: Task 16 — 19 webhook deny rows.
-  - §10.4 idempotency: Task 17 — 10 manifests × 10 reconciles.
-  - §10.4 upgrade matrix: Task 18 — auto-populates from v1.0; skips cleanly until.
-  - §10.4 gitops: Task 19 — 200-reconcile FluxCD + SelfConfig flap detector.
-  - §10.4 failure injection: Task 20 — four reconcile paths (create, update, selfconfig, backup-on-delete).
-  - §10.5 benchmarks: Task 22 — builder + envtest microbench + PR diff workflow with 20% gate.
+  - §10.4 negative: Task 16: 19 webhook deny rows.
+  - §10.4 idempotency: Task 17: 10 manifests × 10 reconciles.
+  - §10.4 upgrade matrix: Task 18: auto-populates from v1.0; skips cleanly until.
+  - §10.4 gitops: Task 19: 200-reconcile FluxCD + SelfConfig flap detector.
+  - §10.4 failure injection: Task 20: four reconcile paths (create, update, selfconfig, backup-on-delete).
+  - §10.5 benchmarks: Task 22: builder + envtest microbench + PR diff workflow with 20% gate.
   - §10.6 security scans: already in Plan 1's ci.yaml; this plan does not duplicate.
   - §10.7 Reconcile Guard: Plan 1; this plan does not duplicate.
   - §10.8 Helm RBAC Sync: Plan 1; this plan extends with bundle RBAC sync (Task 9).
@@ -5208,18 +5208,18 @@ git commit -m "chore: smoke-test outputs from Plan 6 Task 24" --allow-empty
   - kind matrix in `e2e.yaml`: Task 13.
   - EOL policy: `docs/supported-versions.md` (Task 13).
 
-- [ ] **Conformance suite — content depth**
-  - Negative cases: 19 actual rows (not placeholders) — Task 16.
-  - Idempotency corpus: 10 distinct manifests under `testdata/` — Task 15, exercised in Task 17.
-  - Upgrade matrix: real Go function + tag-keyed allow-list arms; v1.0 path no-op'd cleanly — Task 18.
-  - GitOps test: two concurrent SSA writers + flap-counter via ManagedFields inspection — Task 19.
-  - Failure injection: four distinct reconcile paths each with full code — Task 20.
+- [ ] **Conformance suite: content depth**
+  - Negative cases: 19 actual rows (not placeholders): Task 16.
+  - Idempotency corpus: 10 distinct manifests under `testdata/`: Task 15, exercised in Task 17.
+  - Upgrade matrix: real Go function + tag-keyed allow-list arms; v1.0 path no-op'd cleanly: Task 18.
+  - GitOps test: two concurrent SSA writers + flap-counter via ManagedFields inspection: Task 19.
+  - Failure injection: four distinct reconcile paths each with full code: Task 20.
   - Runner targets + workflow: Task 21.
 
 - [ ] **Benchmarks**
-  - 17 named benchmarks across resources + 1 envtest reconcile bench — Task 22.
-  - benchstat diff with 20% regression gate — Task 22.
-  - PR diff comment via `gh pr comment` — Task 22.
+  - 17 named benchmarks across resources + 1 envtest reconcile bench: Task 22.
+  - benchstat diff with 20% regression gate: Task 22.
+  - PR diff comment via `gh pr comment`: Task 22.
 
 - [ ] **Documentation**
   - `docs/release-process.md`: Task 23.
@@ -5234,9 +5234,9 @@ git commit -m "chore: smoke-test outputs from Plan 6 Task 24" --allow-empty
   - Every Makefile target has a body, not just a name.
   - The negative test table has 19 *named* rows; the idempotency corpus has 10 *real* manifests.
 
-- [ ] **Type consistency with Plans 2–5**
-  - Bench file uses `Ptr[T]`, `hermesv1.HermesInstance`, sub-spec types from spec §4 — same names Plan 2 was instructed to create.
-  - Conformance test imports `hermesv1 "github.com/stubbi/hermes-operator/api/v1"` — same module path Plan 1 established.
+- [ ] **Type consistency with Plans 2-5**
+  - Bench file uses `Ptr[T]`, `hermesv1.HermesInstance`, sub-spec types from spec §4: same names Plan 2 was instructed to create.
+  - Conformance test imports `hermesv1 "github.com/stubbi/hermes-operator/api/v1"`: same module path Plan 1 established.
   - Field manager `hermes.agent/selfconfig` matches spec §5 and Plan 4.
   - Finalizer `hermes.agent/backup-on-delete` matches spec §8.2 and Plan 5.
 

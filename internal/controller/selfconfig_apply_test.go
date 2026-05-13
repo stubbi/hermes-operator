@@ -50,7 +50,7 @@ func TestBuildSkillsPatch_ContainsOnlySkills(t *testing.T) {
 	assert.Equal(t, "git+https://github.com/bar/other@v2", patch.Spec.Skills[1].Source)
 	assert.Equal(t, "2.0", patch.Spec.Skills[1].Version, "Version must propagate from SelfConfigSkill to InstanceSkill")
 	assert.Empty(t, patch.Spec.Env, "must not touch env when only Skills is requested")
-	assert.Empty(t, patch.Spec.Image.Repository, "must not touch image — Flux owns that")
+	assert.Empty(t, patch.Spec.Image.Repository, "must not touch image: Flux owns that")
 }
 
 func TestBuildEnvVarsPatch_LiteralAndValueFrom(t *testing.T) {

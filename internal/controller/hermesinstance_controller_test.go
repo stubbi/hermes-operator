@@ -38,7 +38,7 @@ import (
 	hermesv1 "github.com/stubbi/hermes-operator/api/v1"
 )
 
-// Ptr returns a pointer to v. Local test helper — mirrors resources.Ptr but
+// Ptr returns a pointer to v. Local test helper: mirrors resources.Ptr but
 // avoids importing the internal package from the test file.
 func Ptr[T any](v T) *T { return &v }
 
@@ -118,7 +118,7 @@ var _ = Describe("HermesInstance controller", func() {
 		}).Within(timeout).WithPolling(interval).Should(Succeed())
 	})
 
-	It("is idempotent — second reconcile does not change StatefulSet generation", func() {
+	It("is idempotent: second reconcile does not change StatefulSet generation", func() {
 		ctx := context.Background()
 
 		inst := &hermesv1.HermesInstance{
@@ -153,7 +153,7 @@ var _ = Describe("HermesInstance controller", func() {
 	})
 })
 
-var _ = Describe("HermesInstance — full subsystems", func() {
+var _ = Describe("HermesInstance: full subsystems", func() {
 	const (
 		name      = "demo-full"
 		namespace = "default"
@@ -259,7 +259,7 @@ var _ = Describe("HermesInstance — full subsystems", func() {
 	})
 })
 
-var _ = Describe("HermesInstance reconciler — gateways", func() {
+var _ = Describe("HermesInstance reconciler: gateways", func() {
 	const (
 		instName = "gateways-it"
 		ns       = "default"
@@ -379,7 +379,7 @@ var _ = Describe("HermesInstance reconciler — gateways", func() {
 	})
 })
 
-var _ = Describe("HermesInstance reconciler — Honcho profile store", func() {
+var _ = Describe("HermesInstance reconciler: Honcho profile store", func() {
 	const (
 		instName = "honcho-it"
 		ns       = "default"
@@ -478,7 +478,7 @@ var _ = Describe("HermesInstance reconciler — Honcho profile store", func() {
 	})
 })
 
-var _ = Describe("HermesInstance reconciler — idempotency canary (Plan 3 surface)", func() {
+var _ = Describe("HermesInstance reconciler: idempotency canary (Plan 3 surface)", func() {
 	const (
 		instName = "canary-plan3"
 		ns       = "default"

@@ -38,7 +38,7 @@ func TestHermesClusterDefaults_Shape(t *testing.T) {
 	assert.Equal(t, "ghcr-pull", hcd.Spec.Registry.PullSecretName)
 	assert.NotNil(t, hcd.Spec.Storage.Persistence.StorageClassName)
 
-	// Sanity: a non-cluster name should still parse — the *webhook* rejects it,
+	// Sanity: a non-cluster name should still parse: the *webhook* rejects it,
 	// not the type system.
 	other := &HermesClusterDefaults{ObjectMeta: metav1.ObjectMeta{Name: "not-cluster"}}
 	_ = corev1.ObjectReference{Name: other.Name}

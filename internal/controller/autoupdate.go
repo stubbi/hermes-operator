@@ -157,7 +157,7 @@ func (a *AutoUpdateReconciler) startRollout(ctx context.Context, inst *hermesv1.
 		_, done, err := a.Backup.RunOneShot(ctx, inst)
 		if err != nil {
 			a.Recorder.Eventf(inst, corev1.EventTypeWarning, "AutoUpdatePreUpdateBackupFailed",
-				"pre-update backup failed: %v — aborting rollout", err)
+				"pre-update backup failed: %v: aborting rollout", err)
 			return ctrl.Result{RequeueAfter: time.Minute}, nil
 		}
 		if !done {

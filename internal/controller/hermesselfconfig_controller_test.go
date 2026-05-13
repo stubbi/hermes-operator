@@ -67,7 +67,7 @@ var _ = Describe("HermesSelfConfig controller", func() {
 		}).Within(timeout).WithPolling(poll).Should(Succeed())
 	})
 
-	It("is idempotent — re-reconciling the same generation does not bump observedGeneration twice", func() {
+	It("is idempotent: re-reconciling the same generation does not bump observedGeneration twice", func() {
 		ctx := context.Background()
 		trueP := true
 
@@ -125,6 +125,6 @@ var _ = Describe("HermesSelfConfig controller", func() {
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "idem-test", Namespace: ns}, second)).To(Succeed())
 		Expect(second.Status.Phase).To(Equal(hermesv1.SelfConfigPhaseApplied))
 		Expect(second.Status.AppliedAt.Equal(firstApplied)).To(BeTrue(),
-			"AppliedAt must not advance on no-op reconciles — the controller short-circuits via ObservedGeneration")
+			"AppliedAt must not advance on no-op reconciles: the controller short-circuits via ObservedGeneration")
 	})
 })

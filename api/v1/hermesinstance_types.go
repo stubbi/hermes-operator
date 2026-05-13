@@ -197,10 +197,10 @@ type PersistenceSpec struct {
 type ConfigMergeMode string
 
 const (
-	// ConfigMergeModeReplace — Raw replaces ConfigMapRef entirely when both are set.
+	// ConfigMergeModeReplace: Raw replaces ConfigMapRef entirely when both are set.
 	// This is the default to avoid surprising merges.
 	ConfigMergeModeReplace ConfigMergeMode = "replace"
-	// ConfigMergeModeMerge — YAML deep-merge Raw onto ConfigMapRef. Raw wins on conflict.
+	// ConfigMergeModeMerge: YAML deep-merge Raw onto ConfigMapRef. Raw wins on conflict.
 	ConfigMergeModeMerge ConfigMergeMode = "merge"
 )
 
@@ -234,7 +234,7 @@ type RawConfig struct {
 // WorkspaceSpec seeds initial files and directories into ~/.hermes on first
 // start. Path values support arbitrary nested directories ("a/b/c.md" is fine);
 // the workspace ConfigMap encodes nested paths using "__" as the separator so a
-// single-level ConfigMap data map can express them — Plan 3's runtime-init
+// single-level ConfigMap data map can express them: Plan 3's runtime-init
 // container decodes the keys back to filesystem paths before invoking the agent.
 //
 // Lesson from openclaw #482: do not constrain Path to a single segment; that
@@ -281,14 +281,14 @@ type WorkspaceFile struct {
 
 // WorkspaceBootstrap toggles the first-start bootstrap script.
 type WorkspaceBootstrap struct {
-	// Enabled — default false. Plan 3 wires the actual init-container.
+	// Enabled: default false. Plan 3 wires the actual init-container.
 	// +kubebuilder:default=false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ResourcesSpec sets CPU/memory requests + limits on the agent container.
-// Defaults intentionally omitted — the defaulting webhook fills from
+// Defaults intentionally omitted: the defaulting webhook fills from
 // HermesClusterDefaults if available, otherwise the field is left empty
 // (meaning the agent inherits whatever Pod-level defaults the namespace's
 // LimitRange applies).
@@ -342,13 +342,13 @@ type SecuritySpec struct {
 
 // RBACSpec controls per-instance ServiceAccount + Role + RoleBinding creation.
 type RBACSpec struct {
-	// CreateServiceAccount — when true (the default), the operator creates and
+	// CreateServiceAccount: when true (the default), the operator creates and
 	// owns a ServiceAccount named after the instance.
 	// +kubebuilder:default=true
 	// +optional
 	CreateServiceAccount *bool `json:"createServiceAccount,omitempty"`
 
-	// ServiceAccountName — when CreateServiceAccount is false, the agent uses
+	// ServiceAccountName: when CreateServiceAccount is false, the agent uses
 	// this externally-managed ServiceAccount. Must exist in the same namespace.
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
@@ -362,14 +362,14 @@ type RBACSpec struct {
 
 // NetworkPolicySpec controls per-instance NetworkPolicy creation.
 type NetworkPolicySpec struct {
-	// Enabled — when true (the default), the operator creates a deny-all
+	// Enabled: when true (the default), the operator creates a deny-all
 	// NetworkPolicy plus selective allow rules (DNS + 443 egress + Service ingress
 	// from the same namespace).
 	// +kubebuilder:default=true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// AllowDNS — emit the standard DNS egress rule (UDP+TCP 53 to any peer).
+	// AllowDNS: emit the standard DNS egress rule (UDP+TCP 53 to any peer).
 	// Default true. Disable only when CoreDNS is reachable via a different
 	// transport (e.g. node-local DNS via hostNetwork).
 	// +kubebuilder:default=true
@@ -430,7 +430,7 @@ type NetworkingSpec struct {
 
 // ServiceSpec controls the agent's Service.
 type ServiceSpec struct {
-	// Type is the Service kind. Default ClusterIP (headed) — Plan 1 emitted a
+	// Type is the Service kind. Default ClusterIP (headed): Plan 1 emitted a
 	// headless Service; v1 keeps ClusterIP as the default and lets users opt
 	// into Headless via Type=ClusterIP with ClusterIP="None" through the spec.
 	// +kubebuilder:default=ClusterIP
@@ -438,7 +438,7 @@ type ServiceSpec struct {
 	// +optional
 	Type corev1.ServiceType `json:"type,omitempty"`
 
-	// ClusterIP — set to "None" for a headless Service. Default empty (api-server allocates).
+	// ClusterIP: set to "None" for a headless Service. Default empty (api-server allocates).
 	// +optional
 	ClusterIP string `json:"clusterIP,omitempty"`
 
@@ -489,7 +489,7 @@ type NamedServicePort struct {
 
 // IngressSpec controls optional Ingress creation.
 type IngressSpec struct {
-	// Enabled — when true, the operator creates an Ingress for the agent.
+	// Enabled: when true, the operator creates an Ingress for the agent.
 	// Default false.
 	// +kubebuilder:default=false
 	// +optional
@@ -512,18 +512,18 @@ type IngressSpec struct {
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 
-	// PathType — default Prefix.
+	// PathType: default Prefix.
 	// +kubebuilder:default=Prefix
 	// +kubebuilder:validation:Enum=Exact;Prefix;ImplementationSpecific
 	// +optional
 	PathType networkingv1.PathType `json:"pathType,omitempty"`
 
-	// Path — default "/".
+	// Path: default "/".
 	// +kubebuilder:default="/"
 	// +optional
 	Path string `json:"path,omitempty"`
 
-	// ServicePortName — name of the Service port the Ingress should route to.
+	// ServicePortName: name of the Service port the Ingress should route to.
 	// Default "gateway".
 	// +kubebuilder:default="gateway"
 	// +optional
@@ -563,7 +563,7 @@ type MetricsSpec struct {
 	// +optional
 	Port int32 `json:"port,omitempty"`
 
-	// Secure — when true, /metrics requires bearer-token auth and uses HTTPS.
+	// Secure: when true, /metrics requires bearer-token auth and uses HTTPS.
 	// The ServiceMonitor scheme/scrape settings must agree (lesson #435/#440).
 	// +kubebuilder:default=false
 	// +optional
@@ -583,13 +583,13 @@ type ServiceMonitorSpec struct {
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
 
-	// Interval — default "30s".
+	// Interval: default "30s".
 	// +kubebuilder:default="30s"
 	// +kubebuilder:validation:Pattern=`^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$`
 	// +optional
 	Interval string `json:"interval,omitempty"`
 
-	// ScrapeTimeout — default "10s".
+	// ScrapeTimeout: default "10s".
 	// +kubebuilder:default="10s"
 	// +kubebuilder:validation:Pattern=`^([0-9]+(\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$`
 	// +optional
@@ -640,7 +640,7 @@ type LoggingSpec struct {
 	// +optional
 	Format LogFormat `json:"format,omitempty"`
 
-	// Level — Plan 3 wires HERMES_LOG_LEVEL on the agent container.
+	// Level: Plan 3 wires HERMES_LOG_LEVEL on the agent container.
 	// +kubebuilder:default=info
 	// +kubebuilder:validation:Enum=trace;debug;info;warn;error
 	// +optional
@@ -665,11 +665,11 @@ type PDBSpec struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// MinAvailable — optional, mutually exclusive with MaxUnavailable.
+	// MinAvailable: optional, mutually exclusive with MaxUnavailable.
 	// +optional
 	MinAvailable *intstr.IntOrString `json:"minAvailable,omitempty"`
 
-	// MaxUnavailable — optional, mutually exclusive with MinAvailable.
+	// MaxUnavailable: optional, mutually exclusive with MinAvailable.
 	// Default 1 when neither is set and PDB is enabled.
 	// +optional
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
@@ -681,26 +681,26 @@ type HPASpec struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// MinReplicas — default 1.
+	// MinReplicas: default 1.
 	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
-	// MaxReplicas — default 5.
+	// MaxReplicas: default 5.
 	// +kubebuilder:default=5
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MaxReplicas *int32 `json:"maxReplicas,omitempty"`
 
-	// TargetCPUUtilization — default 80 (percent).
+	// TargetCPUUtilization: default 80 (percent).
 	// +kubebuilder:default=80
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=100
 	// +optional
 	TargetCPUUtilization *int32 `json:"targetCPUUtilization,omitempty"`
 
-	// TargetMemoryUtilization — optional, when set adds a memory metric.
+	// TargetMemoryUtilization: optional, when set adds a memory metric.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=100
 	// +optional
@@ -713,7 +713,7 @@ type HPASpec struct {
 }
 
 // ProbesSpec overrides the operator's built-in probes. Each field is a complete
-// probe — set every value you want non-default because we apply it verbatim.
+// probe: set every value you want non-default because we apply it verbatim.
 type ProbesSpec struct {
 	// +optional
 	Liveness *corev1.Probe `json:"liveness,omitempty"`
@@ -735,7 +735,7 @@ type SchedulingSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 }
 
-// InstanceSkill — Plan 3 fills the runtime semantics. The field exists here so
+// InstanceSkill: Plan 3 fills the runtime semantics. The field exists here so
 // SSA from HermesSelfConfig (Plan 4) can patch the slice with listMapKey=source.
 type InstanceSkill struct {
 	// Source is the uv/pip-compatible install source.
@@ -752,7 +752,7 @@ type InstanceSkill struct {
 // Plan 4 wires the controller; the field exists here so Plan 4 doesn't need a
 // CRD change. The validator rejects Enabled=true with ProtectedKeys empty.
 type SelfConfigureSpec struct {
-	// Enabled — explicit *bool so the defaulter can distinguish "user said false"
+	// Enabled: explicit *bool so the defaulter can distinguish "user said false"
 	// from "user did not set it" (Plan 4 relies on this).
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -1059,7 +1059,7 @@ type HermesInstanceList struct {
 
 // RuntimeSpec controls Python/uv runtime concerns for the agent container.
 type RuntimeSpec struct {
-	// Python is informational only — the agent image's Python version is fixed
+	// Python is informational only: the agent image's Python version is fixed
 	// at build time. Setting this does NOT pull a different interpreter; it
 	// exists so downstream tooling can assert the runtime it expects.
 	// +kubebuilder:default="3.11"
@@ -1107,7 +1107,7 @@ type UVSpec struct {
 	ExtraIndexURL string `json:"extraIndexURL,omitempty"`
 
 	// CacheVolume controls the volume mounted at /home/hermes/.cache/uv.
-	// Defaults to an emptyDir with a 1Gi sizeLimit — fast and ephemeral.
+	// Defaults to an emptyDir with a 1Gi sizeLimit: fast and ephemeral.
 	// +optional
 	CacheVolume UVCacheVolumeSpec `json:"cacheVolume,omitempty"`
 }

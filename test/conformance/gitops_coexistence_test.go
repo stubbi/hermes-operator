@@ -8,7 +8,7 @@ will re-use the same scenario at higher scale (real kind cluster, multiple
 concurrent Flux/SelfConfig writers, latency assertions) and parameterise
 across Kubernetes versions 1.28-1.32.
 
-Until Plan 6 lands, this test compiles but is skipped — it's here so a
+Until Plan 6 lands, this test compiles but is skipped: it's here so a
 future Plan-6 engineer can `git grep gitops_coexistence_test` to find the
 entry point.
 */

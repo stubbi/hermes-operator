@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Migration (build-tag: migration) — openclaw -> hermes", func() {
+var _ = Describe("Migration (build-tag: migration): openclaw -> hermes", func() {
 	const ns = "default"
 
 	It("imports a sibling OpenClawInstance via the in-cluster ref path", func() {

@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// Conformance suite — categories live in sibling files:
+// Conformance suite: categories live in sibling files:
 //   - negative_test.go             webhook deny paths
 //   - idempotency_test.go          10-reconcile no-op canary
 //   - upgrade_test.go              prior-release -> HEAD matrix
@@ -31,7 +31,7 @@ var _ = BeforeSuite(func() {
 	SetDefaultEventuallyTimeout(5 * time.Minute)
 	SetDefaultEventuallyPollingInterval(2 * time.Second)
 	if os.Getenv("KUBECONFIG") == "" {
-		Skip("KUBECONFIG not set — conformance suite requires a live kind cluster with the operator installed")
+		Skip("KUBECONFIG not set: conformance suite requires a live kind cluster with the operator installed")
 	}
 })
 

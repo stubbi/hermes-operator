@@ -43,7 +43,7 @@ func TestMergePreservingForeignAnnotations(t *testing.T) {
 
 func TestPortConstants(t *testing.T) {
 	t.Parallel()
-	// Constants must be stable — Plan 3-6 reference these by name.
+	// Constants must be stable: Plan 3-6 reference these by name.
 	assert.Equal(t, int32(8443), GatewayPort)
 	assert.Equal(t, int32(9090), DefaultMetricsPort)
 	assert.Equal(t, "gateway", GatewayPortName)

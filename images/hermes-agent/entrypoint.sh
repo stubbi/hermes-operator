@@ -23,5 +23,5 @@ if [[ "${1:-serve}" == "serve" ]]; then
     exec hermes-agent run --config "${HERMES_CONFIG}" "$@"
 fi
 
-# Otherwise pass through verbatim — supports `migrate from-openclaw ...`, `version`, etc.
+# Otherwise pass through verbatim: supports `migrate from-openclaw ...`, `version`, etc.
 exec hermes-agent "$@"

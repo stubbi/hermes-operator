@@ -161,12 +161,12 @@ var _ = Describe("AutoUpdate sub-controller", func() {
 			// The state machine requires: poll → startRollout → rollback (triggered by probe
 			// failures OR deadline expiry). In envtest there is no kubelet, so:
 			//   - probe failure events are never generated (countProbeFailures=0)
-			//   - rollout deadline is 5 minutes — far beyond the 30s test timeout
+			//   - rollout deadline is 5 minutes: far beyond the 30s test timeout
 			// After rollback, lastFailedTag is set and lastCheckTime is set (prevents immediate
 			// re-poll). Manually resetting lastCheckTime races with the reconciler.
 			// The suppress logic is unit-tested via the AutoUpdateReconciler.Reconcile() directly.
 			// Tracking issue: add injectable clock and probe-failure hook for envtest.
-			Skip("suppress-lastFailedTag path requires rollback completion (5min deadline) — " +
+			Skip("suppress-lastFailedTag path requires rollback completion (5min deadline): " +
 				"not feasible in 30s envtest; covered by unit test in autoupdate.go")
 		})
 	})

@@ -1,4 +1,4 @@
-# Hermes Operator — Status Condition Catalogue
+# Hermes Operator: Status Condition Catalogue
 
 > Every condition the operator emits, what it means, what reason codes go with
 > it, and how to debug it. This catalogue is part of the v1 stability contract
@@ -47,10 +47,10 @@ The PVC backing `~/.hermes` is bound and matches spec.
 | Status | Reason | When |
 |---|---|---|
 | True | `PVCBound` | The PVC for `~/.hermes` is `Bound` and its `spec.resources.requests.storage` matches the desired size. |
-| False | `PVCPending` | The PVC exists but has `status.phase=Pending` — typically because no `StorageClass` can provision the requested size in the current AZ. |
+| False | `PVCPending` | The PVC exists but has `status.phase=Pending`: typically because no `StorageClass` can provision the requested size in the current AZ. |
 | False | `PVCMismatch` | The bound PVC has a different `storageClassName` or `accessModes` than the spec asks for. The validator blocks new instances in this state; this condition fires on legacy instances created before validation tightened. |
 | False | `ExistingClaimNotFound` | `spec.storage.persistence.existingClaim` references a PVC that does not exist in the namespace. |
-| (absent) | — | `spec.storage.persistence.enabled=false`. The instance runs with an `emptyDir`. |
+| (absent) |: | `spec.storage.persistence.enabled=false`. The instance runs with an `emptyDir`. |
 
 Troubleshooting: `kubectl get pvc -l app.kubernetes.io/instance=<name>` and check
 `kubectl describe pvc <pvc>`.
@@ -90,7 +90,7 @@ The default-deny + allow-list NetworkPolicy is in place.
 |---|---|---|
 | True | `Applied` | The NetworkPolicy named `<instance>-network` exists, has owner-ref pointing at the instance, and matches the spec (deny-all baseline + allow rules derived from `spec.gateways` and `spec.networking.egress`). |
 | False | `PolicyEngineMissing` | The cluster has no NetworkPolicy enforcer. The operator detects this by looking for known CNI annotations at startup. Falls back to warning if user has explicitly acknowledged via `spec.networking.networkPolicy.acknowledgeNoEnforcer=true`. |
-| (absent) | — | `spec.networking.networkPolicy.enabled=false`. |
+| (absent) |: | `spec.networking.networkPolicy.enabled=false`. |
 
 Troubleshooting: `kubectl get netpol -n <ns>` and verify the CNI supports
 NetworkPolicy.
@@ -116,7 +116,7 @@ Per-platform gateway wiring (Telegram/Discord/Slack/WhatsApp/Signal).
 | True | `AllEnabledGatewaysWired` | Every gateway with `enabled=true` has its token Secret resolved, its generated config emitted into the agent ConfigMap, and its Service/Ingress allowances applied. |
 | False | `TokenSecretMissing` | At least one enabled gateway's `secretRef` does not resolve. `message` names the gateways. |
 | False | `IngressUnsupportedForPlatform` | A gateway requested an Ingress (e.g. Slack's events webhook) but `spec.networking.ingress.enabled=false`. The webhook normally rejects this combination; the condition fires on legacy resources. |
-| (absent) | — | No gateway has `enabled=true`. |
+| (absent) |: | No gateway has `enabled=true`. |
 
 Troubleshooting: `kubectl describe hi <name>` and check the per-gateway sub-status in `status.gateways[].*`.
 
@@ -130,7 +130,7 @@ Honcho profile-store companion deployment.
 | False | `HonchoPending` | The Honcho Deployment is rolling out. |
 | False | `HonchoImagePullBackOff` | The Honcho image cannot be pulled. The operator distinguishes this from generic `HonchoPending` so dashboards alert on it. |
 | False | `HonchoSecretMissing` | `spec.profileStore.secret` references a Secret that does not exist. |
-| (absent) | — | `spec.profileStore.enabled=false`. |
+| (absent) |: | `spec.profileStore.enabled=false`. |
 
 Troubleshooting: `kubectl get deploy,svc,pvc,secret -l app.kubernetes.io/instance=<name>,app.kubernetes.io/component=honcho`.
 
@@ -142,22 +142,22 @@ State of scheduled backups (from Plan 5, restated here for the catalogue).
 |---|---|---|
 | True | `Scheduled` | A backup CronJob is configured and the most recent run succeeded. `status.backup.lastSuccessfulSnapshotKey` is populated. |
 | False | `S3CredentialsMissing` | `spec.backup.s3.credentialsSecretRef` does not resolve. |
-| False | `PersistenceDisabled` | `spec.storage.persistence.enabled=false` — scheduled backups require persistence. |
+| False | `PersistenceDisabled` | `spec.storage.persistence.enabled=false`: scheduled backups require persistence. |
 | False | `LastRunFailed` | The most recent backup Job exited non-zero. `status.backup.lastFailureReason` carries the detail. |
-| (absent) | — | `spec.backup.schedule` is empty. |
+| (absent) |: | `spec.backup.schedule` is empty. |
 
 Troubleshooting: `kubectl get cj,job -l app.kubernetes.io/instance=<name>,backup=true` and `kubectl logs job/<last-run>`.
 
 ### `RestoreApplied`
 
-Terminal — once `True`, immutable for the lifetime of the instance.
+Terminal: once `True`, immutable for the lifetime of the instance.
 
 | Status | Reason | When |
 |---|---|---|
 | True | `RestoreCompleted` | `status.restoredFrom == spec.restoreFrom`. |
 | False | `Restoring` | The `init-restore` init container is in progress. |
 | False | `RestoreFailed` | The `init-restore` init container exited non-zero. The `message` includes the exit code and the last line of `kubectl logs`. |
-| (absent) | — | `spec.restoreFrom` is unset. |
+| (absent) |: | `spec.restoreFrom` is unset. |
 
 Troubleshooting: `kubectl logs <instance>-0 -c init-restore` and inspect the snapshot key in S3.
 
@@ -172,8 +172,8 @@ Outcome of the most recent auto-update cycle.
 | False | `RolloutInFlight` | A rollout is currently being watched. `status.autoUpdate.targetTag` carries the candidate. |
 | False | `RolledBack` | The most recent rollout failed; image reverted. The `message` references the failed tag. |
 | False | `NoMatchingTag` | No tag in the registry matches the channel pattern. |
-| False | `SuppressedKnownFailure` | The highest matching tag equals `status.autoUpdate.lastFailedTag` — auto-update declines to retry a tag that has already failed. Manual intervention (clear `lastFailedTag` via subresource patch) is required. |
-| (absent) | — | `spec.autoUpdate.enabled=false`. |
+| False | `SuppressedKnownFailure` | The highest matching tag equals `status.autoUpdate.lastFailedTag`: auto-update declines to retry a tag that has already failed. Manual intervention (clear `lastFailedTag` via subresource patch) is required. |
+| (absent) |: | `spec.autoUpdate.enabled=false`. |
 
 Troubleshooting: `kubectl get hi <name> -o jsonpath='{.status.autoUpdate}'` for the full sub-status.
 
@@ -189,25 +189,25 @@ The condition is removed on the next successful `AutoUpdated=True` (reason=`Conf
 
 ### `MigrationCompleted`
 
-Terminal — once `True`, immutable for the lifetime of the instance.
+Terminal: once `True`, immutable for the lifetime of the instance.
 
 | Status | Reason | When |
 |---|---|---|
 | True | `MigrationCompleted` | The `init-migrate-from-openclaw` init container exited 0. |
 | False | `MigrationFailed` | The migration init container exited non-zero. The `message` includes the exit code and a short tail of the init container's stderr. |
-| (absent) | — | `spec.migration.fromOpenClaw` is unset. |
+| (absent) |: | `spec.migration.fromOpenClaw` is unset. |
 
 Troubleshooting: `kubectl logs <instance>-0 -c init-migrate-from-openclaw`.
 
 ### `WebhookReady`
 
-Reflects the operator's ability to serve the admission webhooks for this CR. This condition fires when the webhook serving cert is invalid or the webhook server is unreachable — it is a *cluster-level* failure surfaced per-instance so consumers do not have to know about the operator's pod state.
+Reflects the operator's ability to serve the admission webhooks for this CR. This condition fires when the webhook serving cert is invalid or the webhook server is unreachable: it is a *cluster-level* failure surfaced per-instance so consumers do not have to know about the operator's pod state.
 
 | Status | Reason | When |
 |---|---|---|
 | True | `WebhookHealthy` | The operator's webhook server returned `200` to its own self-check probe within the last `RequeueAfter`. |
 | False | `CertExpired` | The webhook serving cert's `notAfter` is in the past. cert-manager (when enabled) usually rotates before this fires; when it fires, manual intervention is required. |
-| False | `EndpointUnreachable` | The webhook Service has no Endpoints — usually because the operator Pod is not Ready. |
+| False | `EndpointUnreachable` | The webhook Service has no Endpoints: usually because the operator Pod is not Ready. |
 | Unknown | `SelfCheckPending` | First reconcile before the self-check has run. |
 
 Troubleshooting: `kubectl get validatingwebhookconfiguration,mutatingwebhookconfiguration | grep hermes` and `kubectl logs -n hermes-operator deploy/hermes-operator-controller-manager`.
@@ -239,7 +239,7 @@ Phase derives from these conditions: `Applied → Applied`, `Denied → Denied`,
 | Status | Reason | When |
 |---|---|---|
 | True | `AwaitingInstanceReady` | The parent instance is not yet `Ready=True`. The SelfConfig reconciler defers application until it is. Prevents racing the initial bring-up. |
-| True | `RateLimited` | More than 5 SelfConfigs per minute for the same instance — back off. Reset after the burst window passes. |
+| True | `RateLimited` | More than 5 SelfConfigs per minute for the same instance: back off. Reset after the burst window passes. |
 
 Troubleshooting: `kubectl get hsc -n <ns>` shows the phase. `kubectl describe hsc <name>` shows `status.denyReason` or the conditions detail.
 
@@ -253,16 +253,16 @@ Troubleshooting: `kubectl get hsc -n <ns>` shows the phase. `kubectl describe hs
 |---|---|---|
 | True | `Applied` | The singleton `cluster` exists, passes validation, and the defaulting webhook is using it on every admission. `status.observedGeneration == metadata.generation`. |
 | False | `WrongName` | A `HermesClusterDefaults` exists with a name other than `cluster`. The validating webhook rejects new ones; this condition exists for legacy resources created before the webhook was installed. |
-| (absent) | — | No `HermesClusterDefaults` exists in the cluster. The defaulter falls back to its built-in fallback defaults. |
+| (absent) |: | No `HermesClusterDefaults` exists in the cluster. The defaulter falls back to its built-in fallback defaults. |
 
 ### `Invalid`
 
 | Status | Reason | When |
 |---|---|---|
-| True | `SchemaViolation` | A field on the singleton fails server-side validation (e.g. negative quantity, malformed cron). The defaulter ignores invalid fields and uses fallback values for them — the rest of the singleton still applies. `message` lists the offending JSON paths. |
+| True | `SchemaViolation` | A field on the singleton fails server-side validation (e.g. negative quantity, malformed cron). The defaulter ignores invalid fields and uses fallback values for them: the rest of the singleton still applies. `message` lists the offending JSON paths. |
 | True | `ImagePullSecretMissing` | `spec.registry.pullSecretName` does not resolve in the operator's namespace. Defaulter skips that field. |
 
-The two conditions can both be `True` simultaneously — `Active=True` (defaults are applied) and `Invalid=True` (some fields are skipped). Dashboards key on `Invalid` for alerting.
+The two conditions can both be `True` simultaneously: `Active=True` (defaults are applied) and `Invalid=True` (some fields are skipped). Dashboards key on `Invalid` for alerting.
 
 ---
 

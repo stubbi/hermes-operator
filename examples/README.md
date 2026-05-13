@@ -1,16 +1,16 @@
-# Hermes Operator — Examples
+# Hermes Operator: Examples
 
 End-to-end worked YAML recipes. Every example folder contains a `README.md`
 explaining the scenario and one or more manifests you can `kubectl apply` in
 order.
 
 All examples assume the operator and CRDs are already installed (see the
-[Quickstart](../README.md#quickstart)) and target the `agents` namespace —
+[Quickstart](../README.md#quickstart)) and target the `agents` namespace:
 adjust as needed.
 
 | Example | Scenario |
 |---|---|
-| [`minimal/`](minimal/) | Smallest possible `HermesInstance` — image + PVC, no gateways. |
+| [`minimal/`](minimal/) | Smallest possible `HermesInstance`: image + PVC, no gateways. |
 | [`full-featured/`](full-featured/) | Every sub-spec exercised at least once: gateways, Honcho, auto-update, backup, observability, scheduling. |
 | [`multi-platform/`](multi-platform/) | Telegram + Discord + Slack + WhatsApp + Signal all enabled. |
 | [`honcho/`](honcho/) | Honcho profile store enabled with persistence. |
@@ -21,5 +21,5 @@ adjust as needed.
 | [`cluster-defaults/`](cluster-defaults/) | `HermesClusterDefaults` singleton with image/storage/observability defaults. |
 
 If you have a scenario you would like to see worked through, open an issue
-tagged `examples` or a PR — the format is intentionally small so additions
+tagged `examples` or a PR: the format is intentionally small so additions
 are cheap.

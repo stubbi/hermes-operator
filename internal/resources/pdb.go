@@ -14,7 +14,7 @@ func PDBName(inst *hermesv1.HermesInstance) string {
 }
 
 // BuildPDB constructs the desired PodDisruptionBudget. When both MinAvailable
-// and MaxUnavailable are set, MinAvailable wins (k8s forbids both — the
+// and MaxUnavailable are set, MinAvailable wins (k8s forbids both: the
 // validating webhook rejects the spec). When neither is set, MaxUnavailable=1.
 func BuildPDB(inst *hermesv1.HermesInstance) *policyv1.PodDisruptionBudget {
 	spec := inst.Spec.Availability.PodDisruptionBudget

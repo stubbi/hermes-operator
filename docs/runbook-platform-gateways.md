@@ -20,7 +20,7 @@
 1. Open Telegram and message `@BotFather`.
 2. Send `/newbot` and follow the prompts (choose a display name and a username ending in `bot`).
 3. BotFather replies with a bot API token in the form `<numeric-id>:<random-string>`.
-4. Store the token immediately — BotFather does not re-display it; revoke and re-issue if lost.
+4. Store the token immediately: BotFather does not re-display it; revoke and re-issue if lost.
 
 ### Scope
 
@@ -113,7 +113,7 @@ spec:
 ### Pitfalls
 
 - **Token format**: The bot token is used without the `Bot ` prefix in the Secret; the agent library prepends it.
-- **Intent mismatch**: If "Message Content Intent" is not enabled in the portal, the bot receives empty message bodies — a silent failure.
+- **Intent mismatch**: If "Message Content Intent" is not enabled in the portal, the bot receives empty message bodies: a silent failure.
 - **Rate limits**: Discord enforces a 5 requests/second per bot global rate limit. Do not run multiple agents with the same token.
 - **Guild ID type**: Discord snowflakes are large integers; store them as strings in `guildIDs` to avoid YAML integer overflow.
 
@@ -172,7 +172,7 @@ spec:
 
 - **Token confusion**: `xoxb-` and `xapp-` tokens are distinct. Using one where the other is expected causes silent authentication failures.
 - **Socket Mode vs HTTP**: Socket Mode uses the `xapp-` token and does not require a public endpoint. HTTP Events API requires the signing secret and a public `SLACK_REQUEST_URL`. Do not enable both simultaneously.
-- **Reinstallation**: If you add new OAuth scopes, you must reinstall the app to the workspace. The bot token changes on reinstall — update the Secret.
+- **Reinstallation**: If you add new OAuth scopes, you must reinstall the app to the workspace. The bot token changes on reinstall: update the Secret.
 - **Workspace vs Enterprise**: Enterprise Grid apps have a different token structure. This runbook covers single-workspace apps.
 
 ---
@@ -241,7 +241,7 @@ The hermes-operator integrates with [signal-cli-rest-api](https://github.com/bbe
 
 - `SIGNAL_PHONE_NUMBER`: the registered phone number (e.g. `+15551234567`).
 - `SIGNAL_AUTH_TOKEN`: authentication token for the signal-cli-rest-api HTTP API.
-- `SIGNAL_API_URL`: base URL of your signal-cli-rest-api deployment (not managed by the operator — set via `spec.env`).
+- `SIGNAL_API_URL`: base URL of your signal-cli-rest-api deployment (not managed by the operator: set via `spec.env`).
 
 ### Wire into Kubernetes
 
@@ -279,7 +279,7 @@ spec:
 - **Phone number re-registration**: Re-registering a Signal number invalidates all existing sessions. Do this only intentionally and expect a brief messaging outage.
 - **Self-hosted latency**: signal-cli-rest-api has higher message latency than the native Signal protocol. For low-latency requirements, consider co-locating it with the agent.
 - **NetworkPolicy egress**: The operator's generated NetworkPolicy adds `chat.signal.org:443` to the allowed egress. If you use a self-hosted signal-cli-rest-api in a different namespace, also add an egress rule for its Service via `spec.security.networkPolicy.additionalEgress`.
-- **No FQDN peer support**: On CNIs without FQDN peer support, the `chat.signal.org` rule degrades to port-443 to any destination. See `docs/conventions.md` — Well-known egress endpoints.
+- **No FQDN peer support**: On CNIs without FQDN peer support, the `chat.signal.org` rule degrades to port-443 to any destination. See `docs/conventions.md`: Well-known egress endpoints.
 
 ---
 
@@ -313,7 +313,7 @@ spec:
 
 ### Sealed Secrets / External Secrets Operator
 
-Use [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) or [External Secrets Operator](https://external-secrets.io) to manage gateway credentials as GitOps-safe encrypted manifests or vault references. The operator does not require any specific secret management tool — it consumes standard `v1.Secret` objects.
+Use [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) or [External Secrets Operator](https://external-secrets.io) to manage gateway credentials as GitOps-safe encrypted manifests or vault references. The operator does not require any specific secret management tool: it consumes standard `v1.Secret` objects.
 
 ### Checking which gateways are active
 

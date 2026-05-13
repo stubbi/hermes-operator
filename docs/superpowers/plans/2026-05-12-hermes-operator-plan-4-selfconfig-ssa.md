@@ -1,4 +1,4 @@
-# Hermes Operator — Plan 4: HermesSelfConfig CRD + SSA Reconciler
+# Hermes Operator: Plan 4: HermesSelfConfig CRD + SSA Reconciler
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,13 +8,13 @@
 
 **Tech Stack:** Go 1.24, controller-runtime, kubebuilder v4, Ginkgo v2/Gomega, envtest, JSON merge patch (RFC 7396), Prometheus client_golang, `sigs.k8s.io/controller-runtime/pkg/client` SSA helpers, `k8s.io/apimachinery/pkg/util/strategicpatch` (deny-path glob walker only), `gobwas/glob` for protectedKeys matching.
 
-**Prerequisite:** Plans 1–3 merged. Working directory matches their File Structure sections — `internal/controller/metrics.go` exists (Plan 2), `HermesInstance.spec` already has `env`, `skills`, `selfConfigure`, `profileStore` fields with the correct list-type markers (Plan 3), `internal/webhook/hermesselfconfig_validator.go` exists as a stub (Plan 2), and the workspace ConfigMap builder lives at `internal/resources/configmap.go` with at minimum a `workspace.go` companion for nested file keys (Plan 3 task on workspace files).
+**Prerequisite:** Plans 1-3 merged. Working directory matches their File Structure sections: `internal/controller/metrics.go` exists (Plan 2), `HermesInstance.spec` already has `env`, `skills`, `selfConfigure`, `profileStore` fields with the correct list-type markers (Plan 3), `internal/webhook/hermesselfconfig_validator.go` exists as a stub (Plan 2), and the workspace ConfigMap builder lives at `internal/resources/configmap.go` with at minimum a `workspace.go` companion for nested file keys (Plan 3 task on workspace files).
 
-**Spec reference:** `docs/superpowers/specs/2026-05-12-hermes-operator-design.md` §5 (HermesSelfConfig spec), §7.2 rule 2 (SSA mandate), §7.3 (webhook design — selfconfig validator deny-with-Event), §3 (CRD surface — short name `hsc`, categories `hermes`/`agents`), §10 conformance "GitOps coexistence".
+**Spec reference:** `docs/superpowers/specs/2026-05-12-hermes-operator-design.md` §5 (HermesSelfConfig spec), §7.2 rule 2 (SSA mandate), §7.3 (webhook design: selfconfig validator deny-with-Event), §3 (CRD surface: short name `hsc`, categories `hermes`/`agents`), §10 conformance "GitOps coexistence".
 
 **Plan 1 conventions referenced (do not redefine):**
-- `resources.Ptr[T]`, `resources.LabelsForInstance(inst)`, `resources.MergePreservingForeign(existing, desired, "hermes.agent/")` — defined in Plan 1 Task 4.
-- The idempotency canary pattern — Plan 1 Task 10 step 3 ("second reconcile does not change generation"). Plan 4 reuses this discipline for the SelfConfig path.
+- `resources.Ptr[T]`, `resources.LabelsForInstance(inst)`, `resources.MergePreservingForeign(existing, desired, "hermes.agent/")`: defined in Plan 1 Task 4.
+- The idempotency canary pattern: Plan 1 Task 10 step 3 ("second reconcile does not change generation"). Plan 4 reuses this discipline for the SelfConfig path.
 - Commit prefixes: `feat:`, `fix:`, `docs:`, `ci:`, `chore:`, `refactor:`, `test:`. Release-please uses `feat:`/`fix:` for the changelog.
 - Worktree discipline: `git worktree add ../hermes-operator-plan-4 -b feat/plan-4-selfconfig main` before starting; `git worktree remove` at the end.
 
@@ -95,7 +95,7 @@ grep -q "SelfConfigure " api/v1/hermesinstance_types.go && echo "SelfConfigureSp
 grep -q "ProfileStore " api/v1/hermesinstance_types.go && echo "ProfileStoreSpec field exists (Plan 3)"
 ```
 
-Expected: all four lines print. If any are missing, the assumed precondition is wrong — stop and flag the dispatching agent.
+Expected: all four lines print. If any are missing, the assumed precondition is wrong: stop and flag the dispatching agent.
 
 - [ ] **Step 3: Confirm we build clean**
 
@@ -112,16 +112,16 @@ Expected: exit 0 on both. Plan 1's resource unit tests still pass; Plans 2+3 did
 git log --oneline -1
 ```
 
-Record the SHA — we'll reference it in the Plan-4 milestone tag at the end of Task 23.
+Record the SHA: we'll reference it in the Plan-4 milestone tag at the end of Task 23.
 
 ---
 
-## Task 2: Define `HermesSelfConfig` types — top-level + InstanceRef + AddSkills
+## Task 2: Define `HermesSelfConfig` types: top-level + InstanceRef + AddSkills
 
 **Files:**
 - Modify: `api/v1/hermesselfconfig_types.go` (replace the scaffolded stub)
 
-The scaffolded file from Plan 1 Task 2 contains a placeholder `Foo string` field. We're replacing it with the v1 shape. Split across Tasks 2–4 so each commit is reviewable.
+The scaffolded file from Plan 1 Task 2 contains a placeholder `Foo string` field. We're replacing it with the v1 shape. Split across Tasks 2-4 so each commit is reviewable.
 
 - [ ] **Step 1: Open the file and back up the file header**
 
@@ -167,7 +167,7 @@ func TestHermesSelfConfig_RootSerialises(t *testing.T) {
 go test ./api/v1/... -run TestHermesSelfConfig_RootSerialises -v
 ```
 
-Expected: build error — `HermesSelfConfigSpec` has no `InstanceRef` / `AddSkills` fields (still has the scaffolded `Foo`).
+Expected: build error: `HermesSelfConfigSpec` has no `InstanceRef` / `AddSkills` fields (still has the scaffolded `Foo`).
 
 - [ ] **Step 4: Replace `HermesSelfConfigSpec` with the InstanceRef+AddSkills slice**
 
@@ -215,7 +215,7 @@ type SelfConfigSkill struct {
 
 Also delete the scaffolded `Foo string` and its associated `// INSERT ADDITIONAL SPEC FIELDS` comment, if any.
 
-- [ ] **Step 5: Run the test — it should pass**
+- [ ] **Step 5: Run the test: it should pass**
 
 ```bash
 go test ./api/v1/... -run TestHermesSelfConfig_RootSerialises -v
@@ -227,12 +227,12 @@ Expected: PASS.
 
 ```bash
 git add api/v1/hermesselfconfig_types.go api/v1/hermesselfconfig_types_test.go
-git commit -m "feat(api): HermesSelfConfig spec — InstanceRef + AddSkills with SSA list-map markers"
+git commit -m "feat(api): HermesSelfConfig spec: InstanceRef + AddSkills with SSA list-map markers"
 ```
 
 ---
 
-## Task 3: HermesSelfConfig — PatchConfig, AddEnvVars, AddWorkspaceFiles, AddProfileSnapshot
+## Task 3: HermesSelfConfig: PatchConfig, AddEnvVars, AddWorkspaceFiles, AddProfileSnapshot
 
 **Files:**
 - Modify: `api/v1/hermesselfconfig_types.go`
@@ -279,7 +279,7 @@ import (
 )
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./api/v1/... -run TestHermesSelfConfig_AllMutationFields -v
@@ -335,7 +335,7 @@ Then add the supporting types below `SelfConfigSkill`:
 ```go
 // SelfConfigEnvVar is an environment variable entry. Mirrors core/v1 EnvVar
 // but keeps the surface tight: only Value or one of ValueFrom's two sub-refs
-// is permitted (no FieldRef / ResourceFieldRef — those leak pod identity).
+// is permitted (no FieldRef / ResourceFieldRef: those leak pod identity).
 type SelfConfigEnvVar struct {
 	// Name of the environment variable. Must be a C_IDENTIFIER.
 	// +kubebuilder:validation:MinLength=1
@@ -408,7 +408,7 @@ import (
 )
 ```
 
-- [ ] **Step 4: Run the test — expect PASS**
+- [ ] **Step 4: Run the test: expect PASS**
 
 ```bash
 go test ./api/v1/... -run TestHermesSelfConfig_AllMutationFields -v
@@ -420,12 +420,12 @@ Expected: PASS. If `apiextensionsv1` is missing from `go.mod`, run `go mod tidy`
 
 ```bash
 git add api/v1/hermesselfconfig_types.go api/v1/hermesselfconfig_types_test.go
-git commit -m "feat(api): HermesSelfConfig spec — patchConfig, envVars, workspace files, profile snapshot"
+git commit -m "feat(api): HermesSelfConfig spec: patchConfig, envVars, workspace files, profile snapshot"
 ```
 
 ---
 
-## Task 4: HermesSelfConfig — Status + root markers + printer columns
+## Task 4: HermesSelfConfig: Status + root markers + printer columns
 
 **Files:**
 - Modify: `api/v1/hermesselfconfig_types.go`
@@ -463,7 +463,7 @@ func TestHermesSelfConfig_StatusShape(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./api/v1/... -run TestHermesSelfConfig_StatusShape -v
@@ -548,7 +548,7 @@ Just above `type HermesSelfConfig struct { ... }` in the same file, set the mark
 
 Leave the `HermesSelfConfig`, `HermesSelfConfigList`, and `SchemeBuilder.Register` blocks as scaffolded.
 
-- [ ] **Step 5: Run the status test — expect PASS**
+- [ ] **Step 5: Run the status test: expect PASS**
 
 ```bash
 go test ./api/v1/... -v
@@ -586,7 +586,7 @@ git commit -m "feat(api): HermesSelfConfig status, conditions, printer columns, 
 **Files:**
 - Modify (only if missing): `api/v1/hermesinstance_types.go`
 
-Plan 3 was supposed to land the `Env`, `Skills` slices with `+listType=map`. SSA requires these markers; without them apiserver treats the field as `atomic` and replaces the whole list on every Apply — defeating GitOps coexistence.
+Plan 3 was supposed to land the `Env`, `Skills` slices with `+listType=map`. SSA requires these markers; without them apiserver treats the field as `atomic` and replaces the whole list on every Apply: defeating GitOps coexistence.
 
 - [ ] **Step 1: Grep for the markers**
 
@@ -634,7 +634,7 @@ func TestSliceFieldTagsForSSA(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.field, func(t *testing.T) {
 			f, ok := specType.FieldByName(c.field)
-			require.True(t, ok, "field %s not found on HermesInstanceSpec — Plan 3 missed it", c.field)
+			require.True(t, ok, "field %s not found on HermesInstanceSpec: Plan 3 missed it", c.field)
 			require.Contains(t, string(f.Tag), `listType=`+c.listType, "missing +listType=%s marker on %s", c.listType, c.field)
 			require.Contains(t, string(f.Tag), `listMapKey=`+c.mapKey, "missing +listMapKey=%s marker on %s", c.mapKey, c.field)
 		})
@@ -642,7 +642,7 @@ func TestSliceFieldTagsForSSA(t *testing.T) {
 }
 ```
 
-Note: kubebuilder markers are *not* in Go struct tags by default — kubebuilder reads them from `// +listType=` doc comments. This test instead asserts via Go tag because Plan 3 should have set the JSON tag with `patchStrategy:"merge" patchMergeKey:"name"`. If Plan 3 used the comment-marker style only, swap the assertion to read CRD YAML — see Step 3.
+Note: kubebuilder markers are *not* in Go struct tags by default: kubebuilder reads them from `// +listType=` doc comments. This test instead asserts via Go tag because Plan 3 should have set the JSON tag with `patchStrategy:"merge" patchMergeKey:"name"`. If Plan 3 used the comment-marker style only, swap the assertion to read CRD YAML: see Step 3.
 
 - [ ] **Step 3: Adjust the test to read CRD YAML (more reliable)**
 
@@ -661,7 +661,7 @@ import (
 
 func TestCRDListTypesForSSA(t *testing.T) {
 	body, err := os.ReadFile("../../config/crd/bases/hermes.agent_hermesinstances.yaml")
-	require.NoError(t, err, "CRD YAML missing — run `make manifests`")
+	require.NoError(t, err, "CRD YAML missing: run `make manifests`")
 	s := string(body)
 
 	// We can't parse the full OpenAPI here, so we grep for the key contexts.
@@ -685,7 +685,7 @@ make manifests
 go test ./api/v1/... -run TestCRDListTypesForSSA -v
 ```
 
-Expected: PASS. If FAIL, Plan 3 missed the markers — fix `api/v1/hermesinstance_types.go` by adding above each slice:
+Expected: PASS. If FAIL, Plan 3 missed the markers: fix `api/v1/hermesinstance_types.go` by adding above each slice:
 
 ```go
 	// +listType=map
@@ -704,7 +704,7 @@ git commit -m "test(api): assert SSA list-map markers on HermesInstance.spec.env
 
 ---
 
-## Task 6: Policy evaluation — allowedActions + protectedKeys
+## Task 6: Policy evaluation: allowedActions + protectedKeys
 
 **Files:**
 - Create: `internal/controller/selfconfig_policy.go`
@@ -806,7 +806,7 @@ func TestCheckProtectedPaths(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./internal/controller/... -run TestDetermineActions -v
@@ -999,7 +999,7 @@ git commit -m "feat(controller): selfconfig policy evaluation (actions + protect
 
 ---
 
-## Task 7: SSA payload builder — `buildSkillsPatch`
+## Task 7: SSA payload builder: `buildSkillsPatch`
 
 **Files:**
 - Create: `internal/controller/selfconfig_apply.go`
@@ -1048,11 +1048,11 @@ func TestBuildSkillsPatch_ContainsOnlySkills(t *testing.T) {
 	assert.Equal(t, hermesv1.GroupVersion.String(), patch.APIVersion)
 	assert.Equal(t, "HermesInstance", patch.Kind)
 
-	// Only Skills is set — everything else stays zero so SSA does not claim it.
+	// Only Skills is set: everything else stays zero so SSA does not claim it.
 	assert.Len(t, patch.Spec.Skills, 2)
 	assert.Equal(t, "git+https://github.com/foo/skill@v1", patch.Spec.Skills[0].Source)
 	assert.Empty(t, patch.Spec.Env, "must not touch env when only Skills is requested")
-	assert.Empty(t, patch.Spec.Image.Repository, "must not touch image — Flux owns that")
+	assert.Empty(t, patch.Spec.Image.Repository, "must not touch image: Flux owns that")
 }
 
 func TestBuildEnvVarsPatch_LiteralAndValueFrom(t *testing.T) {
@@ -1089,7 +1089,7 @@ func TestAppliedFieldsFormat(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./internal/controller/... -run 'TestBuildSkillsPatch|TestBuildEnvVarsPatch|TestAppliedFieldsFormat' -v
@@ -1126,13 +1126,13 @@ import (
 // SelfConfigFieldManager is the SSA field manager string the operator uses
 // when applying HermesSelfConfig-driven mutations to HermesInstance and to
 // the workspace ConfigMap. Any other manager that writes the same path
-// produces an SSA conflict, which is exactly what we want — GitOps tools
+// produces an SSA conflict, which is exactly what we want: GitOps tools
 // keep their fields, this manager keeps its own.
 const SelfConfigFieldManager = "hermes.agent/selfconfig"
 
 // ForceOwnershipAnnotation, when set to "true" on a HermesSelfConfig,
 // causes the reconciler to call client.Apply with client.ForceOwnership.
-// Default behaviour (no annotation, or "false") is collaborative — SSA
+// Default behaviour (no annotation, or "false") is collaborative: SSA
 // conflicts are surfaced as a Denied status and reported via an Event.
 const ForceOwnershipAnnotation = "hermes.agent/force-ownership"
 
@@ -1232,7 +1232,7 @@ git commit -m "feat(controller): SSA payload builders for skills + envVars (Fiel
 
 ---
 
-## Task 8: SSA payload builder — workspace ConfigMap + nested-path encoding
+## Task 8: SSA payload builder: workspace ConfigMap + nested-path encoding
 
 **Files:**
 - Modify: `internal/resources/workspace_configmap.go` (Plan 3 wrote this; we add an encoder)
@@ -1271,7 +1271,7 @@ func TestEncodeWorkspacePath_RoundTrip(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./internal/resources/... -run 'TestEncodeNestedPath|TestDecodeNestedPath|TestEncodeWorkspacePath_RoundTrip' -v
@@ -1287,7 +1287,7 @@ Append:
 // WorkspacePathSeparator is the in-key escape for "/", since ConfigMap keys
 // may not contain slashes. Lesson #482: bidirectional encode/decode keeps
 // nested directories representable. The agent's startup hook decodes by
-// running `for f in *__*; do mv "$f" "$(echo $f | sed 's|__|/|g')"; done` —
+// running `for f in *__*; do mv "$f" "$(echo $f | sed 's|__|/|g')"; done`:
 // or equivalently mounts the ConfigMap into a subPath layout.
 const WorkspacePathSeparator = "__"
 
@@ -1336,7 +1336,7 @@ func EmptyWorkspaceConfigMap(inst *hermesv1.HermesInstance) *corev1.ConfigMap {
 
 (If Plan 3 already created a richer builder, leave it intact and just add the encode/decode helpers.)
 
-- [ ] **Step 4: Run encoder tests — expect PASS**
+- [ ] **Step 4: Run encoder tests: expect PASS**
 
 ```bash
 go test ./internal/resources/... -run 'TestEncode|TestDecode' -v
@@ -1401,7 +1401,7 @@ func buildWorkspaceFilesPatch(parent *hermesv1.HermesInstance, sc *hermesv1.Herm
 }
 ```
 
-Make sure the existing `import` block in `selfconfig_apply.go` is augmented (don't add a second block — merge).
+Make sure the existing `import` block in `selfconfig_apply.go` is augmented (don't add a second block: merge).
 
 - [ ] **Step 7: Run the workspace-payload test**
 
@@ -1420,13 +1420,13 @@ git commit -m "feat(resources,controller): workspace-path encode/decode + SSA pa
 
 ---
 
-## Task 9: SSA payload builder — patchConfig into the workspace ConfigMap
+## Task 9: SSA payload builder: patchConfig into the workspace ConfigMap
 
 **Files:**
 - Modify: `internal/controller/selfconfig_apply.go`
 - Modify: `internal/controller/selfconfig_apply_test.go`
 
-`patchConfig` is a JSON merge patch destined for `~/.hermes/config.yaml`. We don't apply it to the user's `HermesInstance` (that would conflict with GitOps), and we don't mutate the user's primary config ConfigMap (Plan 2 created that one). Instead we drop the patch as a separate file under the workspace ConfigMap key `selfconfig.yaml` — the agent's startup layer merges it onto config.yaml.
+`patchConfig` is a JSON merge patch destined for `~/.hermes/config.yaml`. We don't apply it to the user's `HermesInstance` (that would conflict with GitOps), and we don't mutate the user's primary config ConfigMap (Plan 2 created that one). Instead we drop the patch as a separate file under the workspace ConfigMap key `selfconfig.yaml`: the agent's startup layer merges it onto config.yaml.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1477,7 +1477,7 @@ import (
 )
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./internal/controller/... -run 'TestBuildPatchConfigPayload|TestBuildPatchConfigPayload_CombinesWithWorkspaceFiles' -v
@@ -1532,7 +1532,7 @@ func mergeConfigMapPatches(left, right *corev1.ConfigMap) *corev1.ConfigMap {
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS**
+- [ ] **Step 4: Run: expect PASS**
 
 ```bash
 go test ./internal/controller/... -run 'TestBuildPatchConfigPayload|TestBuildPatchConfigPayload_CombinesWithWorkspaceFiles' -v
@@ -1547,7 +1547,7 @@ git commit -m "feat(controller): SSA payload for patchConfig (writes selfconfig.
 
 ---
 
-## Task 10: Reconciler skeleton — Reconcile() with SSA mechanics
+## Task 10: Reconciler skeleton: Reconcile() with SSA mechanics
 
 **Files:**
 - Create: `internal/controller/hermesselfconfig_controller.go`
@@ -1605,7 +1605,7 @@ import (
 //     zero/empty field is not claimed.
 //  4. ForceOwnership is opt-in per HermesSelfConfig via the
 //     "hermes.agent/force-ownership: true" annotation. Default is
-//     collaborative — conflicts become Denied status entries.
+//     collaborative: conflicts become Denied status entries.
 type HermesSelfConfigReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
@@ -1676,7 +1676,7 @@ func (r *HermesSelfConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		}
 	}
 
-	// All gates passed — apply each action via SSA.
+	// All gates passed: apply each action via SSA.
 	applied, err := r.applyAll(ctx, parent, &sc)
 	if err != nil {
 		logger.Error(err, "SSA apply failed")
@@ -1690,7 +1690,7 @@ func (r *HermesSelfConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // dotted-path field identifiers we touched. Implemented in Task 12.
 func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfConfig) ([]string, error) {
 	// Stubbed for Task 10; Task 12 fills in.
-	return nil, fmt.Errorf("applyAll not yet implemented — Task 12")
+	return nil, fmt.Errorf("applyAll not yet implemented: Task 12")
 }
 
 // patchOptions returns the SSA call options. ForceOwnership is opt-in via
@@ -1783,11 +1783,11 @@ The references `emitSelfConfigEvent`, `EventReasonSelfConfigDenied`, `EventReaso
 go build ./...
 ```
 
-Expected: errors like `undefined: emitSelfConfigEvent`, `undefined: EventReasonSelfConfigDenied`, etc. We'll resolve them in Tasks 14 + 15. **Do not commit yet** — defer the commit to Task 15 so the tree stays buildable.
+Expected: errors like `undefined: emitSelfConfigEvent`, `undefined: EventReasonSelfConfigDenied`, etc. We'll resolve them in Tasks 14 + 15. **Do not commit yet**: defer the commit to Task 15 so the tree stays buildable.
 
 ---
 
-## Task 11: SSA payload builder — addProfileSnapshot Job
+## Task 11: SSA payload builder: addProfileSnapshot Job
 
 **Files:**
 - Create: `internal/resources/snapshot_job.go`
@@ -1849,7 +1849,7 @@ func TestBuildSnapshotJob_HardenedSecurity(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./internal/resources/... -run TestBuildSnapshotJob -v
@@ -1885,7 +1885,7 @@ func HonchoPVCName(inst *hermesv1.HermesInstance) string {
 
 // BuildSnapshotJob constructs a one-shot Job that writes a profile snapshot
 // to /data/snapshots/<profileID>/<timestamp>.json on the Honcho PVC.
-// Name is deterministic — `<inst>-snapshot-<profileID>-<YYYYMMDDHHMMSS>`.
+// Name is deterministic: `<inst>-snapshot-<profileID>-<YYYYMMDDHHMMSS>`.
 func BuildSnapshotJob(inst *hermesv1.HermesInstance, profileID, data string, when time.Time) *batchv1.Job {
 	stamp := when.UTC().Format("20060102150405")
 	name := fmt.Sprintf("%s-snapshot-%s-%s", inst.Name, sanitizeProfileID(profileID), stamp)
@@ -1895,7 +1895,7 @@ func BuildSnapshotJob(inst *hermesv1.HermesInstance, profileID, data string, whe
 
 	rfc3339 := when.UTC().Format(time.RFC3339)
 	relPath := fmt.Sprintf("/data/snapshots/%s/%s.json", profileID, rfc3339)
-	// Quote-safe shell — single-quote the data and escape any embedded quotes.
+	// Quote-safe shell: single-quote the data and escape any embedded quotes.
 	escaped := strings.ReplaceAll(data, "'", `'\''`)
 	cmd := fmt.Sprintf(`set -eu; mkdir -p "$(dirname '%s')"; printf '%%s' '%s' > '%s'`, relPath, escaped, relPath)
 
@@ -1988,7 +1988,7 @@ go test ./internal/resources/... -run TestBuildSnapshotJob -v
 
 Expected: 2 PASS.
 
-- [ ] **Step 5: Reconciler-side hook — `buildProfileSnapshotPayload`**
+- [ ] **Step 5: Reconciler-side hook: `buildProfileSnapshotPayload`**
 
 Append to `internal/controller/selfconfig_apply.go`:
 
@@ -2001,7 +2001,7 @@ import (
 
 // buildProfileSnapshotPayload returns the Job that materialises a Honcho
 // profile snapshot. Unlike the HermesInstance / ConfigMap payloads, Jobs are
-// not SSA-patched — they are created with a deterministic name; the apiserver
+// not SSA-patched: they are created with a deterministic name; the apiserver
 // either creates a new Job or no-ops on AlreadyExists.
 func buildProfileSnapshotPayload(parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfConfig, when time.Time) *batchv1.Job {
 	if sc.Spec.AddProfileSnapshot == nil {
@@ -2058,7 +2058,7 @@ git commit -m "feat(resources,controller): one-shot snapshot Job for addProfileS
 
 ---
 
-## Task 12: Wire `applyAll` — the real SSA loop
+## Task 12: Wire `applyAll`: the real SSA loop
 
 **Files:**
 - Modify: `internal/controller/hermesselfconfig_controller.go`
@@ -2072,7 +2072,7 @@ In `internal/controller/hermesselfconfig_controller.go`, replace:
 ```go
 func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfConfig) ([]string, error) {
 	// Stubbed for Task 10; Task 12 fills in.
-	return nil, fmt.Errorf("applyAll not yet implemented — Task 12")
+	return nil, fmt.Errorf("applyAll not yet implemented: Task 12")
 }
 ```
 
@@ -2082,7 +2082,7 @@ with:
 func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfConfig) ([]string, error) {
 	var applied []string
 
-	// 1. addSkills — partial HermesInstance, SSA patch.
+	// 1. addSkills: partial HermesInstance, SSA patch.
 	if len(sc.Spec.AddSkills) > 0 {
 		patch := buildSkillsPatch(parent, sc)
 		if err := r.applySSA(ctx, patch, sc); err != nil {
@@ -2093,7 +2093,7 @@ func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *herme
 		}
 	}
 
-	// 2. addEnvVars — partial HermesInstance, SSA patch.
+	// 2. addEnvVars: partial HermesInstance, SSA patch.
 	if len(sc.Spec.AddEnvVars) > 0 {
 		patch := buildEnvVarsPatch(parent, sc)
 		if err := r.applySSA(ctx, patch, sc); err != nil {
@@ -2125,7 +2125,7 @@ func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *herme
 		}
 	}
 
-	// 4. addProfileSnapshot — one-shot Job.
+	// 4. addProfileSnapshot: one-shot Job.
 	if sc.Spec.AddProfileSnapshot != nil {
 		if !boolValue(parent.Spec.ProfileStore.Honcho.Enabled) {
 			return applied, fmt.Errorf("addProfileSnapshot requires .spec.profileStore.honcho.enabled=true")
@@ -2210,7 +2210,7 @@ var _ = Describe("HermesSelfConfig controller", func() {
 
 	AfterEach(func() {
 		ctx := context.Background()
-		// Best-effort cleanup — ignore not-found.
+		// Best-effort cleanup: ignore not-found.
 		for _, name := range []string{"deny-target", "happy-target"} {
 			_ = k8sClient.Delete(ctx, &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns}})
 		}
@@ -2258,7 +2258,7 @@ import (
 )
 ```
 
-- [ ] **Step 3: Don't run tests yet — Tasks 14 + 15 must land first**
+- [ ] **Step 3: Don't run tests yet: Tasks 14 + 15 must land first**
 
 The tree still doesn't build. We'll run after Task 15.
 
@@ -2295,14 +2295,14 @@ import (
 	hermesv1 "github.com/stubbi/hermes-operator/api/v1"
 )
 
-// Event reason codes — public for tests and for the conditions documentation.
+// Event reason codes: public for tests and for the conditions documentation.
 const (
 	EventReasonSelfConfigApplied = "SelfConfigApplied"
 	EventReasonSelfConfigDenied  = "SelfConfigDenied"
 )
 
 // emitSelfConfigEvent fires a paired event on both the SelfConfig and the
-// parent HermesInstance. parent may be nil — for instance-not-found denials —
+// parent HermesInstance. parent may be nil: for instance-not-found denials:
 // in which case only the SelfConfig gets the event.
 func emitSelfConfigEvent(
 	r record.EventRecorder,
@@ -2343,7 +2343,7 @@ git add internal/controller/selfconfig_events.go
 - Create: `internal/controller/selfconfig_metrics.go`
 - Create: `internal/controller/selfconfig_metrics_test.go`
 
-Per plan brief: counters are `hermes_selfconfig_applied_total` and `hermes_selfconfig_denied_total`. Plan 2 created `metrics.go` with the `metrics.Registry` registration boilerplate — we register into the same registry.
+Per plan brief: counters are `hermes_selfconfig_applied_total` and `hermes_selfconfig_denied_total`. Plan 2 created `metrics.go` with the `metrics.Registry` registration boilerplate: we register into the same registry.
 
 - [ ] **Step 1: Write the failing metrics test**
 
@@ -2392,7 +2392,7 @@ func TestIncSelfConfigDenied(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run — expect compile failure**
+- [ ] **Step 2: Run: expect compile failure**
 
 ```bash
 go test ./internal/controller/... -run TestIncSelfConfig -v
@@ -2463,7 +2463,7 @@ go test ./internal/controller/... -run TestIncSelfConfig -v
 
 Expected: 2 PASS.
 
-- [ ] **Step 5: Build the whole tree (now Tasks 10–15 must all compile)**
+- [ ] **Step 5: Build the whole tree (now Tasks 10-15 must all compile)**
 
 ```bash
 go build ./...
@@ -2582,7 +2582,7 @@ func TestValidate_WarnsOnMultipleMutations(t *testing.T) {
 	}
 	warns, err := v.ValidateCreate(context.Background(), sc)
 	require.NoError(t, err)
-	require.NotEmpty(t, warns, "must warn — not deny — on multiple mutation fields")
+	require.NotEmpty(t, warns, "must warn: not deny: on multiple mutation fields")
 	assert.Contains(t, warns[0], "atomic")
 }
 
@@ -2708,7 +2708,7 @@ func (v *HermesSelfConfigValidator) validate(ctx context.Context, obj runtime.Ob
 		}
 	}
 
-	// Warn (not deny) when more than one mutation field is populated —
+	// Warn (not deny) when more than one mutation field is populated:
 	// atomic SelfConfigs make for a readable audit log.
 	mutations := 0
 	for _, has := range []bool{
@@ -2826,7 +2826,7 @@ Below the reconciler block, after the existing instance-validator setup, append:
 	}
 ```
 
-Ensure `webhookpkg "github.com/stubbi/hermes-operator/internal/webhook"` is imported (it may already be — check the import block).
+Ensure `webhookpkg "github.com/stubbi/hermes-operator/internal/webhook"` is imported (it may already be: check the import block).
 
 - [ ] **Step 4: Regenerate RBAC + verify build**
 
@@ -2835,7 +2835,7 @@ make manifests
 go build ./...
 ```
 
-Expected: exit 0. The `config/rbac/role.yaml` should now grant verbs `get;list;watch;patch` on `hermesinstances` (for the SSA path) and `get;list;watch;create;patch` on `jobs` (for snapshots) — both from the kubebuilder markers on `HermesSelfConfigReconciler`.
+Expected: exit 0. The `config/rbac/role.yaml` should now grant verbs `get;list;watch;patch` on `hermesinstances` (for the SSA path) and `get;list;watch;create;patch` on `jobs` (for snapshots): both from the kubebuilder markers on `HermesSelfConfigReconciler`.
 
 - [ ] **Step 5: Commit**
 
@@ -2846,19 +2846,19 @@ git commit -m "feat(manager): register HermesSelfConfigReconciler + validator"
 
 ---
 
-## Task 18: Idempotency test — second reconcile leaves status untouched
+## Task 18: Idempotency test: second reconcile leaves status untouched
 
 **Files:**
 - Modify: `internal/controller/hermesselfconfig_controller_test.go`
 
-The Plan-1 idempotency canary on HermesInstance is the model here. We replicate it for SelfConfig — applying the same generation twice must not flip Applied↔Pending or bump observedGeneration.
+The Plan-1 idempotency canary on HermesInstance is the model here. We replicate it for SelfConfig: applying the same generation twice must not flip Applied↔Pending or bump observedGeneration.
 
 - [ ] **Step 1: Add the test**
 
 Append to `internal/controller/hermesselfconfig_controller_test.go` inside the existing `Describe` block:
 
 ```go
-	It("is idempotent — re-reconciling the same generation does not bump observedGeneration twice", func() {
+	It("is idempotent: re-reconciling the same generation does not bump observedGeneration twice", func() {
 		ctx := context.Background()
 		trueP := true
 
@@ -2917,7 +2917,7 @@ Append to `internal/controller/hermesselfconfig_controller_test.go` inside the e
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: "idem-test", Namespace: ns}, second)).To(Succeed())
 		Expect(second.Status.Phase).To(Equal(hermesv1.SelfConfigPhaseApplied))
 		Expect(second.Status.AppliedAt.Equal(firstApplied)).To(BeTrue(),
-			"AppliedAt must not advance on no-op reconciles — the controller short-circuits via ObservedGeneration")
+			"AppliedAt must not advance on no-op reconciles: the controller short-circuits via ObservedGeneration")
 	})
 ```
 
@@ -2927,18 +2927,18 @@ Append to `internal/controller/hermesselfconfig_controller_test.go` inside the e
 make test
 ```
 
-Expected: green. If `AppliedAt` advances, the idempotency check in `Reconcile` (Task 10 Step 1, top of function) is missing — return to that test and confirm `sc.Status.ObservedGeneration == sc.Generation` is the gate.
+Expected: green. If `AppliedAt` advances, the idempotency check in `Reconcile` (Task 10 Step 1, top of function) is missing: return to that test and confirm `sc.Status.ObservedGeneration == sc.Generation` is the gate.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add internal/controller/hermesselfconfig_controller_test.go
-git commit -m "test(controller): idempotency canary for HermesSelfConfig — no AppliedAt bump on no-op reconcile"
+git commit -m "test(controller): idempotency canary for HermesSelfConfig: no AppliedAt bump on no-op reconcile"
 ```
 
 ---
 
-## Task 19: GitOps coexistence — the headline test
+## Task 19: GitOps coexistence: the headline test
 
 **Files:**
 - Create: `internal/controller/hermesselfconfig_ssa_test.go`
@@ -2966,7 +2966,7 @@ import (
 	hermesv1 "github.com/stubbi/hermes-operator/api/v1"
 )
 
-var _ = Describe("HermesSelfConfig — GitOps coexistence (SSA)", func() {
+var _ = Describe("HermesSelfConfig: GitOps coexistence (SSA)", func() {
 	const (
 		ns      = "default"
 		name    = "ssa-target"
@@ -3046,7 +3046,7 @@ var _ = Describe("HermesSelfConfig — GitOps coexistence (SSA)", func() {
 		Expect(fluxOwnsImage).To(BeTrue(), "flux-controller must still own spec.image")
 		Expect(selfconfigOwnsEnv).To(BeTrue(), "hermes.agent/selfconfig must own spec.env")
 
-		// 5. Flux re-applies with a different tag — env var must survive.
+		// 5. Flux re-applies with a different tag: env var must survive.
 		fluxApplied2 := fluxApplied.DeepCopy()
 		fluxApplied2.Spec.Image.Tag = "v1.0.1"
 		fluxApplied2.ResourceVersion = ""
@@ -3060,7 +3060,7 @@ var _ = Describe("HermesSelfConfig — GitOps coexistence (SSA)", func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, inst2)).To(Succeed())
 			g.Expect(inst2.Spec.Image.Tag).To(Equal("v1.0.1"))
 			g.Expect(inst2.Spec.Env).To(ContainElement(corev1.EnvVar{Name: "TZ", Value: "UTC"}))
-		}).Within(timeout).WithPolling(poll).Should(Succeed(), "env var must survive Flux re-apply — no flap")
+		}).Within(timeout).WithPolling(poll).Should(Succeed(), "env var must survive Flux re-apply: no flap")
 	})
 })
 
@@ -3086,7 +3086,7 @@ Expected: green. The two `containsString` matches assert field ownership stayed 
 
 ```bash
 git add internal/controller/hermesselfconfig_ssa_test.go
-git commit -m "test(controller): GitOps coexistence — Flux + SelfConfig co-own HermesInstance without flap"
+git commit -m "test(controller): GitOps coexistence: Flux + SelfConfig co-own HermesInstance without flap"
 ```
 
 ---
@@ -3113,7 +3113,7 @@ will re-use the same scenario at higher scale (real kind cluster, multiple
 concurrent Flux/SelfConfig writers, latency assertions) and parameterise
 across Kubernetes versions 1.28-1.32.
 
-Until Plan 6 lands, this test compiles but is skipped — it's here so a
+Until Plan 6 lands, this test compiles but is skipped: it's here so a
 future Plan-6 engineer can `git grep gitops_coexistence_test` to find the
 entry point.
 */
@@ -3214,7 +3214,7 @@ git commit -m "chore(chart): sync CRDs + ClusterRole verbs for HermesSelfConfig 
 
 ---
 
-## Task 22: Documentation — api-reference, selfconfig.md, conditions.md, README
+## Task 22: Documentation: api-reference, selfconfig.md, conditions.md, README
 
 **Files:**
 - Modify: `docs/api-reference.md`
@@ -3294,7 +3294,7 @@ spec:
 The reconciler writes via `client.Apply` with field owner
 `hermes.agent/selfconfig`. Concretely:
 
-- It owns only the paths the SelfConfig touches — never `spec.image`,
+- It owns only the paths the SelfConfig touches: never `spec.image`,
   `spec.storage`, `spec.gateways`, etc.
 - Other field managers (FluxCD, Argo CD, kubectl users) co-own their own
   paths and are not disturbed.
@@ -3319,14 +3319,14 @@ the operator validate + apply.
 Use **SelfConfig** when:
 
 - A learning / planner loop inside the agent produces the mutation.
-- The mutation is small and audit-worthy — you want a Kubernetes Event
+- The mutation is small and audit-worthy: you want a Kubernetes Event
   recording who/what/why.
 - You want the operator to enforce `selfConfigure.protectedKeys`.
 
 Use **direct YAML edits to `HermesInstance`** when:
 
 - You're the human operator and the change is intentional / reviewed.
-- You're using FluxCD/Argo CD to manage the spec — SSA coexistence (see
+- You're using FluxCD/Argo CD to manage the spec: SSA coexistence (see
   below) means SelfConfig won't disturb your declarative fields.
 
 ## SSA contract
@@ -3342,7 +3342,7 @@ The reconciler writes via Server-Side Apply with field manager
 | `.spec.image.tag` | (unchanged) | Operator never patches this; Flux/Argo/you keep ownership. |
 
 A conflicting Apply from a different manager produces an SSA conflict.
-Default behaviour is **collaborative** — the SelfConfig is denied with
+Default behaviour is **collaborative**: the SelfConfig is denied with
 `denyReason: "SSA conflict on <path>: owned by <other-manager>"`. To force
 ownership set `hermes.agent/force-ownership: "true"` on the SelfConfig.
 
@@ -3513,7 +3513,7 @@ EOF
 gh pr checks --watch
 ```
 
-Expected: all five workflows green. If `E2E` fails, the kind cluster needs the workspace ConfigMap volume mounted — Plan 3's StatefulSet builder is responsible.
+Expected: all five workflows green. If `E2E` fails, the kind cluster needs the workspace ConfigMap volume mounted: Plan 3's StatefulSet builder is responsible.
 
 - [ ] **Step 4: After merge, tag the milestone**
 
@@ -3537,61 +3537,61 @@ git worktree remove ../hermes-operator-plan-4
 
 **Spec coverage:**
 
-- [ ] Spec §5 (HermesSelfConfig spec) — `instanceRef` (Task 2), `addSkills` (Task 2), `patchConfig` (Task 3), `addEnvVars` (Task 3), `addWorkspaceFiles` (Task 3), `addProfileSnapshot` (Task 3), status with `phase`/`appliedAt`/`denyReason`/`appliedFields`/`conditions` (Task 4). Printer columns + short name `hsc` + categories (Task 4).
-- [ ] Spec §7.2 rule 2 (SSA from day one) — Task 10 establishes `applySSA` as the only write path; Task 12 wires every action through it; Task 19 proves it under Flux co-ownership.
-- [ ] Spec §7.3 (selfconfig validator) — Task 16 implements: required `instanceRef`, existence check, JSON-merge-patch validity, honcho gate. Deny-with-Event for protected-path hits is in Task 10's `deny()` + Task 14's event helpers.
-- [ ] Spec §3 (CRD surface) — short name `hsc`, categories `hermes`/`agents` (Task 4).
-- [ ] Spec §10 conformance "GitOps coexistence" — proven in envtest (Task 19); placeholder in `test/conformance/` for the Plan-6 scaled version (Task 20).
-- [ ] Section 4 brief item 4.A (full types) — Tasks 2–4.
-- [ ] Section 4 brief item 4.B (SSA reconciler) — Tasks 7–9, 10, 11, 12.
-- [ ] Section 4 brief item 4.C (allowlist + protectedKeys) — Task 6 + gates in Task 10.
-- [ ] Section 4 brief item 4.D (audit events + metrics + appliedFields) — Tasks 14 + 15 + status updates in Task 10.
-- [ ] Section 4 brief item 4.E (validating webhook) — Task 16.
-- [ ] Section 4 brief item 4.F (GitOps coexistence test) — Task 19.
-- [ ] Section 4 brief item 4.G (conformance hook) — Task 20.
-- [ ] Section 4 brief item 4.H (docs) — Task 22.
+- [ ] Spec §5 (HermesSelfConfig spec): `instanceRef` (Task 2), `addSkills` (Task 2), `patchConfig` (Task 3), `addEnvVars` (Task 3), `addWorkspaceFiles` (Task 3), `addProfileSnapshot` (Task 3), status with `phase`/`appliedAt`/`denyReason`/`appliedFields`/`conditions` (Task 4). Printer columns + short name `hsc` + categories (Task 4).
+- [ ] Spec §7.2 rule 2 (SSA from day one): Task 10 establishes `applySSA` as the only write path; Task 12 wires every action through it; Task 19 proves it under Flux co-ownership.
+- [ ] Spec §7.3 (selfconfig validator): Task 16 implements: required `instanceRef`, existence check, JSON-merge-patch validity, honcho gate. Deny-with-Event for protected-path hits is in Task 10's `deny()` + Task 14's event helpers.
+- [ ] Spec §3 (CRD surface): short name `hsc`, categories `hermes`/`agents` (Task 4).
+- [ ] Spec §10 conformance "GitOps coexistence": proven in envtest (Task 19); placeholder in `test/conformance/` for the Plan-6 scaled version (Task 20).
+- [ ] Section 4 brief item 4.A (full types): Tasks 2-4.
+- [ ] Section 4 brief item 4.B (SSA reconciler): Tasks 7-9, 10, 11, 12.
+- [ ] Section 4 brief item 4.C (allowlist + protectedKeys): Task 6 + gates in Task 10.
+- [ ] Section 4 brief item 4.D (audit events + metrics + appliedFields): Tasks 14 + 15 + status updates in Task 10.
+- [ ] Section 4 brief item 4.E (validating webhook): Task 16.
+- [ ] Section 4 brief item 4.F (GitOps coexistence test): Task 19.
+- [ ] Section 4 brief item 4.G (conformance hook): Task 20.
+- [ ] Section 4 brief item 4.H (docs): Task 22.
 
 **Plan-1 conventions referenced (no re-definition):**
 
-- [ ] `resources.Ptr[T]` — used in Task 11 (Job builder) without redefining.
-- [ ] `resources.LabelsForInstance` — used in Task 11 without redefining.
-- [ ] `resources.MergePreservingForeign` — not needed here because SSA handles merge semantics; no re-definition.
-- [ ] Idempotency canary pattern — replicated in Task 18 against SelfConfig.
-- [ ] Conventional commit prefixes — every task commits with `feat:` / `test:` / `docs:` / `chore:` per Plan 1 conventions.
-- [ ] Worktree discipline — established in Task 1, dismantled in Task 23.
+- [ ] `resources.Ptr[T]`: used in Task 11 (Job builder) without redefining.
+- [ ] `resources.LabelsForInstance`: used in Task 11 without redefining.
+- [ ] `resources.MergePreservingForeign`: not needed here because SSA handles merge semantics; no re-definition.
+- [ ] Idempotency canary pattern: replicated in Task 18 against SelfConfig.
+- [ ] Conventional commit prefixes: every task commits with `feat:` / `test:` / `docs:` / `chore:` per Plan 1 conventions.
+- [ ] Worktree discipline: established in Task 1, dismantled in Task 23.
 
 **Placeholder scan:**
 
-- [ ] No "TBD" / "TODO" / "implement later" left in code blocks. The single forward-reference (Task 10 step 1 `applyAll` stub) is explicitly named "stubbed for Task 10; Task 12 fills in" and IS filled in by Task 12 step 1 — the commit boundary in Task 15 covers both at once.
+- [ ] No "TBD" / "TODO" / "implement later" left in code blocks. The single forward-reference (Task 10 step 1 `applyAll` stub) is explicitly named "stubbed for Task 10; Task 12 fills in" and IS filled in by Task 12 step 1: the commit boundary in Task 15 covers both at once.
 - [ ] Every step has either a runnable command (with expected output) or a complete code block.
-- [ ] Task 11 (`buildSnapshotJob`) does not say "implement appropriate security" — it sets `RunAsNonRoot`, `ReadOnlyRootFilesystem`, `AllowPrivilegeEscalation=false`, `Capabilities.Drop=ALL`, `SeccompProfile=RuntimeDefault` explicitly.
+- [ ] Task 11 (`buildSnapshotJob`) does not say "implement appropriate security": it sets `RunAsNonRoot`, `ReadOnlyRootFilesystem`, `AllowPrivilegeEscalation=false`, `Capabilities.Drop=ALL`, `SeccompProfile=RuntimeDefault` explicitly.
 - [ ] Task 22 docs include the full deny-reason catalogue, not just "list deny reasons".
 
 **Type / identifier consistency:**
 
-- [ ] `SelfConfigFieldManager = "hermes.agent/selfconfig"` — defined in Task 7 (`selfconfig_apply.go`), referenced in Task 10 (`patchOptions`) and Task 19 (assertion).
-- [ ] `ForceOwnershipAnnotation = "hermes.agent/force-ownership"` — defined Task 7, consumed Task 10, documented Task 22.
-- [ ] `EventReasonSelfConfigApplied` / `EventReasonSelfConfigDenied` — defined Task 14, consumed Task 10.
-- [ ] `selfConfigAppliedTotal` / `selfConfigDeniedTotal` + `incSelfConfigApplied` / `incSelfConfigDenied` — defined Task 15, consumed Task 10.
-- [ ] `hermesv1.ActionSkills`, `ActionConfig`, `ActionEnvVars`, `ActionWorkspaceFiles`, `ActionProfiles` — defined Task 6 step 3, consumed Tasks 6, 10, 18, 19.
-- [ ] `hermesv1.SelfConfigPhasePending` / `…Applied` / `…Denied` — defined Task 4, consumed Tasks 10, 13, 18, 19.
-- [ ] `hermesv1.SelfConfigConditionApplied` / `…Denied` / `…Pending` — defined Task 4, consumed Task 10.
-- [ ] `hermesv1.SelfConfigSkill`, `SelfConfigEnvVar`, `SelfConfigEnvVarSource`, `SelfConfigKeySelector`, `SelfConfigWorkspaceFile`, `SelfConfigProfileSnapshot` — defined Tasks 2–3, consumed Tasks 6–12, 16, 18, 19.
-- [ ] `resources.WorkspaceConfigMapName`, `resources.EncodeWorkspacePath`, `resources.DecodeWorkspacePath`, `resources.HonchoPVCName`, `resources.BuildSnapshotJob` — defined Tasks 8 + 11, consumed Tasks 9, 11, 12.
-- [ ] `buildSkillsPatch` / `buildEnvVarsPatch` / `buildWorkspaceFilesPatch` / `buildPatchConfigPayload` / `mergeConfigMapPatches` / `buildProfileSnapshotPayload` — all defined in Tasks 7–11 in `selfconfig_apply.go`, consumed in Task 12's `applyAll`.
-- [ ] `formatAppliedFieldEnv` / `formatAppliedFieldSkill` / `formatAppliedFieldFile` — defined Task 7, consumed Task 12.
-- [ ] `DetermineActions` / `CheckAllowedActions` / `CheckProtectedPaths` — defined Task 6, consumed Tasks 10 + 12 + 13 + 18.
-- [ ] `parent.Spec.SelfConfigure.Enabled` typed `*bool` — Plan-3 assumption documented in Task 10's prose; `boolValue` helper handles the nil case.
-- [ ] `parent.Spec.ProfileStore.Honcho.Enabled` typed `*bool` — Plan-3 assumption; consumed in Task 12 + Task 16.
-- [ ] `hermesv1.InstanceSkill { Source, Version }` — Plan-3 assumption with fallback Note in Task 7 step 3.
+- [ ] `SelfConfigFieldManager = "hermes.agent/selfconfig"`: defined in Task 7 (`selfconfig_apply.go`), referenced in Task 10 (`patchOptions`) and Task 19 (assertion).
+- [ ] `ForceOwnershipAnnotation = "hermes.agent/force-ownership"`: defined Task 7, consumed Task 10, documented Task 22.
+- [ ] `EventReasonSelfConfigApplied` / `EventReasonSelfConfigDenied`: defined Task 14, consumed Task 10.
+- [ ] `selfConfigAppliedTotal` / `selfConfigDeniedTotal` + `incSelfConfigApplied` / `incSelfConfigDenied`: defined Task 15, consumed Task 10.
+- [ ] `hermesv1.ActionSkills`, `ActionConfig`, `ActionEnvVars`, `ActionWorkspaceFiles`, `ActionProfiles`: defined Task 6 step 3, consumed Tasks 6, 10, 18, 19.
+- [ ] `hermesv1.SelfConfigPhasePending` / `…Applied` / `…Denied`: defined Task 4, consumed Tasks 10, 13, 18, 19.
+- [ ] `hermesv1.SelfConfigConditionApplied` / `…Denied` / `…Pending`: defined Task 4, consumed Task 10.
+- [ ] `hermesv1.SelfConfigSkill`, `SelfConfigEnvVar`, `SelfConfigEnvVarSource`, `SelfConfigKeySelector`, `SelfConfigWorkspaceFile`, `SelfConfigProfileSnapshot`: defined Tasks 2-3, consumed Tasks 6-12, 16, 18, 19.
+- [ ] `resources.WorkspaceConfigMapName`, `resources.EncodeWorkspacePath`, `resources.DecodeWorkspacePath`, `resources.HonchoPVCName`, `resources.BuildSnapshotJob`: defined Tasks 8 + 11, consumed Tasks 9, 11, 12.
+- [ ] `buildSkillsPatch` / `buildEnvVarsPatch` / `buildWorkspaceFilesPatch` / `buildPatchConfigPayload` / `mergeConfigMapPatches` / `buildProfileSnapshotPayload`: all defined in Tasks 7-11 in `selfconfig_apply.go`, consumed in Task 12's `applyAll`.
+- [ ] `formatAppliedFieldEnv` / `formatAppliedFieldSkill` / `formatAppliedFieldFile`: defined Task 7, consumed Task 12.
+- [ ] `DetermineActions` / `CheckAllowedActions` / `CheckProtectedPaths`: defined Task 6, consumed Tasks 10 + 12 + 13 + 18.
+- [ ] `parent.Spec.SelfConfigure.Enabled` typed `*bool`: Plan-3 assumption documented in Task 10's prose; `boolValue` helper handles the nil case.
+- [ ] `parent.Spec.ProfileStore.Honcho.Enabled` typed `*bool`: Plan-3 assumption; consumed in Task 12 + Task 16.
+- [ ] `hermesv1.InstanceSkill { Source, Version }`: Plan-3 assumption with fallback Note in Task 7 step 3.
 
 **SSA mechanics precision (the headline requirement):**
 
-- [ ] Reconciler uses `r.Patch(ctx, partial, client.Apply, client.FieldOwner("hermes.agent/selfconfig"))` — defined in `applySSA()` in Task 10 step 1.
-- [ ] `client.ForceOwnership` is opt-in only via the `hermes.agent/force-ownership` annotation — `patchOptions()` in Task 10 step 1.
+- [ ] Reconciler uses `r.Patch(ctx, partial, client.Apply, client.FieldOwner("hermes.agent/selfconfig"))`: defined in `applySSA()` in Task 10 step 1.
+- [ ] `client.ForceOwnership` is opt-in only via the `hermes.agent/force-ownership` annotation: `patchOptions()` in Task 10 step 1.
 - [ ] The reconciler does **not** call `r.Update(ctx, &hermesInstance)`. Greppable check (Reconcile Guard from Plan 1 enforces this; the only `r.Create` in Task 12 is for the snapshot Job and is annotated with `// reconcile-guard:allow` to make the intent explicit).
 - [ ] Partial objects carry `apiVersion + kind + name + namespace` and ONLY the fields being claimed (`newPartialInstance` in Task 7 step 3).
 - [ ] SSA list-map markers asserted on `HermesInstance.spec.env` (`+listMapKey=name`) and `.spec.skills` (`+listMapKey=source`) by Task 5's CRD-YAML test.
-- [ ] The GitOps coexistence test (Task 19) reads `metadata.managedFields` and asserts that `flux-controller` keeps ownership of `f:image` while `hermes.agent/selfconfig` owns `f:env` — this is the precise SSA semantic check.
+- [ ] The GitOps coexistence test (Task 19) reads `metadata.managedFields` and asserts that `flux-controller` keeps ownership of `f:image` while `hermes.agent/selfconfig` owns `f:env`: this is the precise SSA semantic check.
 
 End of Plan 4.

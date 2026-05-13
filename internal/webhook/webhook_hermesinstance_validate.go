@@ -108,7 +108,7 @@ func (v *HermesInstanceValidator) validateGateways(ctx context.Context, inst *he
 			return nil
 		}
 		if v.Client == nil {
-			// No client available — skip the existence check, fail-open.
+			// No client available: skip the existence check, fail-open.
 			return nil
 		}
 		var s corev1.Secret
@@ -258,7 +258,7 @@ func validateRestoreMigrationMutualExclusion(inst *hermesv1.HermesInstance) fiel
 		return field.ErrorList{field.Invalid(
 			field.NewPath("spec"),
 			"restoreFrom + migration.fromOpenClaw",
-			"set exactly one of spec.restoreFrom or spec.migration.fromOpenClaw — the combined order of operations is ambiguous (which source wins?). To both restore and migrate, do them as two separate instances.",
+			"set exactly one of spec.restoreFrom or spec.migration.fromOpenClaw: the combined order of operations is ambiguous (which source wins?). To both restore and migrate, do them as two separate instances.",
 		)}
 	}
 	return nil
@@ -304,7 +304,7 @@ func (v *HermesInstanceValidator) crossCheckSecrets(ctx context.Context, inst *h
 		}
 	}
 	if inst.Spec.AutoUpdate.Enabled && inst.Spec.Image.Tag == "latest" {
-		warnings = append(warnings, "spec.autoUpdate.enabled with spec.image.tag=\"latest\" — the operator will resolve to a concrete tag, but please pin spec.image.tag for GitOps deterministic apply")
+		warnings = append(warnings, "spec.autoUpdate.enabled with spec.image.tag=\"latest\": the operator will resolve to a concrete tag, but please pin spec.image.tag for GitOps deterministic apply")
 	}
 	return warnings
 }

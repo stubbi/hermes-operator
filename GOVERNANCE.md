@@ -4,8 +4,8 @@
 
 ## Roles
 
-- **Maintainers** — see [`MAINTAINERS.md`](MAINTAINERS.md). Maintainers have commit access, triage issues, review PRs, and make release decisions.
-- **Contributors** — anyone who opens issues, sends PRs, or contributes via discussions. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- **Maintainers**: see [`MAINTAINERS.md`](MAINTAINERS.md). Maintainers have commit access, triage issues, review PRs, and make release decisions.
+- **Contributors**: anyone who opens issues, sends PRs, or contributes via discussions. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Decision making
 

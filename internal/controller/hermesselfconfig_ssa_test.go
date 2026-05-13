@@ -15,7 +15,7 @@ import (
 	hermesv1 "github.com/stubbi/hermes-operator/api/v1"
 )
 
-var _ = Describe("HermesSelfConfig — GitOps coexistence (SSA)", func() {
+var _ = Describe("HermesSelfConfig: GitOps coexistence (SSA)", func() {
 	const (
 		ssaNS      = "default"
 		ssaName    = "ssa-target"
@@ -97,7 +97,7 @@ var _ = Describe("HermesSelfConfig — GitOps coexistence (SSA)", func() {
 		Expect(fluxOwnsImage).To(BeTrue(), "flux-controller must still own spec.image")
 		Expect(selfconfigOwnsEnv).To(BeTrue(), "hermes.agent/selfconfig must own spec.env")
 
-		// 5. Flux re-applies with a different tag — env var must survive.
+		// 5. Flux re-applies with a different tag: env var must survive.
 		fluxApplied2 := fluxApplied.DeepCopy()
 		fluxApplied2.Spec.Image.Tag = "v1.0.1"
 		fluxApplied2.ResourceVersion = ""
@@ -112,6 +112,6 @@ var _ = Describe("HermesSelfConfig — GitOps coexistence (SSA)", func() {
 			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: ssaName, Namespace: ssaNS}, inst2)).To(Succeed())
 			g.Expect(inst2.Spec.Image.Tag).To(Equal("v1.0.1"))
 			g.Expect(inst2.Spec.Env).To(ContainElement(corev1.EnvVar{Name: "TZ", Value: "UTC"}))
-		}).Within(ssaTimeout).WithPolling(ssaPoll).Should(Succeed(), "env var must survive Flux re-apply — no flap")
+		}).Within(ssaTimeout).WithPolling(ssaPoll).Should(Succeed(), "env var must survive Flux re-apply: no flap")
 	})
 })

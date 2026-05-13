@@ -1,6 +1,6 @@
 # HermesSelfConfig Guide
 
-`HermesSelfConfig` lets a hermes-agent mutate its own `HermesInstance` at runtime — adding skills, patching config, injecting environment variables, seeding workspace files, and writing Honcho profile snapshots — all through Server-Side Apply with a dedicated field manager so GitOps tooling is never disturbed.
+`HermesSelfConfig` lets a hermes-agent mutate its own `HermesInstance` at runtime: adding skills, patching config, injecting environment variables, seeding workspace files, and writing Honcho profile snapshots: all through Server-Side Apply with a dedicated field manager so GitOps tooling is never disturbed.
 
 ## Prerequisites
 
@@ -184,7 +184,7 @@ kubectl get hermesinstance my-agent -o json \
   | yq '.metadata.managedFields[] | select(.manager == "hermes.agent/selfconfig")'
 ```
 
-This shows only the fields the SelfConfig controller has written. FluxCD, Argo CD, or your own `kubectl apply` still own their respective paths — no conflicts unless two managers claim the same path.
+This shows only the fields the SelfConfig controller has written. FluxCD, Argo CD, or your own `kubectl apply` still own their respective paths: no conflicts unless two managers claim the same path.
 
 ## Forcing ownership
 
@@ -196,7 +196,7 @@ metadata:
     hermes.agent/force-ownership: "true"
 ```
 
-Use with care — force-ownership removes the conflicting manager's claim on that path.
+Use with care: force-ownership removes the conflicting manager's claim on that path.
 
 ## Policy reference
 
@@ -215,7 +215,7 @@ Use with care — force-ownership removes the conflicting manager's claim on tha
 `HermesSelfConfig` is designed for zero-conflict coexistence with FluxCD and Argo CD:
 
 - The field manager `hermes.agent/selfconfig` is distinct from `flux-system` and `argocd-application-controller`.
-- Skills appended via SSA use the list-map key `source` — Flux's own `spec.skills` entries use the same list but different source values, so they coexist as separate list items.
+- Skills appended via SSA use the list-map key `source`: Flux's own `spec.skills` entries use the same list but different source values, so they coexist as separate list items.
 - The controller never touches `spec.image`, `spec.storage`, `spec.gateways`, or any other field not listed in the SelfConfig spec.
 
-For the envtest proof of this coexistence, see `internal/controller/hermesselfconfig_ssa_test.go`. The full conformance suite (real kind cluster, multiple concurrent writers, Kubernetes 1.28–1.32) lands in Plan 6 — see `test/conformance/gitops_coexistence_test.go`.
+For the envtest proof of this coexistence, see `internal/controller/hermesselfconfig_ssa_test.go`. The full conformance suite (real kind cluster, multiple concurrent writers, Kubernetes 1.28-1.32) lands in Plan 6: see `test/conformance/gitops_coexistence_test.go`.

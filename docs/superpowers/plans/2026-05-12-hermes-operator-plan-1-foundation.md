@@ -1,4 +1,4 @@
-# Hermes Operator — Plan 1: Foundation + Minimal Happy Path
+# Hermes Operator: Plan 1: Foundation + Minimal Happy Path
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -60,7 +60,7 @@
 │   ├── e2e_suite_test.go                   # Ginkgo + kind harness
 │   └── happypath_test.go
 ├── docs/
-│   ├── conventions.md                      # referenced by Plans 2–7
+│   ├── conventions.md                      # referenced by Plans 2-7
 │   └── superpowers/{specs,plans}/...
 ├── hack/
 │   ├── boilerplate.go.txt
@@ -140,7 +140,7 @@ kubebuilder create api \
 ```
 Press `y` when prompted for resource and controller. Expected: types file under `api/v1/`, controller under `internal/controller/`, watch wiring added to `cmd/manager/main.go`, PROJECT updated.
 
-- [ ] **Step 2: Create HermesSelfConfig (namespaced, types only — no controller yet)**
+- [ ] **Step 2: Create HermesSelfConfig (namespaced, types only: no controller yet)**
 
 ```bash
 kubebuilder create api \
@@ -302,7 +302,7 @@ git commit -m "feat(api): minimal HermesInstance spec (image, storage) and statu
 
 ---
 
-## Task 4: `internal/resources/common.go` — shared helpers + unit tests
+## Task 4: `internal/resources/common.go`: shared helpers + unit tests
 
 **Files:**
 - Create: `internal/resources/common.go`, `internal/resources/common_test.go`
@@ -797,7 +797,7 @@ func TestBuildStatefulSet_ExplicitK8sDefaults(t *testing.T) {
     sts := BuildStatefulSet(minimalInstance())
     podSpec := sts.Spec.Template.Spec
 
-    // Pod-level defaults that the API server fills if we omit them — we must set them.
+    // Pod-level defaults that the API server fills if we omit them: we must set them.
     assert.NotNil(t, sts.Spec.RevisionHistoryLimit)
     assert.Equal(t, int32(10), *sts.Spec.RevisionHistoryLimit)
     assert.Equal(t, corev1.RestartPolicyAlways, podSpec.RestartPolicy)
@@ -1031,7 +1031,7 @@ git commit -m "feat(resources): add hardened StatefulSet builder with explicit k
 
 ---
 
-## Task 9: HermesInstanceReconciler — orchestrate the four resources
+## Task 9: HermesInstanceReconciler: orchestrate the four resources
 
 **Files:**
 - Modify: `internal/controller/hermesinstance_controller.go`
@@ -1089,7 +1089,7 @@ func (r *HermesInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
         return ctrl.Result{}, err
     }
 
-    // 1. PVC — create-only (immutable after creation)
+    // 1. PVC: create-only (immutable after creation)
     if err := r.reconcilePVC(ctx, &inst); err != nil {
         return ctrl.Result{}, fmt.Errorf("reconcile PVC: %w", err)
     }
@@ -1321,7 +1321,7 @@ var _ = Describe("HermesInstance controller", func() {
         }).Within(timeout).WithPolling(interval).Should(Succeed())
     })
 
-    It("is idempotent — second reconcile does not change StatefulSet generation", func() {
+    It("is idempotent: second reconcile does not change StatefulSet generation", func() {
         ctx := context.Background()
 
         inst := &hermesv1.HermesInstance{
@@ -1376,7 +1376,7 @@ Expect(err).ToNot(HaveOccurred())
 ```bash
 make test
 ```
-Expected: all tests PASS, including the new BDD block. Idempotency test is the canary — if it fails, look for a builder field that's not explicitly set.
+Expected: all tests PASS, including the new BDD block. Idempotency test is the canary: if it fails, look for a builder field that's not explicitly set.
 
 - [ ] **Step 6: Commit**
 
@@ -1387,7 +1387,7 @@ git commit -m "test(controller): add envtest suite verifying happy-path reconcil
 
 ---
 
-## Task 11: Reconcile Guard — CI grep check against bare `r.Update()`
+## Task 11: Reconcile Guard: CI grep check against bare `r.Update()`
 
 **Files:**
 - Create: `.github/workflows/reconcile-guard.yaml`, `hack/reconcile-guard.sh`
@@ -1398,7 +1398,7 @@ Create `hack/reconcile-guard.sh`:
 
 ```bash
 #!/usr/bin/env bash
-# Reconcile Guard — prevents bare r.Update() / r.Create() on managed resources.
+# Reconcile Guard: prevents bare r.Update() / r.Create() on managed resources.
 # See docs/conventions.md "Reconciliation rules".
 
 set -euo pipefail
@@ -1879,7 +1879,7 @@ Run:
 ```bash
 curl -fsSL https://www.apache.org/licenses/LICENSE-2.0.txt -o LICENSE
 ```
-Expected: 11k file written. (If air-gapped, copy from `cat /Users/jannesstubbemann/repos/openclawrocks/k8s-operator-v1/LICENSE` — same Apache-2.0 text.)
+Expected: 11k file written. (If air-gapped, copy from `cat /Users/jannesstubbemann/repos/openclawrocks/k8s-operator-v1/LICENSE`: same Apache-2.0 text.)
 
 - [ ] **Step 2: Write `README.md`**
 
@@ -1892,7 +1892,7 @@ Replace the kubebuilder-generated README with:
 [![Go Report Card](https://goreportcard.com/badge/github.com/stubbi/hermes-operator)](https://goreportcard.com/report/github.com/stubbi/hermes-operator)
 [![CI](https://github.com/stubbi/hermes-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/stubbi/hermes-operator/actions/workflows/ci.yaml)
 
-Kubernetes operator for [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent) — a Python-based self-improving multi-platform AI agent.
+Kubernetes operator for [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent): a Python-based self-improving multi-platform AI agent.
 
 > **Status: alpha.** Plan 1 of 7 shipped (minimal happy path).
 
@@ -1983,7 +1983,7 @@ git commit -m "docs: add README, LICENSE, CONTRIBUTING, SECURITY, CODEOWNERS"
 
 ---
 
-## Task 16: `docs/conventions.md` — the single source of truth for plans 2–7
+## Task 16: `docs/conventions.md`: the single source of truth for plans 2-7
 
 **Files:**
 - Create: `docs/conventions.md`
@@ -1995,19 +1995,19 @@ This document is referenced by every subsequent plan. Keep it tight, no aspirati
 Create `docs/conventions.md`:
 
 ```markdown
-# Hermes Operator — Engineering Conventions
+# Hermes Operator: Engineering Conventions
 
-> Referenced by Plans 2–7. Plan 1 establishes the patterns; this doc names them.
+> Referenced by Plans 2-7. Plan 1 establishes the patterns; this doc names them.
 
 ## Code layout
 
-- `api/v1/<kind>_types.go` — CRD types. One file per kind.
-- `internal/controller/<kind>_controller.go` — orchestration only. No resource construction.
-- `internal/resources/<resource>.go` + `<resource>_test.go` — pure builder funcs. One file per resource type.
-- `internal/webhook/<kind>_<webhook>.go` — validator + defaulter implementations (added in Plan 2).
-- `config/crd/bases/` — generated CRD YAML, committed.
-- `charts/hermes-operator/templates/crds/` — synced from `config/crd/bases/` via `make sync-chart-crds` (CI-enforced).
-- `test/e2e/` — kind cluster tests. `test/conformance/` — negative + idempotency + upgrade-path tests (Plan 6).
+- `api/v1/<kind>_types.go`: CRD types. One file per kind.
+- `internal/controller/<kind>_controller.go`: orchestration only. No resource construction.
+- `internal/resources/<resource>.go` + `<resource>_test.go`: pure builder funcs. One file per resource type.
+- `internal/webhook/<kind>_<webhook>.go`: validator + defaulter implementations (added in Plan 2).
+- `config/crd/bases/`: generated CRD YAML, committed.
+- `charts/hermes-operator/templates/crds/`: synced from `config/crd/bases/` via `make sync-chart-crds` (CI-enforced).
+- `test/e2e/`: kind cluster tests. `test/conformance/`: negative + idempotency + upgrade-path tests (Plan 6).
 
 ## Naming
 
@@ -2033,7 +2033,7 @@ Every operator-managed resource carries the labels in `resources.LabelsForInstan
 3. **Set every k8s server-side default explicitly in builders.** RevisionHistoryLimit, ProgressDeadlineSeconds, RestartPolicy, DNSPolicy, SchedulerName, TerminationGracePeriodSeconds, TerminationMessagePath/Policy, ImagePullPolicy on every container, SuccessThreshold on every probe, DefaultMode on volume sources, SessionAffinity:None on Service. Skipping these is what produced openclaw's generation-thrash bugs.
 4. **Preserve third-party annotations + labels on update** via `resources.MergePreservingForeign` with prefix `hermes.agent/` (lesson #446/#447).
 5. **Finalizer add/remove uses `r.Patch()` with a JSON patch**, never `r.Update()` (lesson #437).
-6. **Preserve server-assigned fields on update**: Service.ClusterIP/ClusterIPs, etc. PVCs are immutable — only create, never update.
+6. **Preserve server-assigned fields on update**: Service.ClusterIP/ClusterIPs, etc. PVCs are immutable: only create, never update.
 7. **Status updates are a separate transaction** (`r.Status().Update`) from spec/metadata.
 8. **Owner refs on every managed resource** via `controllerutil.SetControllerReference`.
 
@@ -2059,13 +2059,13 @@ Never `git checkout` or `git switch` in the main working tree.
 
 ## Go style
 
-- Use `0o644` (not `0644`) for octal literals — `gocritic.octalLiteral` enforces this.
+- Use `0o644` (not `0644`) for octal literals: `gocritic.octalLiteral` enforces this.
 - Wrap errors: `fmt.Errorf("context: %w", err)`.
 - Use `resources.Ptr[T]` for short-lived pointer literals.
-- No em/en dashes in code, comments, strings — use regular `-` / `--`.
+- No em/en dashes in code, comments, strings: use regular `-` / `--`.
 - `make fmt` before committing.
 
-## CRD type changes — generation workflow
+## CRD type changes: generation workflow
 
 After modifying `api/v1/*_types.go`:
 
@@ -2077,23 +2077,23 @@ After modifying `api/v1/*_types.go`:
 ## Documentation drift
 
 When adding or changing CRD fields, update both:
-- `README.md` — user-facing overview and feature table.
-- `docs/api-reference.md` — exhaustive field-level reference (added in Plan 2).
+- `README.md`: user-facing overview and feature table.
+- `docs/api-reference.md`: exhaustive field-level reference (added in Plan 2).
 
 Both must stay in sync with the types.
 
 ## Testing strategy (full picture in Plan 6)
 
-- **Unit** in `internal/resources/*_test.go` — pure, fast, no envtest.
-- **envtest** in `internal/controller/*_test.go` — reconcile against fake apiserver.
-- **E2E** in `test/e2e/` — kind cluster, real resources.
-- **Conformance** in `test/conformance/` — negative, idempotency, upgrade-path, GitOps coexistence, failure injection. *(Plan 6)*
+- **Unit** in `internal/resources/*_test.go`: pure, fast, no envtest.
+- **envtest** in `internal/controller/*_test.go`: reconcile against fake apiserver.
+- **E2E** in `test/e2e/`: kind cluster, real resources.
+- **Conformance** in `test/conformance/`: negative, idempotency, upgrade-path, GitOps coexistence, failure injection. *(Plan 6)*
 - **Benchmarks** in `*_bench_test.go`. *(Plan 6)*
 
-## v1 stability — non-negotiable
+## v1 stability: non-negotiable
 
 - API group `hermes.agent`, version `v1`. No `v1alpha1` spoke.
-- New optional fields with `omitempty` and sane defaults — non-breaking.
+- New optional fields with `omitempty` and sane defaults: non-breaking.
 - Field removal requires `hermes.agent/v2` + conversion webhook + ≥6 months overlap.
 - Deprecation: godoc `// Deprecated:`, webhook warning, CHANGELOG + `docs/deprecations.md` entry, target removal ≥2 minors out.
 ```
@@ -2304,7 +2304,7 @@ make kind-up
 make e2e-load-image IMG=hermes-operator:dev
 make e2e
 ```
-Expected: e2e suite reports PASS. If the test for `readyReplicas=1` times out, the agent image probably can't pull — that's fine for now; mark the test pending or use a known-pullable placeholder image (`ghcr.io/nginx/nginx-unprivileged:latest`) until Plan 3 publishes a real hermes-agent image. Adjust the manifest in the test accordingly with a TODO comment pointing at Plan 3.
+Expected: e2e suite reports PASS. If the test for `readyReplicas=1` times out, the agent image probably can't pull: that's fine for now; mark the test pending or use a known-pullable placeholder image (`ghcr.io/nginx/nginx-unprivileged:latest`) until Plan 3 publishes a real hermes-agent image. Adjust the manifest in the test accordingly with a TODO comment pointing at Plan 3.
 
 ```bash
 make kind-down
@@ -2352,18 +2352,18 @@ git push origin plan-1-foundation
 
 ## Self-review (verify before marking the plan complete)
 
-- [ ] Spec §2 (project basics) — covered by Task 1 (kubebuilder init), Task 2 (API group), Task 15 (LICENSE), Task 16 (conventions).
-- [ ] Spec §3 (CRD surface) — Tasks 2–3 scaffold all three CRDs; only `HermesInstance` is reconciled here, which the plan acknowledges.
-- [ ] Spec §4 (HermesInstance spec) — Task 3 implements the *minimal* slice; Plan 2 expands.
-- [ ] Spec §7.1 (code layout) — file structure section at top of plan matches §7.1.
-- [ ] Spec §7.2 rule 1 (`CreateOrUpdate` only) — enforced by Task 11 (Reconcile Guard) and Task 9 (controller uses it).
-- [ ] Spec §7.2 rule 3 (explicit k8s defaults) — Task 8 sets them all in the StatefulSet builder; the idempotency canary in Task 10 verifies.
-- [ ] Spec §7.2 rule 4 (preserve foreign annotations) — Task 4 implements `MergePreservingForeign`; Task 9 uses it.
-- [ ] Spec §7.2 rule 5 (no `r.Update` on CR for finalizer) — Plan 1 has no finalizer; Plan 5 adds one and exercises the rule.
-- [ ] Spec §7.2 rule 6 (preserve server-assigned fields) — Task 9 preserves `Service.ClusterIP` on update.
-- [ ] Spec §10 testing — unit (Tasks 4–8), envtest (Task 10), e2e (Task 17). Conformance suite is Plan 6.
-- [ ] Spec §11 stability — `hermes.agent/v1` only, no `v1alpha1` — Task 2 ensures this; Task 16 documents the commitment.
+- [ ] Spec §2 (project basics): covered by Task 1 (kubebuilder init), Task 2 (API group), Task 15 (LICENSE), Task 16 (conventions).
+- [ ] Spec §3 (CRD surface): Tasks 2-3 scaffold all three CRDs; only `HermesInstance` is reconciled here, which the plan acknowledges.
+- [ ] Spec §4 (HermesInstance spec): Task 3 implements the *minimal* slice; Plan 2 expands.
+- [ ] Spec §7.1 (code layout): file structure section at top of plan matches §7.1.
+- [ ] Spec §7.2 rule 1 (`CreateOrUpdate` only): enforced by Task 11 (Reconcile Guard) and Task 9 (controller uses it).
+- [ ] Spec §7.2 rule 3 (explicit k8s defaults): Task 8 sets them all in the StatefulSet builder; the idempotency canary in Task 10 verifies.
+- [ ] Spec §7.2 rule 4 (preserve foreign annotations): Task 4 implements `MergePreservingForeign`; Task 9 uses it.
+- [ ] Spec §7.2 rule 5 (no `r.Update` on CR for finalizer): Plan 1 has no finalizer; Plan 5 adds one and exercises the rule.
+- [ ] Spec §7.2 rule 6 (preserve server-assigned fields): Task 9 preserves `Service.ClusterIP` on update.
+- [ ] Spec §10 testing: unit (Tasks 4-8), envtest (Task 10), e2e (Task 17). Conformance suite is Plan 6.
+- [ ] Spec §11 stability: `hermes.agent/v1` only, no `v1alpha1`: Task 2 ensures this; Task 16 documents the commitment.
 - [ ] No placeholders: every step has a runnable command or full code.
-- [ ] Type consistency: `BuildPVC`/`BuildConfigMap`/`BuildService`/`BuildStatefulSet`/`PVCName`/`ConfigMapName`/`ServiceName`/`StatefulSetName`/`Ptr`/`LabelsForInstance`/`MergePreservingForeign` are used consistently across Tasks 4–10.
+- [ ] Type consistency: `BuildPVC`/`BuildConfigMap`/`BuildService`/`BuildStatefulSet`/`PVCName`/`ConfigMapName`/`ServiceName`/`StatefulSetName`/`Ptr`/`LabelsForInstance`/`MergePreservingForeign` are used consistently across Tasks 4-10.
 
 End of Plan 1.

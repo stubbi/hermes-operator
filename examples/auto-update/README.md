@@ -1,7 +1,7 @@
 # OCI-registry auto-update with rollback
 
 Auto-update polls the OCI registry on a `pollInterval`, picks the highest
-tag in the channel (here, `1.x` — anything `1.*.*`), takes a pre-update
+tag in the channel (here, `1.x`: anything `1.*.*`), takes a pre-update
 backup, and rolls the StatefulSet forward. If the new image fails
 readiness probes more than `probeFailureThreshold` times within the
 deadline, the operator rolls back automatically and records the failed

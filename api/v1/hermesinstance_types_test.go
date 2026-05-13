@@ -15,7 +15,7 @@ import (
 // Ptr is a local test helper (the resources package's Ptr is not visible here).
 func Ptr[T any](v T) *T { return &v }
 
-// TestHermesInstanceSpec_HasAllSubSpecs is the schema canary — every sub-spec
+// TestHermesInstanceSpec_HasAllSubSpecs is the schema canary: every sub-spec
 // from design §4 must be addressable on HermesInstanceSpec. Tasks 3-9 fill the
 // bodies; this test only guards the shape so the field-tag / json-name choices
 // are reviewable in one place.

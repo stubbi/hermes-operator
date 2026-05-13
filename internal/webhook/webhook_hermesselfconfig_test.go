@@ -12,7 +12,7 @@ import (
 
 func TestSelfConfigValidator_RejectsEmptyInstanceRef(t *testing.T) {
 	t.Parallel()
-	// Client is nil — skips parent lookup, but instanceRef="" is still rejected.
+	// Client is nil: skips parent lookup, but instanceRef="" is still rejected.
 	v := &HermesSelfConfigValidator{}
 	sc := &hermesv1.HermesSelfConfig{ObjectMeta: metav1.ObjectMeta{Name: "demo"}}
 	_, err := v.ValidateCreate(context.Background(), sc)

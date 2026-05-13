@@ -6,12 +6,12 @@
 # copies only the venv + minimal apt deps and runs as the non-root `hermes` user.
 #
 # Build args:
-#   HERMES_VERSION   — the exact hermes-agent release to package (e.g. "1.4.3").
+#   HERMES_VERSION  : the exact hermes-agent release to package (e.g. "1.4.3").
 #                     Required. The CI workflow at .github/workflows/agent-image.yaml
 #                     drives this from a matrix.
-#   PYTHON_VERSION   — Python interpreter version. Default 3.11.
-#   UV_VERSION       — uv tool version. Default 0.5.0 (pinned for reproducibility).
-#   TINI_VERSION     — tini release tag (lesson openclaw #471: tini as PID 1).
+#   PYTHON_VERSION  : Python interpreter version. Default 3.11.
+#   UV_VERSION      : uv tool version. Default 0.5.0 (pinned for reproducibility).
+#   TINI_VERSION    : tini release tag (lesson openclaw #471: tini as PID 1).
 #
 # Output: a runtime image that, with no further configuration, runs
 #         `hermes-agent --config ~/.hermes/config.yaml` as UID 1000.

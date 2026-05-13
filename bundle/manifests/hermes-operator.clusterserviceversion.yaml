@@ -12,7 +12,7 @@ metadata:
     repository: https://github.com/stubbi/hermes-operator
     description: >-
       A production-grade Kubernetes operator for deploying and managing
-      nousresearch/hermes-agent — a Python-based self-improving multi-platform
+      nousresearch/hermes-agent: a Python-based self-improving multi-platform
       AI agent.
     alm-examples: |-
       [
@@ -103,7 +103,7 @@ spec:
 
     A production-grade Kubernetes operator for deploying and managing
 
-    [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent) —
+    [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent):
 
     a Python-based, self-improving, multi-platform AI agent.
 
@@ -124,26 +124,26 @@ spec:
     ### Key Capabilities
 
 
-    - **Declarative Deployment** — every aspect of an agent's runtime, gateways,
+    - **Declarative Deployment**: every aspect of an agent's runtime, gateways,
       storage, networking, observability, and security through a single
       `HermesInstance` resource.
-    - **Self-Configuration with Audit** — the agent persists learned skills, env
+    - **Self-Configuration with Audit**: the agent persists learned skills, env
       vars, config patches, and workspace files via `HermesSelfConfig` CRs that
       the operator validates against an explicit allowlist, then applies via
       Server-Side Apply (no GitOps flap).
-    - **Cluster Defaults** — `HermesClusterDefaults` (cluster-scoped singleton)
+    - **Cluster Defaults**: `HermesClusterDefaults` (cluster-scoped singleton)
       supplies organization-wide defaults for image, storage class, IRSA, etc.
-    - **Auto-Update with Rollback** — OCI registry polling with pre-update
+    - **Auto-Update with Rollback**: OCI registry polling with pre-update
     backup
       and probe-driven rollback.
-    - **Backup / Restore** — S3-compatible (R2, MinIO, AWS), backup-on-delete
+    - **Backup / Restore**: S3-compatible (R2, MinIO, AWS), backup-on-delete
       finalizer, declarative restore from snapshot.
-    - **OpenClaw Migration** — one-shot `spec.migration.fromOpenClaw` invokes
+    - **OpenClaw Migration**: one-shot `spec.migration.fromOpenClaw` invokes
       hermes-agent's built-in importer.
-    - **Honcho Profile Store** — optional companion Deployment with persistence
+    - **Honcho Profile Store**: optional companion Deployment with persistence
       for dialectic user profiles.
-    - **Multi-Platform Gateways** — first-class config for Telegram, Discord,
-      Slack, WhatsApp, Signal — each with isolated secret rotation.
+    - **Multi-Platform Gateways**: first-class config for Telegram, Discord,
+      Slack, WhatsApp, Signal: each with isolated secret rotation.
 
     ### Default Security Posture
 
@@ -186,7 +186,7 @@ spec:
 
     3. Create a `HermesInstance` referencing the Secret.
 
-    4. The operator handles the rest — deployment, networking, security,
+    4. The operator handles the rest: deployment, networking, security,
        lifecycle.
 
     ### Prerequisites

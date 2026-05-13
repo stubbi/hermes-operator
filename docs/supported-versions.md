@@ -23,7 +23,7 @@ When a new Kubernetes minor version reaches GA:
 
 For the **v1.0.0** release of hermes-operator:
 
-- Kubernetes 1.28–1.32 are validated via envtest in CI on every PR and main push.
+- Kubernetes 1.28-1.32 are validated via envtest in CI on every PR and main push.
 - API compatibility: `HermesInstance`, `HermesClusterDefaults`, and `HermesSelfConfig` v1 APIs will not have breaking changes within the v1.x line.
 - Deprecation notices will be given at least one minor release before removal.
 - Security patches will be backported to the most recent minor release if the current minor is not yet 30 days old.

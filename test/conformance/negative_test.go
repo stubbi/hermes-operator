@@ -16,7 +16,7 @@ type negativeCase struct {
 	yaml string
 	// wantErrSubstring is a substring expected in the kubectl apply error output.
 	wantErrSubstring string
-	// isUpdate — when true, apply the base yaml first, then apply yaml as an update.
+	// isUpdate: when true, apply the base yaml first, then apply yaml as an update.
 	isUpdate bool
 	// baseYAML is applied first when isUpdate=true; yaml is then the mutation.
 	baseYAML string
@@ -43,7 +43,7 @@ spec:
 	if extra == "" {
 		return base
 	}
-	// Indent extra under spec: — caller must pass only spec-level fields.
+	// Indent extra under spec:: caller must pass only spec-level fields.
 	lines := strings.Split(extra, "\n")
 	indented := make([]string, 0, len(lines))
 	for _, l := range lines {
@@ -463,7 +463,7 @@ spec:
       name: some-config
 `,
 		// The webhook emits a warning but does NOT deny. We set wantErrSubstring
-		// empty to indicate success is expected — the test structure will use
+		// empty to indicate success is expected: the test structure will use
 		// this sentinel to skip the error assertion.
 		wantErrSubstring: "",
 	},

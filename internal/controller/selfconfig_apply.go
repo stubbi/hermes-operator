@@ -25,13 +25,13 @@ import (
 // SelfConfigFieldManager is the SSA field manager string the operator uses
 // when applying HermesSelfConfig-driven mutations to HermesInstance and to
 // the workspace ConfigMap. Any other manager that writes the same path
-// produces an SSA conflict, which is exactly what we want — GitOps tools
+// produces an SSA conflict, which is exactly what we want: GitOps tools
 // keep their fields, this manager keeps its own.
 const SelfConfigFieldManager = "hermes.agent/selfconfig"
 
 // ForceOwnershipAnnotation, when set to "true" on a HermesSelfConfig,
 // causes the reconciler to call client.Apply with client.ForceOwnership.
-// Default behaviour (no annotation, or "false") is collaborative — SSA
+// Default behaviour (no annotation, or "false") is collaborative: SSA
 // conflicts are surfaced as a Denied status and reported via an Event.
 const ForceOwnershipAnnotation = "hermes.agent/force-ownership"
 
@@ -124,7 +124,7 @@ func buildWorkspaceFilesPatch(parent *hermesv1.HermesInstance, sc *hermesv1.Herm
 // buildPatchConfigPayload turns a patchConfig into a partial workspace
 // ConfigMap with key "selfconfig.yaml". The hermes-agent runtime merges
 // this on top of ~/.hermes/config.yaml at startup. JSON is valid YAML, so
-// we store the patch verbatim — the agent normalises at load time.
+// we store the patch verbatim: the agent normalises at load time.
 func buildPatchConfigPayload(parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfConfig) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
@@ -143,7 +143,7 @@ func buildPatchConfigPayload(parent *hermesv1.HermesInstance, sc *hermesv1.Herme
 
 // buildProfileSnapshotPayload returns the Job that materialises a Honcho
 // profile snapshot. Unlike the HermesInstance / ConfigMap payloads, Jobs are
-// NOT SSA-patched — they are created with a deterministic name; the apiserver
+// NOT SSA-patched: they are created with a deterministic name; the apiserver
 // either creates a new Job or no-ops on AlreadyExists.
 func buildProfileSnapshotPayload(parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfConfig, when time.Time) *batchv1.Job {
 	if sc.Spec.AddProfileSnapshot == nil {

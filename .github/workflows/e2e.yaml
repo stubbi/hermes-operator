@@ -1,4 +1,4 @@
-# TODO(v1.x): Add a strategy.matrix.k8s across 1.28–1.32 once kind node-image
+# TODO(v1.x): Add a strategy.matrix.k8s across 1.28-1.32 once kind node-image
 # SHAs are pinned per-version and the CI cost increase is acceptable.
 # For v1.0.0 a single-version cluster is sufficient.
 name: E2E

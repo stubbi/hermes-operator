@@ -96,7 +96,7 @@ var _ = Describe("idempotency canary", Ordered, func() {
 })
 
 // extractName parses the `name:` field from the first metadata block in a
-// YAML manifest. It is intentionally naive — it walks lines looking for the
+// YAML manifest. It is intentionally naive: it walks lines looking for the
 // pattern "  name: <value>" after a "metadata:" line.
 func extractName(yaml string) string {
 	inMeta := false

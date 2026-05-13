@@ -404,7 +404,7 @@ func TestBuildStatefulSet_AcceptsInitContainers(t *testing.T) {
 	initC := corev1.Container{Name: "init-restore", Image: "restic/restic:0.16.4"}
 	sts := BuildStatefulSet(inst, []corev1.Container{initC})
 	require.NotNil(t, sts)
-	// extraInits must come BEFORE operator-managed inits — restore writes to PVC
+	// extraInits must come BEFORE operator-managed inits: restore writes to PVC
 	// before runtime-init starts touching it.
 	require.NotEmpty(t, sts.Spec.Template.Spec.InitContainers)
 	assert.Equal(t, "init-restore", sts.Spec.Template.Spec.InitContainers[0].Name)

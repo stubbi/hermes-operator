@@ -39,9 +39,9 @@ for users who can't (or won't) hit the registry.
 
 Every published release signs three image tags pointing to the same digest:
 
-- `vX.Y.Z` — exact version
-- `X.Y` — minor channel (moves on patch releases)
-- `latest` — most recent stable (moves on every release)
+- `vX.Y.Z`: exact version
+- `X.Y`: minor channel (moves on patch releases)
+- `latest`: most recent stable (moves on every release)
 
 Pinning by digest (`@sha256:...`) is recommended for production.
 
