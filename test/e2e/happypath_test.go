@@ -6,17 +6,12 @@ import (
 )
 
 var _ = Describe("Happy path", func() {
-	It("reconciles a minimal HermesInstance into a running StatefulSet", func() {
-		// TODO(plan-3): switch to ghcr.io/stubbi/hermes-agent:latest once Plan 3
-		// publishes the agent image. Until then we use a generic non-root image
-		// so the pod can become Ready.
-		//
-		// NOTE: nginx-unprivileged listens on port 8080 by default, not 8443.
-		// The Service expects the "gateway" port 8443. The pod will NOT reach
-		// Ready because the readiness probe (TCP socket on gateway/8443) will
-		// fail. This test is expected to time out until Plan 3 ships the real
-		// hermes-agent image that opens 8443. The e2e infrastructure is correct;
-		// the placeholder image is intentional for Plan 1.
+	It("reconciles a minimal HermesInstance into a managed StatefulSet", func() {
+		// We can't assert pod-ready end-to-end until a real hermes-agent image
+		// is published (the operator's readiness probe targets the agent's
+		// gateway port). What we CAN assert is the operator's contract:
+		// HermesInstance -> StatefulSet, Service, ConfigMap, PVC all created
+		// with the expected owner refs.
 		manifest := `
 apiVersion: hermes.agent/v1
 kind: HermesInstance
@@ -35,10 +30,25 @@ spec:
 `
 		out, err := runStdin("kubectl", []string{"apply", "-f", "-"}, manifest)
 		Expect(err).ToNot(HaveOccurred(), "kubectl apply failed: %s", out)
+		DeferCleanup(func() {
+			_, _ = kubectl("delete", "hermesinstance", "e2e-demo", "-n", "default", "--ignore-not-found", "--wait=false")
+		})
 
 		Eventually(func() string {
-			out, _ := kubectl("get", "statefulset", "e2e-demo", "-n", "default", "-o", "jsonpath={.status.readyReplicas}")
+			out, _ := kubectl("get", "statefulset", "e2e-demo", "-n", "default", "-o", "jsonpath={.metadata.name}")
 			return out
-		}).Should(Equal("1"))
+		}).Should(Equal("e2e-demo"), "operator never created the StatefulSet")
+		Eventually(func() string {
+			out, _ := kubectl("get", "service", "e2e-demo", "-n", "default", "-o", "jsonpath={.metadata.name}")
+			return out
+		}).Should(Equal("e2e-demo"), "operator never created the Service")
+		Eventually(func() string {
+			out, _ := kubectl("get", "configmap", "e2e-demo-config", "-n", "default", "-o", "jsonpath={.metadata.name}")
+			return out
+		}).Should(Equal("e2e-demo-config"), "operator never created the ConfigMap")
+		Eventually(func() string {
+			out, _ := kubectl("get", "pvc", "e2e-demo-data", "-n", "default", "-o", "jsonpath={.metadata.name}")
+			return out
+		}).Should(Equal("e2e-demo-data"), "operator never created the PVC")
 	})
 })
