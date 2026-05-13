@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.7](https://github.com/stubbi/hermes-operator/compare/v0.1.6...v0.1.7) (2026-05-13)
+
+
+### Bug Fixes
+
+* **ci:** drop --remote from gh repo fork in operatorhub-submit ([#29](https://github.com/stubbi/hermes-operator/issues/29)) ([55bab59](https://github.com/stubbi/hermes-operator/commit/55bab593d92088ce31ff46925ca4a5b6a37a80b3))
+
 ## [0.1.6](https://github.com/stubbi/hermes-operator/compare/v0.1.5...v0.1.6) (2026-05-13)
 
 

@@ -1,12 +1,12 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: 0.1.6
+  name: 0.1.7
   namespace: placeholder
   annotations:
     capabilities: Auto Pilot
     categories: AI/Machine Learning, Developer Tools, Application Runtime
-    containerImage: 0.1.6
+    containerImage: 0.1.7
     createdAt: '2026-05-12T00:00:00Z'
     support: stubbi
     repository: https://github.com/stubbi/hermes-operator
@@ -193,7 +193,7 @@ spec:
 
     - Kubernetes 1.28+
   maturity: alpha
-  version: 0.1.6
+  version: 0.1.7
   minKubeVersion: 1.28.0
   keywords:
     - ai
