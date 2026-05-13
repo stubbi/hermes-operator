@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.6](https://github.com/stubbi/hermes-operator/compare/v0.1.5...v0.1.6) (2026-05-13)
+
+
+### Features
+
+* hermes-operator v1.0.0 — plans 1–7 implementation ([#1](https://github.com/stubbi/hermes-operator/issues/1)) ([a99ad5c](https://github.com/stubbi/hermes-operator/commit/a99ad5c9e2d684c6a7fbd0a5884e23a982d449f0))
+
+
+### Bug Fixes
+
+* **ci:** semantic Bundle RBAC sync check (was: file-diff flake) ([#16](https://github.com/stubbi/hermes-operator/issues/16)) ([3b3b5a6](https://github.com/stubbi/hermes-operator/commit/3b3b5a6e83046ccf041340e082e0165234d3ceb3))
+* **release:** build container images via docker/build-push-action ([#23](https://github.com/stubbi/hermes-operator/issues/23)) ([d1b4862](https://github.com/stubbi/hermes-operator/commit/d1b4862f018d4b6c1d657d8485ce4f417f754030))
+* **release:** run make installer via goreleaser before:hooks ([#25](https://github.com/stubbi/hermes-operator/issues/25)) ([5bcd154](https://github.com/stubbi/hermes-operator/commit/5bcd1548d9b80b23809b171b13d7ec71a80724af))
+* **release:** trigger v0.1.2 (v0.1.1 tag has broken release.yaml) ([#18](https://github.com/stubbi/hermes-operator/issues/18)) ([e3f8289](https://github.com/stubbi/hermes-operator/commit/e3f8289b26d2dcc581702c138549c90914b747bf))
+* **release:** use --skip=validate instead of throw-away commit ([#20](https://github.com/stubbi/hermes-operator/issues/20)) ([61f2099](https://github.com/stubbi/hermes-operator/commit/61f20999031ba61f13d2996b7b235026ab701e5a))
+
 ## [0.1.5](https://github.com/stubbi/hermes-operator/compare/v0.1.4...v0.1.5) (2026-05-13)
 
 
