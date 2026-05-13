@@ -91,13 +91,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: sbom-${{ github.ref_name }}.spdx.json
-          token: ${{ secrets.RELEASE_PAT }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
       - name: Publish release (undraft)
         uses: softprops/action-gh-release@v2
         with:
           draft: false
-          token: ${{ secrets.RELEASE_PAT }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   helm-release:
     name: Helm OCI Release

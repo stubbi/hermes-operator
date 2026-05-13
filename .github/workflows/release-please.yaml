@@ -19,7 +19,7 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.RELEASE_PAT }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
@@ -35,13 +35,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_PAT }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
       - name: Create and push release tag
         env:
           TAG: ${{ needs.release-please.outputs.tag_name }}
           SHA: ${{ needs.release-please.outputs.sha }}
-          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           git config user.name  "release-please[bot]"
           git config user.email "release-please[bot]@users.noreply.github.com"
@@ -50,7 +50,7 @@ jobs:
 
       - name: Flip stale autorelease labels on older open PRs
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
           # Remove autorelease:pending / autorelease:tagged from any PRs that
