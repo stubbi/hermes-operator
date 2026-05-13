@@ -55,7 +55,7 @@ spec:
 	Eventually(func() error {
 		_, err := runStdin("kubectl", []string{"apply", "--dry-run=server", "-f", "-"}, probe)
 		return err
-	}, 3*time.Minute, 3*time.Second).Should(Succeed(),
+	}, 5*time.Minute, 3*time.Second).Should(Succeed(),
 		"webhook never answered a dry-run apply; operator pod is ready but TLS bind / cert injection is still pending")
 
 	By("installing MinIO for backup/restore e2e")

@@ -293,12 +293,29 @@ conformance-kind-down:
 .PHONY: conformance-install
 conformance-install: docker-build ## Install operator + CRDs onto the conformance cluster.
 	kind load docker-image $(IMG) --name $(CONFORMANCE_KIND_CLUSTER)
+	@echo "waiting for cert-manager webhook to be reachable before installing chart..."
+	@kubectl wait --for=condition=Available --timeout=2m \
+	  -n cert-manager deploy/cert-manager-webhook deploy/cert-manager deploy/cert-manager-cainjector || true
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+	  if kubectl get --raw=/apis/cert-manager.io/v1 >/dev/null 2>&1; then break; fi; \
+	  echo "waiting for cert-manager API (try $$i/10)..."; sleep 3; \
+	done
 	helm upgrade --install hermes-operator charts/hermes-operator \
 	  --namespace hermes-system --create-namespace \
 	  --set image.repository=$(shell echo $(IMG) | cut -d: -f1) \
 	  --set image.tag=$(shell echo $(IMG) | cut -d: -f2) \
 	  --set image.pullPolicy=IfNotPresent \
-	  --wait --timeout=5m
+	  --wait --timeout=10m \
+	  || { \
+	    echo "::group::diagnostics"; \
+	    kubectl get all -n hermes-system || true; \
+	    kubectl describe deploy/hermes-operator -n hermes-system || true; \
+	    kubectl get certificates,certificaterequests -A || true; \
+	    kubectl get pods -n hermes-system -o wide || true; \
+	    kubectl logs -n hermes-system -l app.kubernetes.io/name=hermes-operator --all-containers=true --tail=200 || true; \
+	    echo "::endgroup::"; \
+	    exit 1; \
+	  }
 
 .PHONY: conformance
 conformance: ## Run the full conformance suite. Requires KUBECONFIG to a cluster with operator installed.

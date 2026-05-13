@@ -11,6 +11,10 @@ on:
 jobs:
   analyze:
     name: Analyze (go)
+    # Code scanning SARIF upload requires Code Scanning to be enabled on the
+    # repository, which on private repos requires GitHub Advanced Security.
+    # The job runs as soon as the repo is public (or has GHAS).
+    if: github.event.repository.private == false || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
       actions: read

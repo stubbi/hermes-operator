@@ -27,6 +27,12 @@ jobs:
             --namespace cert-manager --create-namespace \
             --set crds.enabled=true \
             --wait --timeout 5m
+          # cert-manager's --wait covers pod readiness, but its API can still be
+          # transiently unavailable for a few seconds after. Poll until it answers.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            kubectl get --raw=/apis/cert-manager.io/v1 >/dev/null 2>&1 && break
+            echo "waiting for cert-manager API (try $i/10)..."; sleep 3
+          done
       - name: Build operator image
         run: make docker-build IMG=hermes-operator:dev
       - name: Load image into kind
