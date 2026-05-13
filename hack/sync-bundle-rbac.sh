@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Extract rules from the kubebuilder-generated ClusterRole and splice them
-# into the bundle CSV's clusterPermissions[0].rules block. Idempotent.
+# Compare/sync the rules in bundle/manifests/...clusterserviceversion.yaml
+# against the kubebuilder-generated ClusterRole. Compares semantically (parses
+# both sides through yq and compares the normalized rules array), so YAML
+# style differences in the rest of the CSV don't produce false positives.
+#
+#   sync-bundle-rbac.sh           write the generated rules into the CSV
+#   sync-bundle-rbac.sh --check   exit non-zero if the rules don't match
 
 CSV=bundle/manifests/hermes-operator.clusterserviceversion.yaml
 ROLE=config/rbac/role.yaml
@@ -12,19 +17,25 @@ if [ ! -f "$ROLE" ]; then
   exit 1
 fi
 
-# yq merges: replace the rules array on the first clusterPermissions entry.
+# Normalize both sides through yq -P (pretty) so we compare canonical forms.
+GENERATED=$(yq -P '.rules' "$ROLE")
+EMBEDDED=$(yq -P '.spec.install.spec.clusterPermissions[0].rules' "$CSV")
+
+if [ "${1:-}" = "--check" ]; then
+  if [ "$GENERATED" != "$EMBEDDED" ]; then
+    echo "::error::Bundle CSV RBAC drifted from $ROLE. Run 'make sync-bundle-rbac' locally." >&2
+    diff <(echo "$GENERATED") <(echo "$EMBEDDED") >&2 || true
+    exit 1
+  fi
+  echo "Bundle CSV RBAC matches $ROLE."
+  exit 0
+fi
+
+# Mutate mode: replace the rules array in place.
 TMP=$(mktemp)
 yq eval \
   '.spec.install.spec.clusterPermissions[0].rules = load("'"$ROLE"'").rules' \
   "$CSV" > "$TMP"
 mv "$TMP" "$CSV"
-
-# In --check mode (CI), bail if the working tree is dirty after sync.
-if [ "${1:-}" = "--check" ]; then
-  if ! git diff --exit-code -- "$CSV"; then
-    echo "::error::Bundle CSV RBAC drifted from $ROLE. Run 'make sync-bundle-rbac' locally." >&2
-    exit 1
-  fi
-fi
 
 echo "Bundle CSV RBAC synced from $ROLE."
