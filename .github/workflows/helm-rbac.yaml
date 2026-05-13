@@ -7,7 +7,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with: { go-version: "1.26" }
       - uses: azure/setup-helm@v5
@@ -17,6 +17,6 @@ jobs:
     name: Bundle RBAC Sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: sudo snap install yq
       - run: make sync-bundle-rbac-check
