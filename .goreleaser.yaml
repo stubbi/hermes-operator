@@ -19,35 +19,10 @@ builds:
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
 
-dockers_v2:
-  - id: hermes-operator
-    dockerfile: Dockerfile
-    ids:
-      - manager
-    images:
-      - "ghcr.io/stubbi/hermes-operator"
-    tags:
-      - "{{ .Tag }}"
-      - "{{ .Major }}.{{ .Minor }}"
-      - "latest"
-    platforms:
-      - linux/amd64
-      - linux/arm64
-    labels:
-      "org.opencontainers.image.title": "{{ .ProjectName }}"
-      "org.opencontainers.image.version": "{{ .Version }}"
-      "org.opencontainers.image.revision": "{{ .FullCommit }}"
-      "org.opencontainers.image.created": "{{ .Date }}"
-      "org.opencontainers.image.source": "{{ .GitURL }}"
-      "org.opencontainers.image.licenses": "Apache-2.0"
-    build_args:
-      PREBUILT_BINARY: "manager"
-    extra_files:
-      - cmd/
-      - api/
-      - internal/
-      - go.mod
-      - go.sum
+# Container images are built separately by docker/build-push-action in the
+# release workflow. GoReleaser's dockers_v2 had trouble staging the prebuilt
+# binary into the build context, and buildx with native Go cross-compile
+# (BUILDPLATFORM) is faster than QEMU anyway.
 
 archives:
   - id: binaries

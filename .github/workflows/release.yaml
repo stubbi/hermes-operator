@@ -59,19 +59,50 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign container image tags with cosign (keyless OIDC)
-        env:
-          COSIGN_EXPERIMENTAL: "true"
+      - name: Compute image tags
+        id: image_tags
         run: |
-          IMAGE="ghcr.io/stubbi/hermes-operator"
           TAG="${{ github.ref_name }}"
           MAJOR_MINOR=$(echo "$TAG" | sed 's/^v//' | cut -d. -f1,2)
-          for t in "${TAG}" "${MAJOR_MINOR}" "latest"; do
-            DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${t}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
-            if [ -n "$DIGEST" ]; then
-              cosign sign --yes "${IMAGE}@${DIGEST}"
-            fi
-          done
+          IMAGE="ghcr.io/stubbi/hermes-operator"
+          {
+            echo "image=${IMAGE}"
+            echo "major_minor=${MAJOR_MINOR}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE}:${TAG}"
+            echo "${IMAGE}:${MAJOR_MINOR}"
+            echo "${IMAGE}:latest"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push container image (multi-arch)
+        id: docker_build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.image_tags.outputs.tags }}
+          provenance: true
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.title=hermes-operator
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/stubbi/hermes-operator
+            org.opencontainers.image.licenses=Apache-2.0
+
+      - name: Sign container image with cosign (keyless OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+          IMAGE: ${{ steps.image_tags.outputs.image }}
+          DIGEST: ${{ steps.docker_build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
 
       - name: Generate SBOM for container image
         uses: anchore/sbom-action@v0
@@ -83,13 +114,10 @@ jobs:
       - name: Attest SBOM with cosign
         env:
           COSIGN_EXPERIMENTAL: "true"
-        run: |
-          IMAGE="ghcr.io/stubbi/hermes-operator"
-          TAG="${{ github.ref_name }}"
-          DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
-          if [ -n "$DIGEST" ]; then
-            cosign attest --yes --predicate "sbom-${TAG}.spdx.json" --type spdxjson "${IMAGE}@${DIGEST}"
-          fi
+          IMAGE: ${{ steps.image_tags.outputs.image }}
+          DIGEST: ${{ steps.docker_build.outputs.digest }}
+          TAG: ${{ github.ref_name }}
+        run: cosign attest --yes --predicate "sbom-${TAG}.spdx.json" --type spdxjson "${IMAGE}@${DIGEST}"
 
       - name: Upload SBOM to GitHub release
         uses: softprops/action-gh-release@v2

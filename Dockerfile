@@ -1,36 +1,22 @@
-ARG PREBUILT_BINARY=""
-
-# Build the manager binary
-FROM golang:1.26 AS builder
-ARG PREBUILT_BINARY
+# Build the manager binary. Use BUILDPLATFORM so Go cross-compiles natively
+# rather than running the whole compile under QEMU emulation, which is
+# pathologically slow for Go.
+FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
-# Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN if [ -z "$PREBUILT_BINARY" ]; then go mod download; fi
+RUN go mod download
 
-# Copy the go source
 COPY cmd/ cmd/
 COPY api/ api/
 COPY internal/ internal/
 
-# GoReleaser will COPY a prebuilt binary in; otherwise build from source.
-COPY ${PREBUILT_BINARY:-cmd/main.go} ./prebuilt-or-main
-RUN set -eu; \
-    if [ -n "${PREBUILT_BINARY:-}" ]; then \
-      cp ./prebuilt-or-main /workspace/manager && chmod +x /workspace/manager; \
-    else \
-      rm ./prebuilt-or-main && \
-      CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o /workspace/manager cmd/main.go; \
-    fi
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+    go build -a -ldflags="-s -w" -o /workspace/manager cmd/main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
