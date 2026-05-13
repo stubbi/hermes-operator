@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.4](https://github.com/stubbi/hermes-operator/compare/v0.1.3...v0.1.4) (2026-05-13)
+
+
+### Bug Fixes
+
+* **release:** build container images via docker/build-push-action ([#23](https://github.com/stubbi/hermes-operator/issues/23)) ([d1b4862](https://github.com/stubbi/hermes-operator/commit/d1b4862f018d4b6c1d657d8485ce4f417f754030))
+
 ## [0.1.3](https://github.com/stubbi/hermes-operator/compare/v0.1.2...v0.1.3) (2026-05-13)
 
 
