@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1](https://github.com/stubbi/hermes-operator/compare/v0.1.0...v0.1.1) (2026-05-13)
+
+
+### Features
+
+* hermes-operator v1.0.0 — plans 1–7 implementation ([#1](https://github.com/stubbi/hermes-operator/issues/1)) ([a99ad5c](https://github.com/stubbi/hermes-operator/commit/a99ad5c9e2d684c6a7fbd0a5884e23a982d449f0))
+
 ## [1.0.0](https://github.com/stubbi/hermes-operator/releases/tag/v1.0.0) (2026-05-12)
 
 First public release. The Kubernetes operator for

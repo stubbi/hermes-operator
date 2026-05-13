@@ -1,17 +1,12 @@
 image:
   repository: ghcr.io/stubbi/hermes-operator
-  tag: ""
+  tag: 0.1.1
   pullPolicy: IfNotPresent
-
 logLevel: info
-
 createRBAC: true
-
 watchNamespaces: []
-
 metrics:
   secure: true
-
 resources:
   requests:
     cpu: 100m
@@ -19,7 +14,6 @@ resources:
   limits:
     cpu: 500m
     memory: 256Mi
-
 webhook:
   enabled: true
   port: 9443
@@ -27,29 +21,25 @@ webhook:
     enabled: true
     issuerKind: Issuer
     issuerName: hermes-operator-selfsigned
-  caBundle: ""
+  caBundle: ''
   servingCertSecretName: hermes-operator-webhook-server-cert
-
-# -------- Plan 3: hermes-agent defaults --------
-
-# Default values copied into HermesInstance.spec.image when not set by the user.
-# Mirrors HermesClusterDefaults but distributed via the chart for convenience.
 agentImage:
   repository: ghcr.io/stubbi/hermes-agent
-  tag: "v0.13.0"
+  tag: v0.13.0
   pullPolicy: IfNotPresent
-
-# Default values copied into HermesInstance.spec.profileStore.honcho.image.
 honchoImage:
   repository: ghcr.io/plastic-labs/honcho
-  tag: "0.1.0"
-
-# Egress endpoints the operator-rendered NetworkPolicy will allow per gateway.
-# Operators on CNI plugins without FQDN-peer support may override this list
-# with explicit CIDRs.
+  tag: 0.1.0
 gatewayEgressEndpoints:
-  telegram: ["api.telegram.org"]
-  discord: ["discord.com", "gateway.discord.gg"]
-  slack: ["slack.com", "wss-primary.slack.com"]
-  whatsapp: ["graph.facebook.com"]
-  signal: ["chat.signal.org"]
+  telegram:
+    - api.telegram.org
+  discord:
+    - discord.com
+    - gateway.discord.gg
+  slack:
+    - slack.com
+    - wss-primary.slack.com
+  whatsapp:
+    - graph.facebook.com
+  signal:
+    - chat.signal.org
