@@ -61,7 +61,7 @@ linters:
       #   - scheme.Builder
       # The deprecated forms still work for v1.0; migrating to the typed
       # equivalents is tracked as a v1.1 cleanup.
-      - path: (api/v1|cmd|internal/controller)/
+      - path: (api/v1|cmd|internal/(controller|webhook))/
         linters: [staticcheck]
         text: 'SA1019'
 
