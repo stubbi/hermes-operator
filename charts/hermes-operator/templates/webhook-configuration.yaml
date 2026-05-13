@@ -1,0 +1,89 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "hermes-operator.fullname" . }}-validating
+  annotations:
+    {{- if .Values.webhook.certManager.enabled }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/hermes-operator-serving-cert
+    {{- end }}
+webhooks:
+  - name: vhermesinstance.hermes.agent
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ include "hermes-operator.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /validate-hermes-agent-v1-hermesinstance
+      {{- if and (not .Values.webhook.certManager.enabled) .Values.webhook.caBundle }}
+      caBundle: {{ .Values.webhook.caBundle }}
+      {{- end }}
+    rules:
+      - apiGroups: [hermes.agent]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [hermesinstances]
+  - name: vhermesclusterdefaults.hermes.agent
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ include "hermes-operator.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /validate-hermes-agent-v1-hermesclusterdefaults
+      {{- if and (not .Values.webhook.certManager.enabled) .Values.webhook.caBundle }}
+      caBundle: {{ .Values.webhook.caBundle }}
+      {{- end }}
+    rules:
+      - apiGroups: [hermes.agent]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [hermesclusterdefaults]
+  - name: vhermesselfconfig.hermes.agent
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ include "hermes-operator.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /validate-hermes-agent-v1-hermesselfconfig
+      {{- if and (not .Values.webhook.certManager.enabled) .Values.webhook.caBundle }}
+      caBundle: {{ .Values.webhook.caBundle }}
+      {{- end }}
+    rules:
+      - apiGroups: [hermes.agent]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [hermesselfconfigs]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "hermes-operator.fullname" . }}-mutating
+  annotations:
+    {{- if .Values.webhook.certManager.enabled }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/hermes-operator-serving-cert
+    {{- end }}
+webhooks:
+  - name: mhermesinstance.hermes.agent
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ include "hermes-operator.fullname" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-hermes-agent-v1-hermesinstance
+      {{- if and (not .Values.webhook.certManager.enabled) .Values.webhook.caBundle }}
+      caBundle: {{ .Values.webhook.caBundle }}
+      {{- end }}
+    rules:
+      - apiGroups: [hermes.agent]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [hermesinstances]
+{{- end }}

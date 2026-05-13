@@ -1,0 +1,12 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: conformance-minimal
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: latest
+  storage:
+    persistence:
+      enabled: true
+      size: 1Gi

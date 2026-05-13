@@ -1,0 +1,9 @@
+apiVersion: hermes.agent/v1
+kind: HermesClusterDefaults
+metadata:
+  labels:
+    app.kubernetes.io/name: hermes-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: hermesclusterdefaults-sample
+spec:
+  # TODO(user): Add fields here

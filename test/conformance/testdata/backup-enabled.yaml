@@ -1,0 +1,21 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: conformance-backup
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: latest
+  storage:
+    persistence:
+      enabled: true
+      size: 1Gi
+  backup:
+    s3:
+      bucket: hermes-backups
+      endpoint: minio.minio.svc:9000
+      credentialsSecretRef:
+        name: minio-creds
+    schedule: "0 3 * * *"
+    onDelete: true
+    historyLimit: 30

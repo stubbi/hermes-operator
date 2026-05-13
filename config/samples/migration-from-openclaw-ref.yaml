@@ -1,0 +1,19 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: hermes-migrated-from-oc
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: 1.0.0
+  storage:
+    persistence:
+      enabled: true
+      size: 10Gi
+  migration:
+    fromOpenClaw:
+      mode: copy
+      source:
+        openclawInstanceRef:
+          name: my-openclaw
+          namespace: agents

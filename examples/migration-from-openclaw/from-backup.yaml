@@ -1,0 +1,24 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: migrated-from-backup
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.4.2"
+  storage:
+    persistence:
+      enabled: true
+      size: 20Gi
+  migration:
+    fromOpenClaw:
+      source:
+        backupRef:
+          s3:
+            bucket: openclaw-backups
+            endpoint: s3.amazonaws.com
+            region: us-east-1
+            key: prod/my-openclaw/2026-05-11.tar.zst
+            credentialsSecretRef:
+              name: oc-s3-creds
+      mode: copy

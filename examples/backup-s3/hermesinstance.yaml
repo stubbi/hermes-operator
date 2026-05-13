@@ -1,0 +1,26 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: backup-s3
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.4.2"
+  storage:
+    persistence:
+      enabled: true
+      size: 5Gi
+  backup:
+    s3:
+      bucket: hermes-backups
+      endpoint: http://minio:9000
+      region: us-east-1
+      pathPrefix: agents/
+      forcePathStyle: true
+      credentialsSecretRef:
+        name: hermes-s3-creds
+    schedule: "*/10 * * * *"
+    onDelete: true
+    preUpdate: true
+    historyLimit: 12
+    failedHistoryLimit: 3

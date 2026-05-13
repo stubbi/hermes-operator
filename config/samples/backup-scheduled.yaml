@@ -1,0 +1,23 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: hermes-backup-scheduled
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: 1.0.0
+  storage:
+    persistence:
+      enabled: true
+      size: 10Gi
+  backup:
+    schedule: "0 3 * * *"
+    historyLimit: 30
+    failedHistoryLimit: 3
+    s3:
+      bucket: hermes-backups
+      endpoint: s3.amazonaws.com
+      region: us-east-1
+      pathPrefix: prod/
+      credentialsSecretRef:
+        name: hermes-s3-creds

@@ -1,0 +1,22 @@
+name: Helm RBAC Sync
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.26" }
+      - uses: azure/setup-helm@v4
+      - run: sudo snap install yq
+      - run: bash hack/check-helm-rbac.sh
+  bundle-rbac:
+    name: Bundle RBAC Sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo snap install yq
+      - run: make sync-bundle-rbac-check

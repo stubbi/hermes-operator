@@ -1,0 +1,29 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: gitops-hermes
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.4.2"
+  storage:
+    persistence:
+      enabled: true
+      size: 10Gi
+  config:
+    mergeMode: merge
+    raw: |
+      logging:
+        level: info
+  runtime:
+    python: "3.11"
+  selfConfigure:
+    enabled: true
+    allowedActions: [skills, config, envVars, workspaceFiles, profiles]
+    protectedKeys:
+      - "spec.image.*"
+      - "spec.security.*"
+      - "spec.storage.*"
+      - "spec.backup.*"
+      - "spec.networking.*"
+      - "spec.gateways.*"

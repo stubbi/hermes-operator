@@ -1,0 +1,43 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: conformance-sidecars
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: latest
+  storage:
+    persistence:
+      enabled: true
+      size: 5Gi
+  sidecars:
+    - name: ollama
+      image: ollama/ollama:latest
+      ports:
+        - containerPort: 11434
+          name: ollama
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+    - name: web-terminal
+      image: ghcr.io/stubbi/hermes-web-terminal:latest
+      ports:
+        - containerPort: 7681
+          name: web-terminal
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+    - name: tailscale
+      image: tailscale/tailscale:latest
+      env:
+        - name: TS_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              name: tailscale-auth
+              key: authkey
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi

@@ -1,0 +1,27 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: conformance-autoupdate
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.0.0"
+  storage:
+    persistence:
+      enabled: true
+      size: 1Gi
+  autoUpdate:
+    enabled: true
+    source:
+      registry: ghcr.io/stubbi/hermes-agent
+      channel: 1.x
+    pollInterval: 1h
+    backupBeforeUpdate: true
+  backup:
+    s3:
+      bucket: hermes-backups
+      endpoint: minio.minio.svc:9000
+      credentialsSecretRef:
+        name: minio-creds
+    schedule: "0 3 * * *"
+    historyLimit: 30

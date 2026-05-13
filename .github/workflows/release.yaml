@@ -1,0 +1,129 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate install manifest
+        run: make installer
+
+      - name: Run GoReleaser
+        id: goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign container image tags with cosign (keyless OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          IMAGE="ghcr.io/stubbi/hermes-operator"
+          TAG="${{ github.ref_name }}"
+          MAJOR_MINOR=$(echo "$TAG" | sed 's/^v//' | cut -d. -f1,2)
+          for t in "${TAG}" "${MAJOR_MINOR}" "latest"; do
+            DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${t}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+            if [ -n "$DIGEST" ]; then
+              cosign sign --yes "${IMAGE}@${DIGEST}"
+            fi
+          done
+
+      - name: Generate SBOM for container image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/stubbi/hermes-operator:${{ github.ref_name }}
+          artifact-name: sbom-${{ github.ref_name }}.spdx.json
+          output-file: sbom-${{ github.ref_name }}.spdx.json
+
+      - name: Attest SBOM with cosign
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          IMAGE="ghcr.io/stubbi/hermes-operator"
+          TAG="${{ github.ref_name }}"
+          DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+          if [ -n "$DIGEST" ]; then
+            cosign attest --yes --predicate "sbom-${TAG}.spdx.json" --type spdxjson "${IMAGE}@${DIGEST}"
+          fi
+
+      - name: Upload SBOM to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sbom-${{ github.ref_name }}.spdx.json
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Publish release (undraft)
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          token: ${{ secrets.RELEASE_PAT }}
+
+  helm-release:
+    name: Helm OCI Release
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Package and push Helm chart
+        run: |
+          CHART_VERSION="${{ github.ref_name }}"
+          CHART_VERSION="${CHART_VERSION#v}"
+          helm package charts/hermes-operator \
+            --version "${CHART_VERSION}" \
+            --app-version "${{ github.ref_name }}"
+          helm push hermes-operator-${CHART_VERSION}.tgz oci://ghcr.io/stubbi/charts

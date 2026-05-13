@@ -1,0 +1,29 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.26" }
+      - uses: golangci/golangci-lint-action@v9
+        with: { version: v2.12.2 }
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k8s: ["1.28", "1.29", "1.30", "1.31", "1.32"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.26" }
+      - name: Run tests (k8s ${{ matrix.k8s }})
+        env:
+          ENVTEST_K8S_VERSION: ${{ matrix.k8s }}.0
+        run: make test

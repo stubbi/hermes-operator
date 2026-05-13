@@ -1,0 +1,212 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: full-featured
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.4.2"
+    imagePullPolicy: IfNotPresent
+    imagePullSecrets:
+      - name: ghcr-pull
+  config:
+    mergeMode: merge
+    raw: |
+      schedules:
+        morning-brief: "0 8 * * *"
+      logging:
+        level: info
+  workspace:
+    files:
+      - path: notes/welcome.md
+        content: |
+          # Welcome
+          This file was seeded by the operator.
+      - path: notes/playbook.md
+        content: |
+          ## Daily playbook
+          1. Check inbox.
+          2. Run the morning brief.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+  security:
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      fsGroup: 10001
+      seccompProfile:
+        type: RuntimeDefault
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop: ["ALL"]
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/hermes
+  storage:
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClassName: gp3
+      accessModes: ["ReadWriteOnce"]
+  networking:
+    service:
+      type: ClusterIP
+    ingress:
+      enabled: false
+    networkPolicy:
+      enabled: true
+      egress:
+        - to:
+            - ipBlock:
+                cidr: 0.0.0.0/0
+                except:
+                  - 169.254.169.254/32
+          ports:
+            - protocol: TCP
+              port: 443
+  observability:
+    metrics:
+      enabled: true
+      secure: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+    logging:
+      level: info
+  availability:
+    pdb:
+      enabled: true
+      minAvailable: 1
+    hpa:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPUUtilizationPercentage: 75
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+  probes:
+    livenessProbe:
+      httpGet:
+        path: /healthz
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 30
+    readinessProbe:
+      httpGet:
+        path: /readyz
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 10
+  backup:
+    s3:
+      bucket: hermes-backups
+      endpoint: s3.amazonaws.com
+      region: us-east-1
+      pathPrefix: prod/
+      credentialsSecretRef:
+        name: hermes-s3-creds
+    schedule: "0 3 * * *"
+    onDelete: true
+    preUpdate: true
+    historyLimit: 30
+    failedHistoryLimit: 3
+  runtime:
+    python: "3.11"
+    uv:
+      version: latest
+    ffmpeg:
+      enabled: true
+    ripgrep:
+      enabled: true
+    extraApt:
+      - poppler-utils
+    extraPip:
+      - pandas==2.2.0
+  gateways:
+    telegram:
+      enabled: true
+      secretRef:
+        name: hermes-telegram
+        tokenKey: token
+    discord:
+      enabled: true
+      secretRef:
+        name: hermes-discord
+        tokenKey: token
+  profileStore:
+    enabled: true
+    image:
+      repository: ghcr.io/plastic-labs/honcho
+      tag: "0.0.36"
+    persistence:
+      enabled: true
+      size: 5Gi
+    secret:
+      name: hermes-honcho
+      apiKeyKey: apiKey
+  webTerminal:
+    enabled: true
+  tailscale:
+    enabled: true
+    mode: serve
+    authKey:
+      secretRef:
+        name: hermes-tailscale
+        key: authKey
+  autoUpdate:
+    enabled: true
+    source:
+      registry: ghcr.io/stubbi/hermes-agent
+      channel: "1.x"
+    pollInterval: 1h
+    rollback:
+      enabled: true
+      probeFailureThreshold: 3
+    backupBeforeUpdate: true
+  selfConfigure:
+    enabled: true
+    allowedActions: [skills, config, envVars, workspaceFiles, profiles]
+    protectedKeys:
+      - "spec.image.*"
+      - "spec.security.*"
+      - "spec.storage.*"
+      - "spec.backup.*"
+      - "spec.networking.*"
+  scheduling:
+    nodeSelector:
+      workload: agents
+    tolerations:
+      - key: agents
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+  initContainers:
+    - name: warm-cache
+      image: ghcr.io/stubbi/hermes-agent:1.4.2
+      command: ["sh", "-c", "echo warming cache && sleep 2"]
+  sidecars:
+    - name: log-shipper
+      image: ghcr.io/fluent/fluent-bit:3.0
+      args: ["-c", "/fluent-bit/etc/fluent-bit.conf"]
+  extraVolumes:
+    - name: trace
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: trace
+      mountPath: /var/run/trace
+  envFrom:
+    - configMapRef:
+        name: hermes-env
+  env:
+    - name: DEPLOY_ENV
+      value: production
+  suspended: false

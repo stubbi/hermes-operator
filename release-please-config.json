@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "include-v-in-tag": true,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "skip-github-release": true,
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "refactor", "section": "Refactoring" },
+        { "type": "perf", "section": "Performance" },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "chore", "section": "Miscellaneous", "hidden": true },
+        { "type": "ci", "section": "CI", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "build", "section": "Build", "hidden": true }
+      ],
+      "extra-files": [
+        { "type": "yaml", "path": "charts/hermes-operator/Chart.yaml", "jsonpath": "$.version" },
+        { "type": "yaml", "path": "charts/hermes-operator/Chart.yaml", "jsonpath": "$.appVersion" },
+        { "type": "yaml", "path": "charts/hermes-operator/values.yaml", "jsonpath": "$.image.tag" },
+        { "type": "yaml", "path": "bundle/manifests/hermes-operator.clusterserviceversion.yaml", "jsonpath": "$.metadata.name" },
+        { "type": "yaml", "path": "bundle/manifests/hermes-operator.clusterserviceversion.yaml", "jsonpath": "$.metadata.annotations.containerImage" },
+        { "type": "yaml", "path": "bundle/manifests/hermes-operator.clusterserviceversion.yaml", "jsonpath": "$.spec.version" }
+      ]
+    }
+  }
+}

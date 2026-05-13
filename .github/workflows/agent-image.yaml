@@ -1,0 +1,112 @@
+# .github/workflows/agent-image.yaml
+#
+# Builds and publishes ghcr.io/stubbi/hermes-agent for every hermes-agent
+# release in the supported matrix. Triggered:
+#   - Manually via workflow_dispatch (engineer picks the HERMES_VERSION).
+#   - On every push of a tag matching `agent/vX.Y.Z`.
+#
+# Cosign-signed (keyless OIDC) and SBOM via Syft.
+name: agent-image
+
+on:
+  workflow_dispatch:
+    inputs:
+      hermes_version:
+        description: "Upstream hermes-agent release tag (e.g. v0.13.0)"
+        required: true
+        type: string
+  push:
+    tags:
+      - 'agent/v*'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve HERMES_VERSION
+        id: ver
+        run: |
+          set -eux
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            v="${{ inputs.hermes_version }}"
+          else
+            v="${GITHUB_REF#refs/tags/agent/}"
+          fi
+          # Strip any leading "v" for the bare package version, keep the tag form too.
+          bare="${v#v}"
+          echo "tag=${v}" >> "$GITHUB_OUTPUT"
+          echo "bare=${bare}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify uv.lock matches the requested HERMES_VERSION
+        run: |
+          set -eux
+          # The lockfile is the source of truth; refuse to ship if the committed lock
+          # disagrees with the requested version.
+          ver=$(awk '/^name = "hermes-agent"$/{getline; if ($0 ~ /^version =/) {gsub(/[" ]/, "", $3); print $3; exit}}' images/hermes-agent/uv.lock)
+          if [ "${ver}" != "${{ steps.ver.outputs.bare }}" ]; then
+            echo "uv.lock pins hermes-agent==${ver} but workflow requested ${{ steps.ver.outputs.bare }}" >&2
+            echo "Run: make agent-image-relock HERMES_VERSION=${{ steps.ver.outputs.tag }} and commit." >&2
+            exit 1
+          fi
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: images/hermes-agent
+          file: images/hermes-agent/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/stubbi/hermes-agent:${{ steps.ver.outputs.tag }}
+            ghcr.io/stubbi/hermes-agent:latest
+          build-args: |
+            HERMES_VERSION=${{ steps.ver.outputs.tag }}
+          provenance: true
+          sbom: true
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless OIDC)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign sign --yes "ghcr.io/stubbi/hermes-agent@${DIGEST}"
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SBOM
+        run: |
+          syft "ghcr.io/stubbi/hermes-agent:${{ steps.ver.outputs.tag }}" \
+            -o spdx-json=sbom.spdx.json
+
+      - name: Attach SBOM as Cosign attestation
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          cosign attest --yes \
+            --predicate sbom.spdx.json \
+            --type spdxjson \
+            "ghcr.io/stubbi/hermes-agent@${DIGEST}"

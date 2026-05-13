@@ -1,0 +1,67 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Because skip-github-release is true in release-please-config.json,
+  # release-please only creates the release PR and updates the manifest;
+  # it does NOT push the tag. We push the tag manually here so downstream
+  # GoReleaser/OLM jobs can key off it.
+  create-tag:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Create and push release tag
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          SHA: ${{ needs.release-please.outputs.sha }}
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          git config user.name  "release-please[bot]"
+          git config user.email "release-please[bot]@users.noreply.github.com"
+          git tag -a "${TAG}" "${SHA}" -m "Release ${TAG}"
+          git push origin "${TAG}"
+
+      - name: Flip stale autorelease labels on older open PRs
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          # Remove autorelease:pending / autorelease:tagged from any PRs that
+          # are now superseded by this release.
+          gh pr list \
+            --label "autorelease: pending" \
+            --json number \
+            --jq '.[].number' \
+          | while read -r pr; do
+              gh pr edit "$pr" \
+                --remove-label "autorelease: pending" \
+                --add-label "autorelease: tagged" \
+                || true
+            done

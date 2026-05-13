@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a defect in hermes-operator
+labels: ["bug", "needs-triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including any error messages.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: A minimal HermesInstance / HermesSelfConfig manifest + the sequence of commands that triggers the bug.
+      render: yaml
+    validations:
+      required: true
+  - type: input
+    id: operator-version
+    attributes:
+      label: hermes-operator version
+      placeholder: "v0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: kubernetes-version
+    attributes:
+      label: Kubernetes version
+      placeholder: "v1.30.4"
+    validations:
+      required: true
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - Helm chart
+        - OLM bundle
+        - dist/install.yaml (kubectl apply)
+        - Other (please describe in "What happened?")
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant operator logs
+      description: |
+        Output of `kubectl logs -n hermes-system -l control-plane=controller-manager --tail=200`
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow this project's [Code of Conduct](https://github.com/stubbi/hermes-operator/blob/main/CODE_OF_CONDUCT.md).
+          required: true

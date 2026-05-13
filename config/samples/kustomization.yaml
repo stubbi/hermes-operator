@@ -1,0 +1,6 @@
+## Append samples of your project ##
+resources:
+- hermes_v1_hermesinstance.yaml
+- hermes_v1_hermesselfconfig.yaml
+- hermes_v1_hermesclusterdefaults.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

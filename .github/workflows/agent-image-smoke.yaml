@@ -1,0 +1,73 @@
+# .github/workflows/agent-image-smoke.yaml
+#
+# Per-PR smoke test: build the agent image on amd64, verify --help exits 0 and
+# entrypoint.sh refuses to start without a config. Does NOT push.
+name: agent-image-smoke
+
+on:
+  pull_request:
+    paths:
+      - 'images/hermes-agent/**'
+      - '.github/workflows/agent-image-smoke.yaml'
+      - 'Makefile'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — skip when uv.lock is absent
+        id: guard
+        run: |
+          if [ ! -f images/hermes-agent/uv.lock ]; then
+            echo "uv.lock not yet committed; skipping smoke."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Buildx
+        if: steps.guard.outputs.skip != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Read pinned HERMES_VERSION from uv.lock
+        if: steps.guard.outputs.skip != 'true'
+        id: ver
+        run: |
+          set -eux
+          ver=$(awk '/^name = "hermes-agent"$/{getline; if ($0 ~ /^version =/) {gsub(/[" ]/, "", $3); print $3; exit}}' images/hermes-agent/uv.lock)
+          # uv.lock records the bare package version; tag form has a leading v.
+          echo "tag=v${ver}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image locally
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg HERMES_VERSION=${{ steps.ver.outputs.tag }} \
+            --load \
+            -t hermes-agent:smoke \
+            images/hermes-agent
+
+      - name: Smoke — --help exits 0
+        if: steps.guard.outputs.skip != 'true'
+        run: docker run --rm hermes-agent:smoke hermes-agent --help >/dev/null
+
+      - name: Smoke — entrypoint refuses missing config with EX_CONFIG (78)
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          set +e
+          docker run --rm --entrypoint /usr/local/bin/hermes-entrypoint hermes-agent:smoke
+          rc=$?
+          if [ "${rc}" != "78" ]; then
+            echo "Expected exit 78 (EX_CONFIG), got ${rc}" >&2
+            exit 1
+          fi
+
+      - name: Smoke — non-root by default
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          uid=$(docker run --rm --entrypoint id hermes-agent:smoke -u)
+          [ "${uid}" = "1000" ] || { echo "Expected UID 1000, got ${uid}"; exit 1; }

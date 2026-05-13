@@ -1,0 +1,41 @@
+# TODO(v1.x): Add a strategy.matrix.k8s across 1.28–1.32 once kind node-image
+# SHAs are pinned per-version and the CI cost increase is acceptable.
+# For v1.0.0 a single-version cluster is sufficient.
+name: E2E
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.26" }
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: hermes-operator-e2e
+          config: hack/kind-config.yaml
+      - uses: azure/setup-helm@v4
+      - name: Install cert-manager
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm install cert-manager jetstack/cert-manager \
+            --namespace cert-manager --create-namespace \
+            --set crds.enabled=true \
+            --wait --timeout 5m
+          # cert-manager's --wait covers pod readiness, but its API can still be
+          # transiently unavailable for a few seconds after. Poll until it answers.
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            kubectl get --raw=/apis/cert-manager.io/v1 >/dev/null 2>&1 && break
+            echo "waiting for cert-manager API (try $i/10)..."; sleep 3
+          done
+      - name: Build operator image
+        run: make docker-build IMG=hermes-operator:dev
+      - name: Load image into kind
+        run: kind load docker-image hermes-operator:dev --name hermes-operator-e2e
+      - name: Run e2e
+        run: make e2e

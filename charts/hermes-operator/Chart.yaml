@@ -1,0 +1,13 @@
+apiVersion: v2
+name: hermes-operator
+description: Kubernetes operator for nousresearch/hermes-agent
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+home: https://github.com/stubbi/hermes-operator
+sources:
+  - https://github.com/stubbi/hermes-operator
+maintainers:
+  - name: stubbi
+    email: jannes@aqora.io

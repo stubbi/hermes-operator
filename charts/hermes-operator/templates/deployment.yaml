@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hermes-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "hermes-operator.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "hermes-operator.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "hermes-operator.fullname" . }}
+    spec:
+      serviceAccountName: {{ include "hermes-operator.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: manager
+          image: {{ include "hermes-operator.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --metrics-secure={{ .Values.metrics.secure }}
+            - --zap-log-level={{ .Values.logLevel }}
+            {{- with .Values.watchNamespaces }}
+            {{- /*
+              TODO(v1.1): wire spec.watchNamespaces into manager cache.Options.DefaultNamespaces.
+              The operator currently watches all namespaces; explicit scoping is on the v1.1 roadmap.
+              Leaving the value in values.yaml so chart consumers can adopt it once supported.
+            */ -}}
+            {{- end }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          ports:
+            - name: metrics
+              containerPort: 8443
+              protocol: TCP
+            {{- if .Values.webhook.enabled }}
+            - name: webhook
+              containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
+            {{- end }}
+          {{- if .Values.webhook.enabled }}
+          volumeMounts:
+            - name: webhook-cert
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+          {{- end }}
+      {{- if .Values.webhook.enabled }}
+      volumes:
+        - name: webhook-cert
+          secret:
+            secretName: {{ .Values.webhook.servingCertSecretName }}
+            defaultMode: 420
+      {{- end }}

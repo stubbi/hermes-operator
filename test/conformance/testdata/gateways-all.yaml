@@ -1,0 +1,47 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: conformance-gateways
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: latest
+  storage:
+    persistence:
+      enabled: true
+      size: 1Gi
+  gateways:
+    telegram:
+      enabled: true
+      botTokenSecretRef:
+        name: tg-token
+        key: token
+    discord:
+      enabled: true
+      botTokenSecretRef:
+        name: discord-token
+        key: token
+    slack:
+      enabled: true
+      botTokenSecretRef:
+        name: slack-token
+        key: bot-token
+      appTokenSecretRef:
+        name: slack-token
+        key: app-token
+      signingSecretRef:
+        name: slack-token
+        key: signing-secret
+    whatsapp:
+      enabled: true
+      providerSecretRef:
+        name: wa-token
+        key: token
+    signal:
+      enabled: true
+      phoneNumberSecretRef:
+        name: sig-token
+        key: phone-number
+      authTokenSecretRef:
+        name: sig-token
+        key: auth-token

@@ -1,0 +1,30 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: hermes-autoupdate
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: 1.0.0
+  storage:
+    persistence:
+      enabled: true
+      size: 10Gi
+  backup:
+    s3:
+      bucket: hermes-backups
+      endpoint: s3.amazonaws.com
+      region: us-east-1
+      pathPrefix: prod/
+      credentialsSecretRef:
+        name: hermes-s3-creds
+  autoUpdate:
+    enabled: true
+    pollInterval: 1h
+    backupBeforeUpdate: true
+    source:
+      registry: ghcr.io/stubbi/hermes-agent
+      channel: "1.x"
+    rollback:
+      enabled: true
+      probeFailureThreshold: 3

@@ -1,0 +1,21 @@
+apiVersion: hermes.agent/v1
+kind: HermesInstance
+metadata:
+  name: conformance-profilestore
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: latest
+  storage:
+    persistence:
+      enabled: true
+      size: 1Gi
+  profileStore:
+    honcho:
+      enabled: true
+      apiKeySecretRef:
+        name: api-keys
+        key: honcho-api-key
+      persistence:
+        enabled: true
+        size: 1Gi

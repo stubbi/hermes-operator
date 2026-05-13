@@ -1,0 +1,25 @@
+apiVersion: hermes.agent/v1
+kind: HermesClusterDefaults
+metadata:
+  name: cluster
+spec:
+  image:
+    repository: ghcr.io/stubbi/hermes-agent
+    tag: "1.4.2"
+    imagePullSecrets:
+      - name: ghcr-pull
+  registry:
+    pullSecretName: ghcr-pull
+  storage:
+    storageClassName: gp3
+    size: 10Gi
+  security:
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/hermes
+  observability:
+    serviceMonitor:
+      enabled: true
+  networking:
+    networkPolicy:
+      enabled: true
