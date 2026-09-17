@@ -7,6 +7,22 @@ version you are skipping over, not just the one you are moving to.
 Entries are newest first. Versions not listed here need no action beyond the
 normal `helm upgrade` or OLM subscription bump.
 
+## Unreleased
+
+### `HermesSelfConfig.spec.patchConfig` is now merged into the config ConfigMap
+
+**What changed.** A `patchConfig` used to be written as `selfconfig.yaml` into
+the `<instance>-workspace` ConfigMap, where the next `HermesInstance` reconcile
+wiped it and nothing read it in the first place. The operator now merges every
+`Applied` patch into `<instance>-config` (`config.yaml`) on each instance
+reconcile, so the patch survives reconciles and is retracted when the
+`HermesSelfConfig` is deleted. `status.appliedFields` reports
+`config-configmap.data[key=config.yaml]` instead of the old workspace key.
+
+**Action.** None for most users. If you relied on `selfconfig.yaml` in the
+workspace ConfigMap, drop that dependency. The rendered ConfigMap is
+subPath-mounted, so restart the pod after a patch lands.
+
 ## 0.2.0
 
 ### The agent container now has default resource requests and limits

@@ -68,7 +68,9 @@ spec:
     max_tokens: 4096
 ```
 
-`patchConfig` is a JSON merge patch (RFC 7396) written to the workspace ConfigMap under key `selfconfig.yaml`. The agent startup script layers it onto `~/.hermes/config.yaml`. Protected keys matched by `spec.selfConfigure.protectedKeys` on the parent instance are blocked before the write.
+`patchConfig` is a JSON merge patch (RFC 7396). The SelfConfig controller checks policy (`allowedActions`, `protectedKeys`) and marks the request `Applied`; the `HermesInstance` reconciler then merges every `Applied` patch for the instance into the rendered `<instance>-config` ConfigMap (`config.yaml`) on each reconcile. The merge order is: user config (`spec.config`), then patches by creation time (later wins), then the operator-owned gateway fragments, which a patch can never override. A `null` value deletes the key. Deleting the `HermesSelfConfig` retracts the patch on the next instance reconcile.
+
+The rendered ConfigMap is subPath-mounted, so the running pod does not pick the change up until it restarts.
 
 ### Inject environment variables
 
