@@ -9,6 +9,20 @@ normal `helm upgrade` or OLM subscription bump.
 
 ## Unreleased
 
+### Config changes now restart the agent pod
+
+**What changed.** `config.yaml` is subPath-mounted, which kubelet never
+refreshes in a running pod, and the pod template carried no digest, so
+editing `spec.config` (or a `HermesSelfConfig` patch landing) updated the
+ConfigMap while the agent kept running the old config. The pod template now
+carries `hermes.agent/config-hash` and `hermes.agent/workspace-hash`
+annotations. Any change to the rendered config or the workspace seed rolls
+the StatefulSet.
+
+**Action.** Expect one pod restart per instance on upgrade, when the
+annotations first appear. After that, config edits take effect on their own;
+drop any `kubectl delete pod` step from your workflow.
+
 ### `HermesSelfConfig.spec.patchConfig` is now merged into the config ConfigMap
 
 **What changed.** A `patchConfig` used to be written as `selfconfig.yaml` into

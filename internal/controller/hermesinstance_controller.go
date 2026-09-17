@@ -608,7 +608,15 @@ func (r *HermesInstanceReconciler) reconcileStatefulSet(ctx context.Context, ins
 	obj := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{
 		Name: resources.StatefulSetName(inst), Namespace: inst.Namespace,
 	}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
+	configData, err := r.configMapData(ctx, inst.Namespace, resources.ConfigMapName(inst))
+	if err != nil {
+		return err
+	}
+	workspaceData, err := r.configMapData(ctx, inst.Namespace, resources.WorkspaceConfigMapName(inst))
+	if err != nil {
+		return err
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
 		extraInits := []corev1.Container{}
 		if c := resources.BuildRestoreInitContainer(inst); c != nil {
 			extraInits = append(extraInits, *c)
@@ -622,11 +630,27 @@ func (r *HermesInstanceReconciler) reconcileStatefulSet(ctx context.Context, ins
 				desired.Spec.Template.Spec.Volumes = append(desired.Spec.Template.Spec.Volumes, *vol)
 			}
 		}
+		resources.SetConfigHashAnnotations(desired, configData, workspaceData)
 		obj.Labels = resources.MergePreservingForeign(obj.Labels, desired.Labels, operatorLabelPrefix)
 		obj.Spec = desired.Spec
 		return controllerutil.SetControllerReference(inst, obj, r.Scheme)
 	})
 	return err
+}
+
+// configMapData returns the Data of the named ConfigMap, or nil when it does
+// not exist. Used to stamp the pod template with content digests so a config
+// change rolls the pod (config.yaml is subPath-mounted and never refreshed
+// in place by kubelet).
+func (r *HermesInstanceReconciler) configMapData(ctx context.Context, namespace, name string) (map[string]string, error) {
+	cm := &corev1.ConfigMap{}
+	if err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, cm); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read ConfigMap %q: %w", name, err)
+	}
+	return cm.Data, nil
 }
 
 func (r *HermesInstanceReconciler) reconcileHoncho(ctx context.Context, inst *hermesv1.HermesInstance) error {
