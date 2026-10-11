@@ -84,6 +84,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var watchNamespaces string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -94,6 +95,9 @@ func main() {
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&watchNamespaces, "watch-namespaces", os.Getenv(watchNamespaceEnv),
+		"Comma-separated namespaces to watch. Empty watches all namespaces. "+
+			"Defaults to the "+watchNamespaceEnv+" environment variable (set by OLM from olm.targetNamespaces).")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -145,8 +149,16 @@ func main() {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
+	watched := parseWatchNamespaces(watchNamespaces)
+	if len(watched) > 0 {
+		setupLog.Info("restricting the manager cache to watched namespaces", "namespaces", watched)
+	} else {
+		setupLog.Info("watching all namespaces")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
+		Cache:                  cacheOptions(watched),
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,

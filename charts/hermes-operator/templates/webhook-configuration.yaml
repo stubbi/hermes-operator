@@ -20,6 +20,7 @@ webhooks:
       {{- if and (not .Values.webhook.certManager.enabled) .Values.webhook.caBundle }}
       caBundle: {{ .Values.webhook.caBundle }}
       {{- end }}
+    {{- with include "hermes-operator.webhookNamespaceSelector" . }}{{ . | nindent 4 }}{{- end }}
     rules:
       - apiGroups: [hermes.agent]
         apiVersions: [v1]
@@ -54,6 +55,7 @@ webhooks:
       {{- if and (not .Values.webhook.certManager.enabled) .Values.webhook.caBundle }}
       caBundle: {{ .Values.webhook.caBundle }}
       {{- end }}
+    {{- with include "hermes-operator.webhookNamespaceSelector" . }}{{ . | nindent 4 }}{{- end }}
     rules:
       - apiGroups: [hermes.agent]
         apiVersions: [v1]
@@ -81,6 +83,7 @@ webhooks:
       {{- if and (not .Values.webhook.certManager.enabled) .Values.webhook.caBundle }}
       caBundle: {{ .Values.webhook.caBundle }}
       {{- end }}
+    {{- with include "hermes-operator.webhookNamespaceSelector" . }}{{ . | nindent 4 }}{{- end }}
     rules:
       - apiGroups: [hermes.agent]
         apiVersions: [v1]
