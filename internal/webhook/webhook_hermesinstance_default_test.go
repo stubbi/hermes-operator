@@ -129,3 +129,20 @@ func TestApplyClusterDefaults_ResourcesAndOptOut(t *testing.T) {
 		}
 	})
 }
+
+// egressPolicy (#125) is cluster-defaultable: an unset instance value inherits
+// from HermesClusterDefaults, an explicit one wins.
+func TestApplyClusterDefaults_EgressPolicy(t *testing.T) {
+	t.Parallel()
+	hcd := &hermesv1.HermesClusterDefaults{}
+	hcd.Spec.Security.NetworkPolicy.EgressPolicy = hermesv1.EgressPolicyAllowlist
+
+	inherit := &hermesv1.HermesInstance{}
+	ApplyClusterDefaults(inherit, hcd)
+	assert.Equal(t, hermesv1.EgressPolicyAllowlist, inherit.Spec.Security.NetworkPolicy.EgressPolicy)
+
+	explicit := &hermesv1.HermesInstance{}
+	explicit.Spec.Security.NetworkPolicy.EgressPolicy = hermesv1.EgressPolicyOpen
+	ApplyClusterDefaults(explicit, hcd)
+	assert.Equal(t, hermesv1.EgressPolicyOpen, explicit.Spec.Security.NetworkPolicy.EgressPolicy)
+}

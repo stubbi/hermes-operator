@@ -241,3 +241,92 @@ func TestBuildNetworkPolicy_TailscaleEgress(t *testing.T) {
 		}
 	}
 }
+
+// anyDestinationTCP443 reports whether any egress rule allows TCP/443 to every
+// destination (no To peers), which is the open baseline #125 makes optional.
+func anyDestinationTCP443(rules []networkingv1.NetworkPolicyEgressRule) bool {
+	for _, r := range rules {
+		if len(r.To) != 0 {
+			continue
+		}
+		for _, p := range r.Ports {
+			if p.Protocol != nil && *p.Protocol == corev1.ProtocolTCP && p.Port != nil && p.Port.IntValue() == 443 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func TestBuildNetworkPolicy_EgressPolicyOpenKeepsBaseline(t *testing.T) {
+	t.Parallel()
+	for _, policy := range []hermesv1.EgressPolicy{"", hermesv1.EgressPolicyOpen} {
+		inst := &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "agents"}}
+		inst.Spec.Security.NetworkPolicy.EgressPolicy = policy
+		np := BuildNetworkPolicy(inst)
+		assert.True(t, anyDestinationTCP443(np.Spec.Egress), "policy %q must keep the TCP/443 baseline", policy)
+	}
+}
+
+func TestBuildNetworkPolicy_EgressPolicyAllowlist(t *testing.T) {
+	t.Parallel()
+	custom := networkingv1.NetworkPolicyEgressRule{
+		To: []networkingv1.NetworkPolicyPeer{{IPBlock: &networkingv1.IPBlock{CIDR: "203.0.113.10/32"}}},
+	}
+	inst := &hermesv1.HermesInstance{
+		ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "agents"},
+		Spec: hermesv1.HermesInstanceSpec{
+			Gateways: hermesv1.GatewaysSpec{
+				Telegram: hermesv1.TelegramGatewaySpec{Enabled: Ptr(true)},
+			},
+			ProfileStore: hermesv1.ProfileStoreSpec{
+				Honcho: hermesv1.HonchoSpec{Enabled: Ptr(true)},
+			},
+			Security: hermesv1.SecuritySpec{
+				NetworkPolicy: hermesv1.NetworkPolicySpec{
+					EgressPolicy:       hermesv1.EgressPolicyAllowlist,
+					AllowedEgressCIDRs: []string{"198.51.100.0/24"},
+					AdditionalEgress:   []networkingv1.NetworkPolicyEgressRule{custom},
+				},
+			},
+		},
+	}
+	np := BuildNetworkPolicy(inst)
+
+	assert.False(t, anyDestinationTCP443(np.Spec.Egress),
+		"Allowlist must not emit any any-destination TCP/443 rule (baseline or per-gateway)")
+
+	foundDNS, foundCIDR, foundCustom, foundHoncho := false, false, false, false
+	for _, r := range np.Spec.Egress {
+		for _, p := range r.Ports {
+			if p.Port != nil && p.Port.IntValue() == 53 {
+				foundDNS = true
+			}
+		}
+		for _, peer := range r.To {
+			if peer.IPBlock != nil && peer.IPBlock.CIDR == "198.51.100.0/24" {
+				foundCIDR = true
+			}
+			if peer.IPBlock != nil && peer.IPBlock.CIDR == "203.0.113.10/32" {
+				foundCustom = true
+			}
+			if peer.PodSelector != nil && peer.PodSelector.MatchLabels["app.kubernetes.io/instance"] == "demo-honcho" {
+				foundHoncho = true
+			}
+		}
+	}
+	assert.True(t, foundDNS, "DNS stays allowed under Allowlist")
+	assert.True(t, foundCIDR, "allowedEgressCIDRs are emitted under Allowlist")
+	assert.True(t, foundCustom, "additionalEgress is emitted under Allowlist")
+	assert.True(t, foundHoncho, "in-cluster Honcho sibling rule is emitted under Allowlist")
+}
+
+func TestBuildNetworkPolicy_EgressPolicyAllowlistWithoutDNS(t *testing.T) {
+	t.Parallel()
+	inst := &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "agents"}}
+	inst.Spec.Security.NetworkPolicy.EgressPolicy = hermesv1.EgressPolicyAllowlist
+	inst.Spec.Security.NetworkPolicy.AllowDNS = Ptr(false)
+	np := BuildNetworkPolicy(inst)
+	assert.Empty(t, np.Spec.Egress, "Allowlist with DNS disabled and no allow rules denies all egress")
+	assert.Contains(t, np.Spec.PolicyTypes, networkingv1.PolicyTypeEgress)
+}
