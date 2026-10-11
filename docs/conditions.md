@@ -34,6 +34,8 @@ is computed at the end of every reconcile:
 |---|---|---|
 | True | `AllSubsystemsReady` | Every other condition that is set on the object reports `True`. Includes `StorageReady`, `ConfigReady`, `SecretsReady`, `NetworkPolicyReady` (when network policy is enabled), `RBACReady`, `GatewayReady` (when any gateway is enabled), `ProfileStoreReady` (when Honcho is enabled), `WebhookReady`. Auto-update/backup/restore/migration conditions do **not** suppress Ready; they are advisory. |
 | False | `SubsystemsPending` | At least one subsystem condition is `False`. `message` lists the failing subsystems comma-separated. |
+| False | `StatefulSetNotReady` | The agent pod is not Ready yet (starting, pulling, or failing its probes). |
+| False | `ConfigMigrationFailed` | The `config-seed` init container could not migrate `config.yaml` to the agent image's config schema, so the agent was not started on an unmigrated config. `message` carries the tail of the init container log. Fix `spec.config`, or set `HERMES_SKIP_CONFIG_MIGRATION=1` in `spec.env` to start anyway. See [runtime](runtime.md#config-file-and-schema-migrations). |
 | False | `Suspended` | `spec.suspended=true`. The instance is intentionally scaled to zero; Ready is `False` so dashboards page on accidental suspension, not on intentional ones. The `message` says "Suspended by spec.suspended=true". |
 | Unknown | `Reconciling` | Set on first reconcile before subsystems have all reported. Transitions out within seconds. |
 
