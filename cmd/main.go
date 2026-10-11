@@ -21,6 +21,8 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -33,6 +35,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -56,6 +59,50 @@ func init() {
 
 	utilruntime.Must(hermesv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+// The helpers below live in main.go because the Dockerfile builds the single
+// file cmd/main.go.
+
+// watchNamespaceEnv is the environment variable OLM populates from the
+// olm.targetNamespaces annotation. An empty value means all namespaces.
+const watchNamespaceEnv = "WATCH_NAMESPACE"
+
+// parseWatchNamespaces splits a comma-separated namespace list, trimming
+// blanks and dropping duplicates. An empty result means "all namespaces".
+func parseWatchNamespaces(raw string) []string {
+	seen := map[string]struct{}{}
+	out := []string{}
+	for _, ns := range strings.Split(raw, ",") {
+		ns = strings.TrimSpace(ns)
+		if ns == "" {
+			continue
+		}
+		if _, dup := seen[ns]; dup {
+			continue
+		}
+		seen[ns] = struct{}{}
+		out = append(out, ns)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// cacheOptions restricts the informer cache for namespaced objects to the
+// watched namespaces. Cluster-scoped objects (HermesClusterDefaults) are still
+// cached cluster-wide. With no namespaces, the cache watches everything, which
+// requires the cluster-wide RBAC the chart renders when watchNamespaces is
+// empty. With namespaces set, the per-namespace Roles the chart renders are
+// sufficient because the manager never lists or watches outside them.
+func cacheOptions(namespaces []string) cache.Options {
+	if len(namespaces) == 0 {
+		return cache.Options{}
+	}
+	defaults := make(map[string]cache.Config, len(namespaces))
+	for _, ns := range namespaces {
+		defaults[ns] = cache.Config{}
+	}
+	return cache.Options{DefaultNamespaces: defaults}
 }
 
 // prometheusOperatorCRDsPresent returns true when monitoring.coreos.com API
