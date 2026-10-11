@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/gobwas/glob v1.0.0
 	github.com/google/go-containerregistry v0.22.0
-	github.com/onsi/ginkgo/v2 v2.32.1
+	github.com/onsi/ginkgo/v2 v2.33.0
 	github.com/onsi/gomega v1.43.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/stretchr/testify v1.12.1
