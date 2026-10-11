@@ -3,7 +3,7 @@
 The operator runs the agent on the **upstream NousResearch/hermes-agent
 container image**. The published `ghcr.io/paperclipinc/hermes-agent` image is
 built `FROM` that upstream image (pinned by digest) with only operator metadata
-layered on top — there is no hand-rolled venv build any more.
+layered on top; there is no hand-rolled venv build any more.
 
 ## What the image bundles
 
@@ -21,14 +21,14 @@ the PVC) is **gone**. Only mutable state lives on the volume.
 
 ## How the operator runs it
 
-- **Args:** the container runs `["gateway", "run"]` — the foreground gateway
+- **Args:** the container runs `["gateway", "run"]`: the foreground gateway
   daemon.
 - **API server:** enabled via env: `API_SERVER_ENABLED=true`,
   `API_SERVER_HOST=0.0.0.0`, `API_SERVER_PORT=8443`, and `API_SERVER_KEY` (see
   below). This serves the OpenAI-compatible `/v1/...` endpoint plus `/health` on
   the gateway port.
 - **Probes:** both **readiness and liveness** are `HTTPGet /health` on the
-  gateway port (8443) — not a TCP socket.
+  gateway port (8443), not a TCP socket.
 
 ## State and `HERMES_HOME`
 
@@ -49,7 +49,7 @@ Consequences for the pod:
 - **No** `runAsNonRoot`/`runAsUser` (the container starts as root by design).
 - **No** read-only root filesystem (s6 needs a writable `/run` and `/etc` for
   the supervision tree).
-- **No** drop-ALL capabilities — s6 needs `CHOWN`, `SETUID`, `SETGID`,
+- **No** drop-ALL capabilities: s6 needs `CHOWN`, `SETUID`, `SETGID`,
   `DAC_OVERRIDE`, and `FOWNER` to remap the user and chown the volume.
 - `allowPrivilegeEscalation=false`, `fsGroup=1000`, and seccomp
   `RuntimeDefault` are retained.
@@ -59,7 +59,11 @@ Consequences for the pod:
 This is a deliberate tradeoff to adopt the supported upstream runtime. It means
 the workload is **incompatible with OpenShift's `restricted`/`restricted-v2`
 SCC**, and requires an SCC that permits a root-start container (for example
-`anyuid`) — even though the workload internally drops to uid 1000.
+`anyuid`), even though the workload internally drops to uid 1000.
+
+See [Pod security posture](security/pod-security.md) for the full rationale,
+the Pod Security Standards level the pod meets, where the trust boundary is,
+and how to apply a `restricted` context for images that do not need s6.
 
 ## Configuring an LLM provider
 

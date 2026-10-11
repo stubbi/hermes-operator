@@ -13,6 +13,7 @@ This site is the rendered documentation for the operator. The source of truth fo
 ## Operations
 
 - [Agent runtime](runtime.md) explains the upstream s6 image, how the operator runs it, the `/opt/data` state path, the security/SCC tradeoff, and LLM provider configuration.
+- [Pod security posture](security/pod-security.md) explains why the agent container starts as root with a writable rootfs, which Pod Security Standards level it meets, and how to harden it.
 - [Conditions](conditions.md) documents the status conditions the operator sets.
 - [Backup and restore](backup-restore.md) and the [backup format](backup-format.md) cover data protection.
 - [Auto-update](autoupdate.md) describes registry polling and rollback.
