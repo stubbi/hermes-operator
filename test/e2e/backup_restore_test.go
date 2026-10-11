@@ -113,10 +113,12 @@ spec:
 // findFirstSnapshotKey lists the bucket prefix and returns the first key, or "" if nothing.
 func findFirstSnapshotKey(namespace, instance string) string {
 	cmd := []string{
-		"run", "mc-list", "--namespace", "minio", "--rm", "-i", "--restart=Never",
-		"--image=minio/mc:RELEASE.2024-09-16T17-43-14Z",
-		"--", "/bin/sh", "-c",
-		`mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null 2>&1 && mc ls --recursive "local/hermes-backups/e2e/` + namespace + `/` + instance + `/" | awk '{print $NF}' | head -n 1`,
+		"run", "s3-list", "--namespace", "minio", "--rm", "-i", "--restart=Never",
+		"--image=" + s3ClientImage,
+		"--env=AWS_ACCESS_KEY_ID=minioadmin", "--env=AWS_SECRET_ACCESS_KEY=minioadmin",
+		"--env=AWS_DEFAULT_REGION=us-east-1",
+		"--command", "--", "/bin/sh", "-c",
+		`aws --endpoint-url http://minio:9000 s3 ls --recursive "s3://hermes-backups/e2e/` + namespace + `/` + instance + `/" | awk '{print $NF}' | head -n 1`,
 	}
 	out, err := kubectl(cmd...)
 	if err != nil {
