@@ -33,7 +33,12 @@ the PVC) is **gone**. Only mutable state lives on the volume.
 ## State and `HERMES_HOME`
 
 Persistent state lives at **`/opt/data`**, the PVC mount, and `HERMES_HOME` is
-set to `/opt/data`. (The previous runtime used `/home/hermes/.hermes`.)
+set to `/opt/data`. (The previous runtime used `/home/hermes/.hermes`.) The
+operator stamps the pod template with `hermes.agent/config-hash` (a digest of
+the rendered ConfigMap) and `hermes.agent/workspace-hash` (the workspace seed
+ConfigMap), so any change to either rolls the StatefulSet and the agent
+restarts on the new content (the `config-seed` init container described below
+copies the new config in on that restart).
 
 ## Config file and schema migrations
 

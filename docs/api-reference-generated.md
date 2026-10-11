@@ -463,7 +463,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `instanceRef` _string_ | InstanceRef is the name of the parent HermesInstance in the same namespace. |  | MaxLength: 253 <br />MinLength: 1 <br /> |
 | `addSkills` _[SelfConfigSkill](#selfconfigskill) array_ | AddSkills appends skills to the parent's .spec.skills. |  | MaxItems: 20 <br />Optional: \{\} <br /> |
-| `patchConfig` _[JSON](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#json-v1-apiextensions-k8s-io)_ | PatchConfig is a JSON merge patch (RFC 7396) applied to the agent's<br />runtime config at ~/.hermes/config.yaml. |  | Optional: \{\} <br /> |
+| `patchConfig` _[JSON](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#json-v1-apiextensions-k8s-io)_ | PatchConfig is a JSON merge patch (RFC 7396) merged by the operator<br />into the rendered config ConfigMap once this request is Applied.<br />Later requests win on conflict; a null value deletes a key. |  | Optional: \{\} <br /> |
 | `addEnvVars` _[SelfConfigEnvVar](#selfconfigenvvar) array_ | AddEnvVars appends environment variables to the parent's .spec.env. |  | MaxItems: 20 <br />Optional: \{\} <br /> |
 | `addWorkspaceFiles` _[SelfConfigWorkspaceFile](#selfconfigworkspacefile) array_ | AddWorkspaceFiles writes files into the workspace ConfigMap. |  | MaxItems: 50 <br />Optional: \{\} <br /> |
 | `addProfileSnapshot` _[SelfConfigProfileSnapshot](#selfconfigprofilesnapshot)_ | AddProfileSnapshot writes an opaque Honcho profile snapshot via a one-shot Job. |  | Optional: \{\} <br /> |

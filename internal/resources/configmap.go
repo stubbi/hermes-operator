@@ -27,6 +27,17 @@ func ConfigMapName(inst *hermesv1.HermesInstance) string {
 //   - resolvedBody non-empty + Raw set     → caller is responsible for merging
 //     (use MergeYAMLBodies) and passing the merged result as resolvedBody.
 func BuildConfigMap(inst *hermesv1.HermesInstance, resolvedBody string) *corev1.ConfigMap {
+	return BuildConfigMapWithPatches(inst, resolvedBody, nil)
+}
+
+// BuildConfigMapWithPatches is BuildConfigMap with an ordered list of
+// HermesSelfConfig patchConfig bodies (JSON merge patches, RFC 7396) layered
+// on top of the user config. Patches are deep-merged in order, later ones win
+// on conflict, and all of them sit below the operator-owned gateway fragments
+// so a patch can never override the operator's own sub-tree. A patch that
+// fails to parse is skipped: the HermesSelfConfig webhook and reconciler are
+// responsible for rejecting malformed patches before they reach the builder.
+func BuildConfigMapWithPatches(inst *hermesv1.HermesInstance, resolvedBody string, patches []string) *corev1.ConfigMap {
 	body := "{}\n"
 	switch {
 	case resolvedBody != "":
@@ -35,6 +46,11 @@ func BuildConfigMap(inst *hermesv1.HermesInstance, resolvedBody string) *corev1.
 		y, err := yaml.JSONToYAML(inst.Spec.Config.Raw.Raw)
 		if err == nil {
 			body = string(y)
+		}
+	}
+	for _, p := range patches {
+		if merged, err := ApplyJSONMergePatch(body, p); err == nil {
+			body = merged
 		}
 	}
 	if merged, err := mergeGatewayFragments(body, BuildGatewayConfigFragments(inst)); err == nil {
@@ -101,7 +117,7 @@ func mergeGatewayFragments(body string, frags map[string]any) (string, error) {
 // ensureModelDefault guarantees the rendered config has a top-level `model` so
 // `hermes gateway run` can initialise. If the user already set one (directly or
 // via spec.config), it is left untouched. Otherwise a non-routable placeholder
-// provider is injected — enough for the gateway + API server to start and serve
+// provider is injected: enough for the gateway + API server to start and serve
 // /health, but with no reachable upstream, so it never makes a live LLM call.
 func ensureModelDefault(body string) (string, error) {
 	root := map[string]any{}
@@ -144,6 +160,56 @@ func MergeYAMLBodies(base, overlay string) (string, error) {
 		return "", fmt.Errorf("marshal merged: %w", err)
 	}
 	return string(out), nil
+}
+
+// ApplyJSONMergePatch applies `patch` (a JSON merge patch, RFC 7396, in JSON
+// or YAML form) onto `base` (YAML). It differs from MergeYAMLBodies in one
+// way: a null value in the patch deletes the key from the base, as the RFC
+// requires, instead of writing a literal null. Used to layer HermesSelfConfig
+// patchConfig bodies onto the rendered config.
+func ApplyJSONMergePatch(base, patch string) (string, error) {
+	baseMap := map[string]any{}
+	if base != "" {
+		if err := yaml.Unmarshal([]byte(base), &baseMap); err != nil {
+			return "", fmt.Errorf("parse base YAML: %w", err)
+		}
+	}
+	patchMap := map[string]any{}
+	if patch != "" {
+		if err := yaml.Unmarshal([]byte(patch), &patchMap); err != nil {
+			return "", fmt.Errorf("parse patch: %w", err)
+		}
+	}
+	merged := mergePatchMaps(baseMap, patchMap)
+	out, err := yaml.Marshal(merged)
+	if err != nil {
+		return "", fmt.Errorf("marshal merged: %w", err)
+	}
+	return string(out), nil
+}
+
+// mergePatchMaps is deepMergeMaps with RFC 7396 null-deletes-key semantics.
+func mergePatchMaps(base, patch map[string]any) map[string]any {
+	out := make(map[string]any, len(base)+len(patch))
+	for k, v := range base {
+		out[k] = v
+	}
+	for k, v := range patch {
+		if v == nil {
+			delete(out, k)
+			continue
+		}
+		if pm, pok := v.(map[string]any); pok {
+			bm, bok := out[k].(map[string]any)
+			if !bok {
+				bm = map[string]any{}
+			}
+			out[k] = mergePatchMaps(bm, pm)
+			continue
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func deepMergeMaps(base, overlay map[string]any) map[string]any {
