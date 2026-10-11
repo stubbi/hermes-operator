@@ -1,3 +1,8 @@
+# In-cluster S3-compatible endpoint for trying out backups on kind.
+#
+# The upstream MinIO images are no longer publicly pullable, so this runs
+# Versity S3 Gateway (posix backend) behind a Service still called "minio".
+# Any S3-compatible server works; only the Service name and credentials matter.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -22,19 +27,19 @@ spec:
       labels: { app: minio }
     spec:
       containers:
-        - name: minio
-          image: quay.io/minio/minio:RELEASE.2024-09-13T20-26-02Z
-          args: ["server", "/data", "--console-address", ":9001"]
+        - name: s3
+          image: docker.io/versity/versitygw:v1.8.0
+          args: ["--port", ":9000", "posix", "/data"]
           env:
-            - name: MINIO_ROOT_USER
-              value: minio
-            - name: MINIO_ROOT_PASSWORD
-              value: minio12345
+            - name: ROOT_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: hermes-s3-creds, key: S3_ACCESS_KEY_ID } }
+            - name: ROOT_SECRET_KEY
+              valueFrom: { secretKeyRef: { name: hermes-s3-creds, key: S3_SECRET_ACCESS_KEY } }
           ports:
             - containerPort: 9000
               name: api
-            - containerPort: 9001
-              name: console
+          readinessProbe:
+            tcpSocket: { port: 9000 }
           volumeMounts:
             - name: data
               mountPath: /data
@@ -53,9 +58,6 @@ spec:
     - name: api
       port: 9000
       targetPort: 9000
-    - name: console
-      port: 9001
-      targetPort: 9001
 ---
 apiVersion: batch/v1
 kind: Job
@@ -66,15 +68,23 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: mc
-          image: minio/mc:RELEASE.2024-09-09T07-53-10Z
+        - name: mkbucket
+          image: docker.io/amazon/aws-cli:2.35.6
           command:
             - sh
             - -c
             - |
               set -eu
-              until mc alias set local http://minio:9000 minio minio12345; do
-                echo "waiting for minio..."; sleep 2
+              S3="aws --endpoint-url http://minio:9000 s3api"
+              until $S3 list-buckets >/dev/null; do
+                echo "waiting for the S3 endpoint..."; sleep 2
               done
-              mc mb -p local/hermes-backups
+              $S3 head-bucket --bucket hermes-backups 2>/dev/null || $S3 create-bucket --bucket hermes-backups
               echo "bucket ready"
+          env:
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: hermes-s3-creds, key: S3_ACCESS_KEY_ID } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: hermes-s3-creds, key: S3_SECRET_ACCESS_KEY } }

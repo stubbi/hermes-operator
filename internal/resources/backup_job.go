@@ -30,10 +30,8 @@ func BuildBackupOneShotJob(inst *hermesv1.HermesInstance, opts BackupJobOpts) *b
 	}
 
 	s3 := inst.Spec.Backup.S3
-	region := ""
 	credSecretName := ""
 	if s3 != nil {
-		region = s3.Region
 		credSecretName = s3.CredentialsSecretRef.Name
 	}
 
@@ -45,18 +43,7 @@ func BuildBackupOneShotJob(inst *hermesv1.HermesInstance, opts BackupJobOpts) *b
 
 	args := []string{
 		"-c",
-		fmt.Sprintf(
-			`set -euo pipefail
-META=$(mktemp)
-jq -n --arg uid %q --arg ts "$(date -u +%%Y-%%m-%%dT%%H-%%M-%%SZ)" --arg fmt "1" \
-    '{instance_uid:$uid, hermes_agent_version: env.HERMES_AGENT_VERSION // "", k8s_version: env.K8S_VERSION // "", timestamp:$ts, format_version:($fmt|tonumber)}' > "$META"
-tar --use-compress-program="zstd -T0 -19" -cf - -C /home/hermes/.hermes . "$META" \
-  | restic --repo "$RESTIC_REPOSITORY" --no-cache backup --stdin --stdin-filename %q || \
-{ echo "BACKUP FAILED" >&2; exit 1; }
-`,
-			string(inst.UID),
-			opts.SnapshotKey,
-		),
+		backupScript(inst, fmt.Sprintf("KEY=%q", opts.SnapshotKey), opts.Kind),
 	}
 
 	return &batchv1.Job{
@@ -92,17 +79,15 @@ tar --use-compress-program="zstd -T0 -19" -cf - -C /home/hermes/.hermes . "$META
 						Args:                     args,
 						TerminationMessagePath:   "/dev/termination-log",
 						TerminationMessagePolicy: corev1.TerminationMessageReadFile,
-						Env: []corev1.EnvVar{
-							{Name: "RESTIC_REPOSITORY", Value: resticRepo(s3)},
-							{Name: "AWS_DEFAULT_REGION", Value: region},
-						},
+						Env:                      resticEnv(s3, credSecretName),
 						EnvFrom: []corev1.EnvFromSource{{
 							SecretRef: &corev1.SecretEnvSource{
 								LocalObjectReference: corev1.LocalObjectReference{Name: credSecretName},
 							},
 						}},
 						VolumeMounts: []corev1.VolumeMount{
-							{Name: "data", MountPath: "/home/hermes/.hermes"},
+							{Name: "data", MountPath: backupDataDir},
+							backupTmpVolumeMount(),
 						},
 						SecurityContext: &corev1.SecurityContext{
 							AllowPrivilegeEscalation: Ptr(false),
@@ -110,14 +95,17 @@ tar --use-compress-program="zstd -T0 -19" -cf - -C /home/hermes/.hermes . "$META
 							Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 						},
 					}},
-					Volumes: []corev1.Volume{{
-						Name: "data",
-						VolumeSource: corev1.VolumeSource{
-							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-								ClaimName: PVCName(inst),
+					Volumes: []corev1.Volume{
+						{
+							Name: "data",
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: PVCName(inst),
+								},
 							},
 						},
-					}},
+						backupTmpVolumeSource(),
+					},
 				},
 			},
 		},
