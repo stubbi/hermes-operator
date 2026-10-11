@@ -19,7 +19,7 @@ keywords:
 home: https://paperclip.inc
 icon: https://paperclip.inc/favicon.svg
 sources:
-  - https://github.com/paperclipinc/hermes-operator
+  - https://github.com/stubbi/hermes-operator
 maintainers:
   - name: paperclipinc
     email: jannes@paperclip.inc
@@ -37,7 +37,7 @@ annotations:
     - name: OperatorHub
       url: https://artifacthub.io/packages/olm/community-operators/hermes-operator
     - name: support
-      url: https://github.com/paperclipinc/hermes-operator/issues
+      url: https://github.com/stubbi/hermes-operator/issues
   artifacthub.io/crds: |
     - kind: HermesInstance
       version: v1

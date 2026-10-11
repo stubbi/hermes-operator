@@ -8,7 +8,7 @@ the canonical reference; `SECURITY.md` (top-level) points here.
 
 ```bash
 cosign verify ghcr.io/paperclipinc/hermes-operator:vX.Y.Z \
-  --certificate-identity-regexp 'https://github.com/paperclipinc/hermes-operator/.github/workflows/.*' \
+  --certificate-identity-regexp '^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -20,7 +20,7 @@ tampered.
 
 ```bash
 cosign verify-attestation ghcr.io/paperclipinc/hermes-operator:vX.Y.Z --type spdxjson \
-  --certificate-identity-regexp 'https://github.com/paperclipinc/hermes-operator/.github/workflows/.*' \
+  --certificate-identity-regexp '^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -32,7 +32,7 @@ cosign download attestation ghcr.io/paperclipinc/hermes-operator:vX.Y.Z --predic
 ```
 
 The SBOM is also uploaded as a release asset at
-`https://github.com/paperclipinc/hermes-operator/releases/download/vX.Y.Z/sbom.spdx.json`
+`https://github.com/stubbi/hermes-operator/releases/download/vX.Y.Z/sbom.spdx.json`
 for users who can't (or won't) hit the registry.
 
 ## What the operator signs

@@ -9,6 +9,11 @@ on:
         description: 'Release tag (e.g. v1.0.0)'
         required: true
 
+env:
+  # GHCR namespace of the published operator image; same variable and default
+  # as release.yaml (see #173).
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}
+
 jobs:
   submit-community-operators:
     name: Submit to k8s-operatorhub/community-operators
@@ -38,7 +43,7 @@ jobs:
           # floating tag if the digest cannot be resolved (e.g. registry hiccup).
           # The single sed below rewrites the deployment image and the operator
           # relatedImage entry in the CSV to the same pinned reference.
-          IMG="ghcr.io/paperclipinc/hermes-operator"
+          IMG="ghcr.io/${IMAGE_NAMESPACE}/hermes-operator"
           DIGEST="$(docker buildx imagetools inspect "${IMG}:${TAG}" --format '{{ .Manifest.Digest }}' 2>/dev/null || true)"
           if [ -n "${DIGEST}" ]; then IMG_REF="${IMG}@${DIGEST}"; else IMG_REF="${IMG}:${TAG}"; fi
           echo "Pinning image to: ${IMG_REF}"
@@ -48,7 +53,7 @@ jobs:
           # Copy and version the CSV.
           sed \
             -e "s/hermes-operator\.v[0-9]\+\.[0-9]\+\.[0-9]\+/hermes-operator.v${VERSION}/g" \
-            -e "s|ghcr.io/paperclipinc/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+|${IMG_REF}|g" \
+            -e "s|ghcr.io/[a-z0-9._-]*/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+|${IMG_REF}|g" \
             -e "s/createdAt: .*/createdAt: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" \
             -e "s/^  version: [0-9]\+\.[0-9]\+\.[0-9]\+/  version: ${VERSION}/" \
             -e "s/ # x-release-please-version//" \
@@ -111,14 +116,14 @@ jobs:
           ### Update to hermes-operator
 
           **Version:** ${VERSION}
-          **Operator:** [Hermes Kubernetes Operator](https://github.com/paperclipinc/hermes-operator)
+          **Operator:** [Hermes Kubernetes Operator](https://github.com/${{ github.repository }})
 
           #### Changes
-          See [release notes](https://github.com/paperclipinc/hermes-operator/releases/tag/v${VERSION}).
+          See [release notes](https://github.com/${{ github.repository }}/releases/tag/v${VERSION}).
 
           #### Testing
           - CI tests + nightly conformance suite pass on the source repository
-          - Container image is published and signed at \`ghcr.io/paperclipinc/hermes-operator:v${VERSION}\`
+          - Container image is published and signed at \`ghcr.io/${IMAGE_NAMESPACE}/hermes-operator:v${VERSION}\`
           - SBOM attested at the same digest (verify with \`cosign verify-attestation\`)
           EOF
           )"
@@ -154,7 +159,7 @@ jobs:
           # floating tag if the digest cannot be resolved (e.g. registry hiccup).
           # The single sed below rewrites the deployment image and the operator
           # relatedImage entry in the CSV to the same pinned reference.
-          IMG="ghcr.io/paperclipinc/hermes-operator"
+          IMG="ghcr.io/${IMAGE_NAMESPACE}/hermes-operator"
           DIGEST="$(docker buildx imagetools inspect "${IMG}:${TAG}" --format '{{ .Manifest.Digest }}' 2>/dev/null || true)"
           if [ -n "${DIGEST}" ]; then IMG_REF="${IMG}@${DIGEST}"; else IMG_REF="${IMG}:${TAG}"; fi
           echo "Pinning image to: ${IMG_REF}"
@@ -162,7 +167,7 @@ jobs:
           mkdir -p "${BUNDLE_DIR}/manifests" "${BUNDLE_DIR}/metadata"
           sed \
             -e "s/hermes-operator\.v[0-9]\+\.[0-9]\+\.[0-9]\+/hermes-operator.v${VERSION}/g" \
-            -e "s|ghcr.io/paperclipinc/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+|${IMG_REF}|g" \
+            -e "s|ghcr.io/[a-z0-9._-]*/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+|${IMG_REF}|g" \
             -e "s/createdAt: .*/createdAt: \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"/" \
             -e "s/^  version: [0-9]\+\.[0-9]\+\.[0-9]\+/  version: ${VERSION}/" \
             -e "s/ # x-release-please-version//" \
@@ -209,5 +214,5 @@ jobs:
               --repo redhat-openshift-ecosystem/community-operators-prod \
               --head "${FORK_OWNER}:${BRANCH}" \
               --title "operator hermes-operator (${VERSION})" \
-              --body "Release ${VERSION}. See https://github.com/paperclipinc/hermes-operator/releases/tag/v${VERSION}."
+              --body "Release ${VERSION}. See https://github.com/${{ github.repository }}/releases/tag/v${VERSION}."
           fi

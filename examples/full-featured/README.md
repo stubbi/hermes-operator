@@ -77,7 +77,7 @@ kubectl apply -n agents -f hermesinstance.yaml
 ### Planned (not yet in the v1 CRD)
 
 A first-class `spec.webTerminal` field is on the roadmap, tracked in
-[#42](https://github.com/paperclipinc/hermes-operator/issues/42). It is not yet
+[#42](https://github.com/stubbi/hermes-operator/issues/42). It is not yet
 exposed on the v1 CRD, so setting it has no effect (the apiserver prunes
 unknown fields). Until it lands, run a web-terminal container through the
 generic `spec.sidecars` escape hatch.

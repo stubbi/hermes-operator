@@ -2,7 +2,7 @@ site_name: Hermes Operator
 site_url: https://paperclip.inc/docs/operators/hermes/
 site_description: Kubernetes operator for managing Hermes AI agent instances with production-grade security, observability, and lifecycle management.
 site_author: Paperclip Inc.
-repo_url: https://github.com/paperclipinc/hermes-operator
+repo_url: https://github.com/stubbi/hermes-operator
 repo_name: paperclipinc/hermes-operator
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; Paperclip Inc.
@@ -79,7 +79,7 @@ validation:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/paperclipinc/hermes-operator
+      link: https://github.com/stubbi/hermes-operator
 
 nav:
   - Home: index.md
