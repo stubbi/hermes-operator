@@ -7,6 +7,31 @@ version you are skipping over, not just the one you are moving to.
 Entries are newest first. Versions not listed here need no action beyond the
 normal `helm upgrade` or OLM subscription bump.
 
+## Unreleased
+
+### `config.yaml` is now a writable file seeded by an init container
+
+**What changed.** The agent pod gains a `config-seed` init container (agent
+image, a few seconds per start). It copies the rendered `config.yaml` from the
+instance ConfigMap onto the data volume at `/opt/data/config.yaml` and runs the
+agent's config schema migration. The agent container no longer mounts
+`config.yaml` read-only from the ConfigMap. See
+[runtime](runtime.md#config-file-and-schema-migrations).
+
+**Why.** With the read-only mount, agent config schema migrations failed
+silently and the agent ran on an unmigrated config (#160).
+
+**Who is affected.** Every instance: pods roll once on upgrade. Two things to
+know:
+
+- A config the agent cannot migrate now stops the pod at init with
+  `Ready=False`, reason `ConfigMigrationFailed`, instead of starting on a
+  silently wrong config. Set `HERMES_SKIP_CONFIG_MIGRATION=1` in `spec.env` to
+  restore the old warn and continue behavior.
+- Runtime writes to `config.yaml` (for example `/sethome`) now succeed, but they
+  last only until the next pod restart, when the declared config is copied over
+  them again. Persist such settings in `spec.config`.
+
 ## 0.2.0
 
 ### The agent container now has default resource requests and limits

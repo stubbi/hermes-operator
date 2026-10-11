@@ -33,8 +33,40 @@ the PVC) is **gone**. Only mutable state lives on the volume.
 ## State and `HERMES_HOME`
 
 Persistent state lives at **`/opt/data`**, the PVC mount, and `HERMES_HOME` is
-set to `/opt/data`. (The previous runtime used `/home/hermes/.hermes`.) The
-rendered `config.yaml` is mounted read-only at `/opt/data/config.yaml`.
+set to `/opt/data`. (The previous runtime used `/home/hermes/.hermes`.)
+
+## Config file and schema migrations
+
+The agent migrates its own `config.yaml` in place when a newer image moves to a
+newer config schema (renamed keys, new sections, a `_config_version` stamp). So
+`config.yaml` is a regular, writable file on the data volume, not a ConfigMap
+mount:
+
+1. The instance ConfigMap is mounted read-only at `/etc/hermes-operator/config`
+   inside a `config-seed` init container, which runs the agent image itself
+   (with `/bin/sh`, bypassing the s6 entrypoint).
+2. `config-seed` copies `config.yaml` to `/opt/data/config.yaml` on **every**
+   pod start (atomic write, owned by uid 1000). The ConfigMap therefore stays
+   authoritative: anything the agent wrote into `config.yaml` at runtime is
+   replaced by the declared config on the next restart, and edits to
+   `spec.config` still roll the pod through the config hash.
+3. If the image ships `scripts/docker_config_migrate.py` (the same script the
+   image's s6 stage2 hook runs on boot), `config-seed` runs it next. On success
+   the agent starts on a current config. On failure the init container exits
+   non-zero, the pod does not start, and the instance reports
+   `Ready=False` with reason `ConfigMigrationFailed` and the tail of the
+   migration log as the message.
+
+Previously `config.yaml` was a read-only subPath mount. The migration then
+failed with `Read-only file system`, the s6 hook logged one warning and
+continued, and the agent came up Ready on a config whose renamed keys silently
+fell back to defaults (#160). Failing loudly at init is deliberate: a
+`CrashLoopBackOff` with a clear reason at image bump time is cheaper than an
+agent that quietly runs with the wrong model or provider.
+
+To start the agent anyway (for example while you fix the config), set
+`HERMES_SKIP_CONFIG_MIGRATION=1` in `spec.env`; the operator forwards that one
+variable to `config-seed`, and the upstream script honors it.
 
 ## Security posture and the SCC tradeoff
 
