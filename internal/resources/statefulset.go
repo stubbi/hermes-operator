@@ -78,13 +78,11 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance, extraInits []corev1.Contain
 		SecurityContext: containerSecurityCtx,
 		VolumeMounts: []corev1.VolumeMount{
 			// HERMES_HOME on the upstream image is /opt/data (the persistent volume).
+			// config.yaml lives on the data volume and is written by the
+			// config-seed init container (BuildConfigSeedContainer), not mounted
+			// from the ConfigMap: the agent migrates it in place on schema bumps
+			// and a read-only subPath mount made that fail silently (#160).
 			{Name: "data", MountPath: "/opt/data"},
-			{
-				Name:      "config",
-				MountPath: "/opt/data/config.yaml",
-				SubPath:   "config.yaml",
-				ReadOnly:  true,
-			},
 			{Name: "tmp", MountPath: "/tmp"},
 		},
 		ReadinessProbe: &corev1.Probe{
@@ -328,15 +326,21 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance, extraInits []corev1.Contain
 		},
 	}
 
-	// Assemble init containers: extraInits (restore/migration) → user-supplied.
+	// Assemble init containers: extraInits (restore/migration), config-seed, then
+	// user-supplied.
 	// The upstream s6 image is self-contained (its own Python env, browser, node,
 	// deps), so the old runtime-init chain (init-apt/init-uv/init-pip that uv-sync'd
 	// the env onto the PVC) is gone — the agent's runtime lives in the image, only
 	// mutable state lives on /opt/data.
+	//
+	// config-seed runs after extraInits so a restored or migrated volume still
+	// gets the declared config.yaml, and before user init containers so they see
+	// the final file.
 	inits := append([]corev1.Container{}, extraInits...)
 	if brokerInit != nil {
 		inits = append(inits, *brokerInit)
 	}
+	inits = append(inits, BuildConfigSeedContainer(inst, containerSecurityCtx.DeepCopy()))
 	inits = append(inits, inst.Spec.InitContainers...)
 	sts.Spec.Template.Spec.InitContainers = inits
 

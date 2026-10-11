@@ -21,6 +21,8 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -33,6 +35,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -58,6 +61,50 @@ func init() {
 
 	utilruntime.Must(hermesv1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+// The helpers below live in main.go because the Dockerfile builds the single
+// file cmd/main.go.
+
+// watchNamespaceEnv is the environment variable OLM populates from the
+// olm.targetNamespaces annotation. An empty value means all namespaces.
+const watchNamespaceEnv = "WATCH_NAMESPACE"
+
+// parseWatchNamespaces splits a comma-separated namespace list, trimming
+// blanks and dropping duplicates. An empty result means "all namespaces".
+func parseWatchNamespaces(raw string) []string {
+	seen := map[string]struct{}{}
+	out := []string{}
+	for _, ns := range strings.Split(raw, ",") {
+		ns = strings.TrimSpace(ns)
+		if ns == "" {
+			continue
+		}
+		if _, dup := seen[ns]; dup {
+			continue
+		}
+		seen[ns] = struct{}{}
+		out = append(out, ns)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// cacheOptions restricts the informer cache for namespaced objects to the
+// watched namespaces. Cluster-scoped objects (HermesClusterDefaults) are still
+// cached cluster-wide. With no namespaces, the cache watches everything, which
+// requires the cluster-wide RBAC the chart renders when watchNamespaces is
+// empty. With namespaces set, the per-namespace Roles the chart renders are
+// sufficient because the manager never lists or watches outside them.
+func cacheOptions(namespaces []string) cache.Options {
+	if len(namespaces) == 0 {
+		return cache.Options{}
+	}
+	defaults := make(map[string]cache.Config, len(namespaces))
+	for _, ns := range namespaces {
+		defaults[ns] = cache.Config{}
+	}
+	return cache.Options{DefaultNamespaces: defaults}
 }
 
 // prometheusOperatorCRDsPresent returns true when monitoring.coreos.com API
@@ -96,6 +143,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var watchNamespaces string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -106,6 +154,9 @@ func main() {
 		"If set, the metrics endpoint is served securely via HTTPS. Use --metrics-secure=false to use HTTP instead.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&watchNamespaces, "watch-namespaces", os.Getenv(watchNamespaceEnv),
+		"Comma-separated namespaces to watch. Empty watches all namespaces. "+
+			"Defaults to the "+watchNamespaceEnv+" environment variable (set by OLM from olm.targetNamespaces).")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -157,8 +208,16 @@ func main() {
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
 
+	watched := parseWatchNamespaces(watchNamespaces)
+	if len(watched) > 0 {
+		setupLog.Info("restricting the manager cache to watched namespaces", "namespaces", watched)
+	} else {
+		setupLog.Info("watching all namespaces")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
+		Cache:                  cacheOptions(watched),
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,

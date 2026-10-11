@@ -7,6 +7,60 @@ version you are skipping over, not just the one you are moving to.
 Entries are newest first. Versions not listed here need no action beyond the
 normal `helm upgrade` or OLM subscription bump.
 
+## Unreleased
+
+### Config changes now restart the agent pod
+
+**What changed.** `config.yaml` is subPath-mounted, which kubelet never
+refreshes in a running pod, and the pod template carried no digest, so
+editing `spec.config` (or a `HermesSelfConfig` patch landing) updated the
+ConfigMap while the agent kept running the old config. The pod template now
+carries `hermes.agent/config-hash` and `hermes.agent/workspace-hash`
+annotations. Any change to the rendered config or the workspace seed rolls
+the StatefulSet.
+
+**Action.** Expect one pod restart per instance on upgrade, when the
+annotations first appear. After that, config edits take effect on their own;
+drop any `kubectl delete pod` step from your workflow.
+
+### `HermesSelfConfig.spec.patchConfig` is now merged into the config ConfigMap
+
+**What changed.** A `patchConfig` used to be written as `selfconfig.yaml` into
+the `<instance>-workspace` ConfigMap, where the next `HermesInstance` reconcile
+wiped it and nothing read it in the first place. The operator now merges every
+`Applied` patch into `<instance>-config` (`config.yaml`) on each instance
+reconcile, so the patch survives reconciles and is retracted when the
+`HermesSelfConfig` is deleted. `status.appliedFields` reports
+`config-configmap.data[key=config.yaml]` instead of the old workspace key.
+
+**Action.** None for most users. If you relied on `selfconfig.yaml` in the
+workspace ConfigMap, drop that dependency. A patch landing or being retracted
+rolls the pod through the config hash annotation described above, so no manual
+restart is needed.
+
+### `config.yaml` is now a writable file seeded by an init container
+
+**What changed.** The agent pod gains a `config-seed` init container (agent
+image, a few seconds per start). It copies the rendered `config.yaml` from the
+instance ConfigMap onto the data volume at `/opt/data/config.yaml` and runs the
+agent's config schema migration. The agent container no longer mounts
+`config.yaml` read-only from the ConfigMap. See
+[runtime](runtime.md#config-file-and-schema-migrations).
+
+**Why.** With the read-only mount, agent config schema migrations failed
+silently and the agent ran on an unmigrated config (#160).
+
+**Who is affected.** Every instance: pods roll once on upgrade. Two things to
+know:
+
+- A config the agent cannot migrate now stops the pod at init with
+  `Ready=False`, reason `ConfigMigrationFailed`, instead of starting on a
+  silently wrong config. Set `HERMES_SKIP_CONFIG_MIGRATION=1` in `spec.env` to
+  restore the old warn and continue behavior.
+- Runtime writes to `config.yaml` (for example `/sethome`) now succeed, but they
+  last only until the next pod restart, when the declared config is copied over
+  them again. Persist such settings in `spec.config`.
+
 ## 0.2.0
 
 ### The agent container now has default resource requests and limits

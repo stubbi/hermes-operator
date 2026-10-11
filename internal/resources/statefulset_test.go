@@ -114,7 +114,11 @@ func TestBuildStatefulSet_VolumesAndMounts(t *testing.T) {
 		mountNames[m.Name] = m.MountPath
 	}
 	assert.Equal(t, "/opt/data", mountNames["data"], "PVC mounted at HERMES_HOME (/opt/data)")
-	assert.Equal(t, "/opt/data/config.yaml", mountNames["config"], "configmap subPath at config.yaml")
+	_, hasConfig := mountNames["config"]
+	assert.False(t, hasConfig, "config.yaml must not be a read-only ConfigMap mount on the agent (#160); config-seed writes it onto the data volume")
+	for _, m := range c.VolumeMounts {
+		assert.NotEqual(t, "/opt/data/config.yaml", m.MountPath, "no subPath mount may shadow the writable config.yaml")
+	}
 	assert.Equal(t, "/tmp", mountNames["tmp"], "writable /tmp")
 }
 

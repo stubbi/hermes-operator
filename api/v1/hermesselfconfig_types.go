@@ -52,8 +52,9 @@ type HermesSelfConfigSpec struct {
 	// +optional
 	AddSkills []SelfConfigSkill `json:"addSkills,omitempty"`
 
-	// PatchConfig is a JSON merge patch (RFC 7396) applied to the agent's
-	// runtime config at ~/.hermes/config.yaml.
+	// PatchConfig is a JSON merge patch (RFC 7396) merged by the operator
+	// into the rendered config ConfigMap once this request is Applied.
+	// Later requests win on conflict; a null value deletes a key.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	PatchConfig *apiextensionsv1.JSON `json:"patchConfig,omitempty"`

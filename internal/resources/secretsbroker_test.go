@@ -114,7 +114,7 @@ func TestBuildStatefulSet_SecretsBrokerOverrides(t *testing.T) {
 	sts := BuildStatefulSet(inst, []corev1.Container{{Name: "init-restore"}})
 	pod := sts.Spec.Template.Spec
 	assert.Equal(t, []string{"/opt/hermes-secrets-broker/resolver", "secrets-broker", "exec", "--", "/usr/local/bin/entry"}, pod.Containers[0].Command)
-	require.Len(t, pod.InitContainers, 2)
+	require.Len(t, pod.InitContainers, 3, "restore, secrets broker, config-seed")
 	assert.Equal(t, "init-restore", pod.InitContainers[0].Name, "restore still runs first")
 	assert.Equal(t, "registry.local/hermes-operator@sha256:abc", pod.InitContainers[1].Image)
 }

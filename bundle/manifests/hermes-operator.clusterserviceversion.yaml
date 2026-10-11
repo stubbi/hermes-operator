@@ -452,7 +452,28 @@ spec:
         - serviceAccountName: hermes-operator-controller-manager
           rules:
             - apiGroups:
-                - ''
+                - hermes.agent
+              resources:
+                - hermesclusterdefaults
+              verbs:
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - hermes.agent
+              resources:
+                - hermesclusterdefaults/status
+              verbs:
+                - get
+                - patch
+                - update
+      permissions:
+        - serviceAccountName: hermes-operator-controller-manager
+          rules:
+            - apiGroups:
+                - ""
               resources:
                 - configmaps
                 - events
@@ -469,7 +490,7 @@ spec:
                 - update
                 - watch
             - apiGroups:
-                - ''
+                - ""
               resources:
                 - pods
               verbs:
@@ -529,17 +550,6 @@ spec:
             - apiGroups:
                 - hermes.agent
               resources:
-                - hermesclusterdefaults
-              verbs:
-                - get
-                - list
-                - patch
-                - update
-                - watch
-            - apiGroups:
-                - hermes.agent
-              resources:
-                - hermesclusterdefaults/status
                 - hermesinstances/status
                 - hermesselfconfigs/status
               verbs:
@@ -625,6 +635,37 @@ spec:
                 - patch
                 - update
                 - watch
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
       deployments:
         - name: hermes-operator-controller-manager
           spec:
@@ -654,6 +695,10 @@ spec:
                       - '--leader-elect'
                       - '--health-probe-bind-address=:8081'
                     env:
+                      - name: WATCH_NAMESPACE
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.annotations['olm.targetNamespaces']
                       - name: HERMES_OPERATOR_IMAGE
                         value: ghcr.io/paperclipinc/hermes-operator:v0.2.0 # x-release-please-version
                     ports:
