@@ -1,9 +1,10 @@
 # .github/workflows/agent-image.yaml
 #
-# Builds and publishes ghcr.io/paperclipinc/hermes-agent. The image is
+# Builds and publishes ghcr.io/<IMAGE_NAMESPACE>/hermes-agent (vars.IMAGE_NAMESPACE,
+# default paperclipinc, shared with release.yaml). The image is
 # `FROM nousresearch/hermes-agent` (pinned by digest in the Dockerfile) plus
 # operator metadata, so this workflow re-tags + re-labels + signs the upstream
-# runtime — it does not rebuild a Python env. Triggered:
+# runtime; it does not rebuild a Python env. Triggered:
 #   - Manually via workflow_dispatch (engineer picks the published tag).
 #   - On every push of a tag matching `agent/vX.Y.Z`.
 #
@@ -25,6 +26,12 @@ permissions:
   contents: read
   packages: write
   id-token: write
+
+env:
+  # GHCR namespace to publish into. Pinned (not derived from the repository
+  # owner) because the repository moved from paperclipinc to stubbi while the
+  # published images and the operator defaults stay under paperclipinc (#173).
+  IMAGE: ghcr.io/${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}/hermes-agent
 
 jobs:
   build:
@@ -56,8 +63,10 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # See release.yaml: pushing into a namespace the repository owner
+          # does not own needs GHCR_PUSH_TOKEN / GHCR_PUSH_USER.
+          username: ${{ vars.GHCR_PUSH_USER || github.actor }}
+          password: ${{ secrets.GHCR_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build and push
         id: build
@@ -68,8 +77,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/paperclipinc/hermes-agent:${{ steps.ver.outputs.tag }}
-            ghcr.io/paperclipinc/hermes-agent:latest
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.tag }}
+            ${{ env.IMAGE }}:latest
           build-args: |
             HERMES_VERSION=${{ steps.ver.outputs.tag }}
           provenance: true
@@ -86,7 +95,7 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           for attempt in 1 2 3 4 5; do
-            if cosign sign --yes "ghcr.io/paperclipinc/hermes-agent@${DIGEST}"; then exit 0; fi
+            if cosign sign --yes "${IMAGE}@${DIGEST}"; then exit 0; fi
             echo "cosign sign attempt ${attempt} failed (likely transient rekor); retrying in $((attempt*20))s..." >&2
             sleep $((attempt*20))
           done
@@ -97,7 +106,7 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          syft "ghcr.io/paperclipinc/hermes-agent:${{ steps.ver.outputs.tag }}" \
+          syft "${IMAGE}:${{ steps.ver.outputs.tag }}" \
             -o spdx-json=sbom.spdx.json
 
       - name: Attach SBOM as Cosign attestation
@@ -108,7 +117,7 @@ jobs:
             if cosign attest --yes \
               --predicate sbom.spdx.json \
               --type spdxjson \
-              "ghcr.io/paperclipinc/hermes-agent@${DIGEST}"; then exit 0; fi
+              "${IMAGE}@${DIGEST}"; then exit 0; fi
             echo "cosign attest attempt ${attempt} failed (likely transient rekor); retrying in $((attempt*20))s..." >&2
             sleep $((attempt*20))
           done

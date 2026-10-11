@@ -35,8 +35,8 @@ ARG HERMES_VERSION
 # (Plan 5) compares against the registry tag. The image's upstream ENTRYPOINT
 # (/init → main-wrapper) and env (HERMES_HOME=/opt/data, ...) are inherited.
 LABEL org.opencontainers.image.title="hermes-agent" \
-      org.opencontainers.image.source="https://github.com/paperclipinc/hermes-operator" \
-      org.opencontainers.image.documentation="https://github.com/paperclipinc/hermes-operator/blob/main/images/hermes-agent/README.md" \
+      org.opencontainers.image.source="https://github.com/stubbi/hermes-operator" \
+      org.opencontainers.image.documentation="https://github.com/stubbi/hermes-operator/blob/main/images/hermes-agent/README.md" \
       org.opencontainers.image.description="Operator-published NousResearch/hermes-agent (s6 runtime: gateway + API server + dashboard + browser) for hermes-operator" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="paperclipinc" \
