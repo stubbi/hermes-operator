@@ -20,7 +20,7 @@ kubectl create secret generic hermes-s3-creds \
 
 A reachable S3 bucket is required because `backupBeforeUpdate: true`
 (default) takes a pre-update snapshot. See
-[`backup-s3/`](../backup-s3/) for a kind-local MinIO setup if you need
+[`backup-s3/`](../backup-s3/) for a kind-local S3 setup if you need
 one.
 
 ## Apply

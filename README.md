@@ -167,7 +167,7 @@ fields only: explicit values on the instance always win.
 | **Resilient** | PodDisruptionBudget auto-managed when `replicas > 1` | |
 | **Resilient** | Finalizer-driven backup-on-delete | `r.Patch` (JSON patch) for finalizer mutations, never `r.Update`. |
 | **Resilient** | Zombie-process reaper | s6-overlay `/init` as PID 1 reaps zombies; `shareProcessNamespace: false` by default (its `/init` must be PID 1). |
-| **Backup / Restore** | S3-compatible backups | Scheduled, on-delete, pre-update. `tar.zst` snapshots + `meta.json`. |
+| **Backup / Restore** | S3-compatible backups | Scheduled, on-delete, pre-update. restic snapshots (deduplicated, compressed, encrypted). |
 | **Backup / Restore** | Declarative one-shot restore | `spec.restoreFrom` is immutable once applied. |
 | **Migration** | One-shot OpenClaw → Hermes migration | From sibling `OpenClawInstance` or S3 backup. Uses hermes-agent's importer. |
 | **Profile store** | Optional Honcho companion | Deployment + Service + PVC + secret, fully managed. |

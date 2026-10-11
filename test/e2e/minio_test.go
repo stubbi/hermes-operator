@@ -7,6 +7,19 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const (
+	// s3ServerImage is the S3-compatible server that stands in for MinIO.
+	s3ServerImage = "docker.io/versity/versitygw:v1.8.0"
+	// s3ClientImage creates buckets and lists objects in the e2e.
+	s3ClientImage = "docker.io/amazon/aws-cli:2.35.6"
+)
+
+// minioManifest deploys an in-cluster S3-compatible endpoint for the
+// backup/restore e2e. The namespace, Service and Secret keep their historical
+// "minio" names because the e2e and conformance fixtures point at
+// minio.minio.svc:9000, but the server is Versity S3 Gateway: the upstream
+// MinIO images (quay.io/minio/minio, minio/minio, minio/mc) are no longer
+// publicly pullable, which broke the e2e BeforeSuite for every PR.
 const minioManifest = `
 ---
 apiVersion: v1
@@ -36,17 +49,19 @@ spec:
     metadata: { labels: { app: minio } }
     spec:
       containers:
-        - name: minio
-          image: quay.io/minio/minio:RELEASE.2024-09-13T20-26-02Z
-          args: ["server", "/data", "--console-address", ":9001"]
+        - name: s3
+          image: ` + s3ServerImage + `
+          args: ["--port", ":9000", "posix", "/data"]
           env:
-            - name: MINIO_ROOT_USER
+            - name: ROOT_ACCESS_KEY
               valueFrom: { secretKeyRef: { name: minio-root, key: rootUser } }
-            - name: MINIO_ROOT_PASSWORD
+            - name: ROOT_SECRET_KEY
               valueFrom: { secretKeyRef: { name: minio-root, key: rootPassword } }
           ports:
             - containerPort: 9000
-            - containerPort: 9001
+          readinessProbe:
+            tcpSocket: { port: 9000 }
+            periodSeconds: 2
           volumeMounts:
             - { name: data, mountPath: /data }
       volumes:
@@ -64,9 +79,6 @@ spec:
     - name: api
       port: 9000
       targetPort: 9000
-    - name: console
-      port: 9001
-      targetPort: 9001
 ---
 apiVersion: batch/v1
 kind: Job
@@ -79,18 +91,23 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: mc
-          image: minio/mc:RELEASE.2024-09-16T17-43-14Z
+        - name: mkbucket
+          image: ` + s3ClientImage + `
           command: ["/bin/sh", "-c"]
           args:
             - |
-              until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do sleep 2; done
-              mc mb --ignore-existing local/hermes-backups
-              mc mb --ignore-existing local/openclaw-backups
+              set -e
+              S3="aws --endpoint-url http://minio:9000 s3api"
+              until $S3 list-buckets >/dev/null; do sleep 2; done
+              for b in hermes-backups openclaw-backups; do
+                $S3 head-bucket --bucket "$b" 2>/dev/null || $S3 create-bucket --bucket "$b"
+              done
           env:
-            - name: MINIO_ROOT_USER
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_ACCESS_KEY_ID
               valueFrom: { secretKeyRef: { name: minio-root, key: rootUser } }
-            - name: MINIO_ROOT_PASSWORD
+            - name: AWS_SECRET_ACCESS_KEY
               valueFrom: { secretKeyRef: { name: minio-root, key: rootPassword } }
 `
 
