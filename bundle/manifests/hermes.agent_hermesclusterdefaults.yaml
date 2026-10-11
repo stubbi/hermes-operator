@@ -92,6 +92,14 @@ spec:
                     properties:
                       allowDNS:
                         type: boolean
+                      egressPolicy:
+                        description: |-
+                          EgressPolicy defaults spec.security.networkPolicy.egressPolicy for
+                          instances that leave it unset.
+                        enum:
+                        - Open
+                        - Allowlist
+                        type: string
                       enabled:
                         type: boolean
                     type: object
@@ -321,6 +329,14 @@ spec:
                     properties:
                       allowDNS:
                         type: boolean
+                      egressPolicy:
+                        description: |-
+                          EgressPolicy defaults spec.security.networkPolicy.egressPolicy for
+                          instances that leave it unset.
+                        enum:
+                        - Open
+                        - Allowlist
+                        type: string
                       enabled:
                         type: boolean
                     type: object

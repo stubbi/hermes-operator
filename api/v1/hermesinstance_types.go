@@ -406,6 +406,24 @@ type RBACSpec struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// EgressPolicy selects how permissive the generated NetworkPolicy's egress
+// baseline is.
+// +kubebuilder:validation:Enum=Open;Allowlist
+type EgressPolicy string
+
+const (
+	// EgressPolicyOpen keeps the baseline rule that allows TCP/443 to any
+	// destination. This is the default and matches pre-egressPolicy behavior.
+	EgressPolicyOpen EgressPolicy = "Open"
+	// EgressPolicyAllowlist drops the TCP/443 any-destination baseline (and the
+	// equivalent per-gateway any-destination rule). Egress is then limited to
+	// DNS (when allowDNS), allowedEgressCIDRs, additionalEgress, and the
+	// operator's in-cluster sibling rules (Honcho). Model APIs, gateway
+	// platforms and the Tailscale control plane/DERP relays must be allowed
+	// explicitly.
+	EgressPolicyAllowlist EgressPolicy = "Allowlist"
+)
+
 // NetworkPolicySpec controls per-instance NetworkPolicy creation.
 type NetworkPolicySpec struct {
 	// Enabled: when true (the default), the operator creates a deny-all
@@ -422,6 +440,16 @@ type NetworkPolicySpec struct {
 	// +optional
 	AllowDNS *bool `json:"allowDNS,omitempty"`
 
+	// EgressPolicy selects the egress baseline. Open (the default when unset)
+	// allows TCP/443 to any destination, which the agent relies on for model
+	// APIs, chat gateways and the Tailscale control plane. Allowlist removes
+	// that any-destination rule; only DNS, allowedEgressCIDRs, additionalEgress
+	// and in-cluster sibling rules remain, so every external endpoint the agent
+	// needs must be listed explicitly. When unset, inherits from
+	// HermesClusterDefaults spec.security.networkPolicy.egressPolicy.
+	// +optional
+	EgressPolicy EgressPolicy `json:"egressPolicy,omitempty"`
+
 	// AllowedIngressNamespaces is the set of additional namespaces (beyond the
 	// instance's own) whose pods may connect to the agent's exposed ports.
 	// +listType=set
@@ -435,7 +463,7 @@ type NetworkPolicySpec struct {
 	AllowedIngressCIDRs []string `json:"allowedIngressCIDRs,omitempty"`
 
 	// AllowedEgressCIDRs is the set of CIDRs the agent may connect to in addition
-	// to the operator-built defaults (DNS + 443).
+	// to the operator-built defaults (DNS, plus TCP/443 under egressPolicy Open).
 	// +listType=set
 	// +optional
 	AllowedEgressCIDRs []string `json:"allowedEgressCIDRs,omitempty"`

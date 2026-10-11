@@ -112,12 +112,14 @@ func buildEgressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPolic
 		})
 	}
 
-	rules = append(rules, networkingv1.NetworkPolicyEgressRule{
-		To: []networkingv1.NetworkPolicyPeer{},
-		Ports: []networkingv1.NetworkPolicyPort{
-			{Protocol: Ptr(corev1.ProtocolTCP), Port: Ptr(intstr.FromInt(443))},
-		},
-	})
+	if !egressAllowlist(inst) {
+		rules = append(rules, networkingv1.NetworkPolicyEgressRule{
+			To: []networkingv1.NetworkPolicyPeer{},
+			Ports: []networkingv1.NetworkPolicyPort{
+				{Protocol: Ptr(corev1.ProtocolTCP), Port: Ptr(intstr.FromInt(443))},
+			},
+		})
+	}
 
 	for _, cidr := range inst.Spec.Security.NetworkPolicy.AllowedEgressCIDRs {
 		rules = append(rules, networkingv1.NetworkPolicyEgressRule{
@@ -133,6 +135,12 @@ func buildEgressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPolic
 	return rules
 }
 
+// egressAllowlist reports whether the instance opted out of the open TCP/443
+// egress baseline. Unset means Open.
+func egressAllowlist(inst *hermesv1.HermesInstance) bool {
+	return inst.Spec.Security.NetworkPolicy.EgressPolicy == hermesv1.EgressPolicyAllowlist
+}
+
 func buildTailscaleEgressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPolicyEgressRule {
 	if !tailscaleEnabled(inst) {
 		return nil
@@ -142,7 +150,8 @@ func buildTailscaleEgressRules(inst *hermesv1.HermesInstance) []networkingv1.Net
 	direct := intstr.FromInt32(41641)
 	return []networkingv1.NetworkPolicyEgressRule{{
 		// Tailscale direct connections (STUN + WireGuard). Control plane and
-		// DERP relay use TCP/443, already allowed by the baseline.
+		// DERP relay use TCP/443, allowed by the baseline under egressPolicy
+		// Open; under Allowlist the user must allow them explicitly.
 		Ports: []networkingv1.NetworkPolicyPort{
 			{Protocol: &udp, Port: &stun},
 			{Protocol: &udp, Port: &direct},
@@ -151,14 +160,18 @@ func buildTailscaleEgressRules(inst *hermesv1.HermesInstance) []networkingv1.Net
 }
 
 // ExtraEgressRules returns the per-instance egress rules driven by spec.gateways
-// and spec.profileStore. Plan 2's base default-deny baseline opens DNS + TCP/443
-// already; these rules add (1) explicit per-gateway endpoints (still TCP/443
-// but documented per gateway) and (2) egress to the Honcho sibling pod on
-// TCP/8000 when ProfileStore.Honcho is enabled.
+// and spec.profileStore. Under egressPolicy Open the base default-deny baseline
+// opens DNS + TCP/443 already; these rules add (1) explicit per-gateway
+// endpoints (still TCP/443 to any destination, documented per gateway) and
+// (2) egress to the Honcho sibling pod on TCP/8000 when ProfileStore.Honcho is
+// enabled. Under egressPolicy Allowlist the per-gateway rule is omitted too,
+// because it is an any-destination TCP/443 rule that would reopen exactly what
+// Allowlist closes; gateway platform endpoints must then be allowed via
+// allowedEgressCIDRs or additionalEgress.
 func ExtraEgressRules(inst *hermesv1.HermesInstance) []networkingv1.NetworkPolicyEgressRule {
 	var rules []networkingv1.NetworkPolicyEgressRule
 
-	if endpoints := BuildGatewayEgressEndpoints(inst); len(endpoints) > 0 {
+	if endpoints := BuildGatewayEgressEndpoints(inst); len(endpoints) > 0 && !egressAllowlist(inst) {
 		port443 := intstr.FromInt(443)
 		tcp := corev1.ProtocolTCP
 		rules = append(rules, networkingv1.NetworkPolicyEgressRule{

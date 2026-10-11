@@ -78,6 +78,9 @@ func ApplyClusterDefaults(inst *hermesv1.HermesInstance, hcd *hermesv1.HermesClu
 	if inst.Spec.Security.NetworkPolicy.AllowDNS == nil {
 		inst.Spec.Security.NetworkPolicy.AllowDNS = hcd.Spec.Security.NetworkPolicy.AllowDNS
 	}
+	if inst.Spec.Security.NetworkPolicy.EgressPolicy == "" {
+		inst.Spec.Security.NetworkPolicy.EgressPolicy = hcd.Spec.Security.NetworkPolicy.EgressPolicy
+	}
 	if inst.Spec.Security.CABundle.ConfigMapName == "" && inst.Spec.Security.CABundle.SecretName == "" {
 		inst.Spec.Security.CABundle = hcd.Spec.Security.CABundle
 	}

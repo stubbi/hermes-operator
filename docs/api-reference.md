@@ -143,11 +143,12 @@ Controls per-instance NetworkPolicy creation (default-deny baseline + selective 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `spec.security.networkPolicy.enabled` | `*bool` | `true` | When true, the operator creates a deny-all NetworkPolicy plus selective allow rules: DNS egress, port-443 egress, and Service ingress from the same namespace. |
+| `spec.security.networkPolicy.enabled` | `*bool` | `true` | When true, the operator creates a deny-all NetworkPolicy plus selective allow rules: DNS egress, port-443 egress (unless `egressPolicy: Allowlist`), and Service ingress from the same namespace. |
 | `spec.security.networkPolicy.allowDNS` | `*bool` | `true` | Emits a standard DNS egress rule (UDP+TCP port 53 to any peer). Disable only when CoreDNS is reachable via a different transport (e.g. node-local DNS via hostNetwork). |
+| `spec.security.networkPolicy.egressPolicy` | `string` (enum) | `""` (behaves as `Open`; inherits from HermesClusterDefaults) | `Open` keeps the TCP/443 any-destination egress baseline. `Allowlist` drops it (and the per-gateway any-destination TCP/443 rule), leaving only DNS, `allowedEgressCIDRs`, `additionalEgress` and in-cluster sibling rules; model APIs, gateway platforms and the Tailscale control plane must then be allowed explicitly. See [conventions](conventions.md#well-known-egress-endpoints). |
 | `spec.security.networkPolicy.allowedIngressNamespaces` | `[]string` (listType=set) | `[]` | Additional namespaces whose pods may connect to the agent's exposed ports (beyond the instance's own namespace). |
 | `spec.security.networkPolicy.allowedIngressCIDRs` | `[]string` (listType=set) | `[]` | CIDRs that may connect to the agent's exposed ports. |
-| `spec.security.networkPolicy.allowedEgressCIDRs` | `[]string` (listType=set) | `[]` | CIDRs the agent may connect to in addition to operator-built defaults (DNS + port 443). |
+| `spec.security.networkPolicy.allowedEgressCIDRs` | `[]string` (listType=set) | `[]` | CIDRs the agent may connect to in addition to operator-built defaults (DNS, plus port 443 under `egressPolicy: Open`). |
 | `spec.security.networkPolicy.additionalEgress` | `[]networkingv1.NetworkPolicyEgressRule` | `[]` | User-supplied egress rules appended verbatim to the generated NetworkPolicy. |
 
 #### spec.security.caBundle
@@ -537,6 +538,7 @@ Defaults the defaultable subset of `SecuritySpec`. Note: hardened security conte
 | `spec.security.serviceAccount.annotations` | `map[string]string` | `nil` | Default annotations applied to every operator-created ServiceAccount (IRSA, GKE WI, Azure WI, etc.). |
 | `spec.security.networkPolicy.enabled` | `*bool` | `nil` (operator default `true` applies) | Default value for whether per-instance NetworkPolicies are created. |
 | `spec.security.networkPolicy.allowDNS` | `*bool` | `nil` (operator default `true` applies) | Default value for whether the DNS egress rule is emitted. |
+| `spec.security.networkPolicy.egressPolicy` | `string` (enum) | `""` (operator default `Open` applies) | Default egress baseline for instances that leave it unset. Allowed: `Open`, `Allowlist`. |
 | `spec.security.caBundle.configMapName` | `string` | `""` | Default ConfigMap name for the CA bundle. |
 | `spec.security.caBundle.secretName` | `string` | `""` | Default Secret name for the CA bundle. |
 | `spec.security.caBundle.key` | `string` | `ca.crt` | Default data-map key for the PEM bundle. |

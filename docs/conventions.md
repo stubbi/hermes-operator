@@ -115,7 +115,27 @@ Plan 1 listed StatefulSet / Service / Probe defaults. Plan 2 adds these:
 
 ## Well-known egress endpoints
 
-The operator's default-deny `NetworkPolicy` allows only DNS to kube-dns out of the box. Each `spec.gateways.<platform>.enabled: true` adds an egress allow for the upstream's well-known endpoints. CNI plugins that support FQDN peers (Cilium, Calico with `dns` selector) should match the hostnames below; plugins without FQDN support fall back to a port-only rule (443/TCP to any destination), which is wider than ideal: document the trade-off when shipping the cluster.
+The operator's default-deny `NetworkPolicy` allows DNS (UDP+TCP 53, unless `allowDNS: false`) and, under the default `spec.security.networkPolicy.egressPolicy: Open`, TCP/443 to any destination. Each `spec.gateways.<platform>.enabled: true` adds an egress allow for the upstream's well-known endpoints. CNI plugins that support FQDN peers (Cilium, Calico with `dns` selector) should match the hostnames below; plugins without FQDN support fall back to a port-only rule (443/TCP to any destination), which is wider than ideal: document the trade-off when shipping the cluster.
+
+### Restricting the TCP/443 baseline (`egressPolicy: Allowlist`)
+
+The open TCP/443 baseline is load-bearing: the agent reaches its model provider API, chat gateway platforms and (with `spec.tailscale`) the Tailscale control plane and DERP relays over it. It is therefore the default, and tightening it is opt-in per instance or cluster-wide via `HermesClusterDefaults` `spec.security.networkPolicy.egressPolicy`:
+
+```yaml
+spec:
+  security:
+    networkPolicy:
+      egressPolicy: Allowlist
+      allowedEgressCIDRs:
+        - 203.0.113.0/24          # your model API / LLM gateway
+      additionalEgress:
+        - to:
+            - ipBlock: { cidr: 198.51.100.0/24 }   # e.g. Tailscale control plane / DERP
+          ports:
+            - { protocol: TCP, port: 443 }
+```
+
+Under `Allowlist` the operator drops the any-destination TCP/443 rule AND the per-gateway port-only TCP/443 rule (which would otherwise reopen the same hole). What remains is DNS (when `allowDNS` is true), `allowedEgressCIDRs`, `additionalEgress`, the in-cluster Honcho sibling rule, and the Tailscale UDP STUN/WireGuard rule. Everything external the agent needs must be listed explicitly: the model provider API, every enabled gateway platform from the table below, the Tailscale control plane and DERP relays (TCP/443), and any S3 endpoint backups target. Plain Kubernetes NetworkPolicy cannot match hostnames, so either allow the providers' published CIDRs or route egress through an in-cluster proxy/LLM gateway and allow only that. A missing allow shows up as connection timeouts in the agent logs, not as an operator condition.
 
 | Gateway | Hostnames | Port | Protocol | Notes |
 |---|---|---|---|---|
