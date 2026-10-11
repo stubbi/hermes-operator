@@ -414,6 +414,7 @@ _Appears in:_
 | `extraVolumeMounts` _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#volumemount-v1-core) array_ | ExtraVolumeMounts is a user-supplied list of additional volume mounts<br />applied to the agent container. |  | Optional: \{\} <br /> |
 | `envFrom` _[EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envfromsource-v1-core) array_ | EnvFrom is a list of EnvFrom sources (ConfigMap/Secret refs) injected<br />into the agent container. |  | Optional: \{\} <br /> |
 | `env` _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#envvar-v1-core) array_ | Env is a list of explicit environment variables for the agent container.<br />SSA list-map key is "name" so HermesSelfConfig can merge entries without<br />replacing the whole list. |  | Optional: \{\} <br /> |
+| `secretsBroker` _[SecretsBrokerSpec](#secretsbrokerspec)_ | SecretsBroker resolves short-lived secret material (API keys, tokens)<br />from an external broker every time the agent container starts, and<br />exports it into the agent's environment. Secrets live in process memory<br />only: nothing is written to the PVC, so they never reach snapshots or<br />backups. A failed resolve fails the container start (fail closed). See<br />docs/secrets-broker.md. |  | Optional: \{\} <br /> |
 | `skills` _[InstanceSkill](#instanceskill) array_ | Skills is the declarative list of uv-installable skill sources. Plan 3<br />wires the runtime; the field is declared here so SSA from HermesSelfConfig<br />(Plan 4) can target it without a CRD schema change. |  | Optional: \{\} <br /> |
 | `selfConfigure` _[SelfConfigureSpec](#selfconfigurespec)_ | SelfConfigure is the allowlist policy for HermesSelfConfig mutations. |  | Optional: \{\} <br /> |
 | `suspended` _boolean_ | Suspended scales the StatefulSet to zero replicas without deleting state. |  | Optional: \{\} <br /> |
@@ -1154,6 +1155,67 @@ _Appears in:_
 | `affinity` _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#affinity-v1-core)_ |  |  | Optional: \{\} <br /> |
 | `priorityClassName` _string_ |  |  | Optional: \{\} <br /> |
 | `runtimeClassName` _string_ | RuntimeClassName selects the RuntimeClass the instance pod runs under,<br />so an agent executing model-driven code can be placed on a sandboxed<br />runtime (gVisor "runsc", Kata) instead of the cluster default.<br />The named RuntimeClass must already exist in the cluster; an unknown name<br />leaves the pod unschedulable. Empty means the cluster default runtime. |  | MaxLength: 253 <br />Pattern: `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` <br />Optional: \{\} <br /> |
+
+
+#### SecretsBrokerHeader
+
+
+
+SecretsBrokerHeader is one request header for the resolve call.
+
+
+
+_Appears in:_
+- [SecretsBrokerSpec](#secretsbrokerspec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `name` _string_ | Name of the header. |  | MinLength: 1 <br />Pattern: `^[A-Za-z0-9-]+$` <br /> |
+| `value` _string_ | Value is a literal header value; $\{VAR\} placeholders are interpolated<br />from the agent container env. Mutually exclusive with valueFrom. |  | Optional: \{\} <br /> |
+| `valueFrom` _[SecretsBrokerHeaderSource](#secretsbrokerheadersource)_ | ValueFrom reads the header value from a Secret key in the instance<br />namespace. Mutually exclusive with value. |  | Optional: \{\} <br /> |
+
+
+#### SecretsBrokerHeaderSource
+
+
+
+SecretsBrokerHeaderSource is the source of a header value.
+
+
+
+_Appears in:_
+- [SecretsBrokerHeader](#secretsbrokerheader)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `secretKeyRef` _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#secretkeyselector-v1-core)_ | SecretKeyRef selects a key of a Secret in the instance namespace. |  |  |
+
+
+#### SecretsBrokerSpec
+
+
+
+SecretsBrokerSpec configures the agent-start secrets broker. It is the
+operator-side form of the `secrets_broker` block: the operator renders it
+into the HERMES_SECRETS_BROKER_CONFIG env var and wraps the agent entrypoint
+with a resolver that fetches the secrets and then execs the real entrypoint.
+
+
+
+_Appears in:_
+- [HermesInstanceSpec](#hermesinstancespec)
+
+| Field | Description | Default | Validation |
+| --- | --- | --- | --- |
+| `url` _string_ | URL of the resolve endpoint. It must answer 2xx with a JSON object of<br />secret name to plaintext value. $\{VAR\} placeholders are interpolated from<br />the agent container env at resolve time (for example<br />https://broker.example/secrets/resolve/$\{EMPLOYEE_ID\}). Must be https<br />unless allowInsecureHTTP is set. |  | MinLength: 1 <br />Pattern: `^https?://` <br /> |
+| `method` _string_ | Method is the HTTP method used for the resolve call. | GET | Enum: [GET POST] <br />Optional: \{\} <br /> |
+| `headers` _[SecretsBrokerHeader](#secretsbrokerheader) array_ | Headers sent with the resolve call. Use valueFrom for credentials so the<br />token never sits in the HermesInstance; value may contain $\{VAR\}<br />placeholders. A literal Authorization value is rejected. |  | Optional: \{\} <br /> |
+| `timeoutSeconds` _integer_ | TimeoutSeconds bounds each resolve attempt. | 10 | Maximum: 300 <br />Minimum: 1 <br />Optional: \{\} <br /> |
+| `maxAttempts` _integer_ | MaxAttempts bounds retries on transient failures (network errors,<br />timeouts, HTTP 429 and 5xx). 401, 403 and 404 are never retried. | 3 | Maximum: 10 <br />Minimum: 1 <br />Optional: \{\} <br /> |
+| `envPrefix` _string_ | EnvPrefix is prepended to every resolved secret name before it is<br />exported (for example BROKER_). |  | Pattern: `^[A-Za-z_][A-Za-z0-9_]*$` <br />Optional: \{\} <br /> |
+| `allowInsecureHTTP` _boolean_ | AllowInsecureHTTP permits a plain http:// URL, for an in-cluster broker<br />reached over a trusted network. |  | Optional: \{\} <br /> |
+| `resolverImage` _string_ | ResolverImage overrides the image the resolver binary is copied from.<br />Defaults to the running operator image. |  | Optional: \{\} <br /> |
+| `entrypoint` _string array_ | Entrypoint is the agent image entrypoint the resolver execs once the<br />secrets are resolved. Defaults to the upstream hermes-agent entrypoint<br />["/init", "/opt/hermes/docker/main-wrapper.sh"]; set it when running a<br />custom image with a different ENTRYPOINT. |  | Optional: \{\} <br /> |
 
 
 #### SecurityDefaults

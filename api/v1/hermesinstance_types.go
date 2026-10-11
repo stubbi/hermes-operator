@@ -123,6 +123,15 @@ type HermesInstanceSpec struct {
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
+	// SecretsBroker resolves short-lived secret material (API keys, tokens)
+	// from an external broker every time the agent container starts, and
+	// exports it into the agent's environment. Secrets live in process memory
+	// only: nothing is written to the PVC, so they never reach snapshots or
+	// backups. A failed resolve fails the container start (fail closed). See
+	// docs/secrets-broker.md.
+	// +optional
+	SecretsBroker *SecretsBrokerSpec `json:"secretsBroker,omitempty"`
+
 	// Skills is the declarative list of uv-installable skill sources. Plan 3
 	// wires the runtime; the field is declared here so SSA from HermesSelfConfig
 	// (Plan 4) can target it without a CRD schema change.
@@ -1495,4 +1504,95 @@ type TailscaleImageSpec struct {
 
 func init() {
 	SchemeBuilder.Register(&HermesInstance{}, &HermesInstanceList{})
+}
+
+// SecretsBrokerSpec configures the agent-start secrets broker. It is the
+// operator-side form of the `secrets_broker` block: the operator renders it
+// into the HERMES_SECRETS_BROKER_CONFIG env var and wraps the agent entrypoint
+// with a resolver that fetches the secrets and then execs the real entrypoint.
+type SecretsBrokerSpec struct {
+	// URL of the resolve endpoint. It must answer 2xx with a JSON object of
+	// secret name to plaintext value. ${VAR} placeholders are interpolated from
+	// the agent container env at resolve time (for example
+	// https://broker.example/secrets/resolve/${EMPLOYEE_ID}). Must be https
+	// unless allowInsecureHTTP is set.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^https?://`
+	URL string `json:"url"`
+
+	// Method is the HTTP method used for the resolve call.
+	// +kubebuilder:validation:Enum=GET;POST
+	// +kubebuilder:default=GET
+	// +optional
+	Method string `json:"method,omitempty"`
+
+	// Headers sent with the resolve call. Use valueFrom for credentials so the
+	// token never sits in the HermesInstance; value may contain ${VAR}
+	// placeholders. A literal Authorization value is rejected.
+	// +listType=map
+	// +listMapKey=name
+	// +optional
+	Headers []SecretsBrokerHeader `json:"headers,omitempty"`
+
+	// TimeoutSeconds bounds each resolve attempt.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=300
+	// +kubebuilder:default=10
+	// +optional
+	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
+
+	// MaxAttempts bounds retries on transient failures (network errors,
+	// timeouts, HTTP 429 and 5xx). 401, 403 and 404 are never retried.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=10
+	// +kubebuilder:default=3
+	// +optional
+	MaxAttempts *int32 `json:"maxAttempts,omitempty"`
+
+	// EnvPrefix is prepended to every resolved secret name before it is
+	// exported (for example BROKER_).
+	// +kubebuilder:validation:Pattern=`^[A-Za-z_][A-Za-z0-9_]*$`
+	// +optional
+	EnvPrefix string `json:"envPrefix,omitempty"`
+
+	// AllowInsecureHTTP permits a plain http:// URL, for an in-cluster broker
+	// reached over a trusted network.
+	// +optional
+	AllowInsecureHTTP bool `json:"allowInsecureHTTP,omitempty"`
+
+	// ResolverImage overrides the image the resolver binary is copied from.
+	// Defaults to the running operator image.
+	// +optional
+	ResolverImage string `json:"resolverImage,omitempty"`
+
+	// Entrypoint is the agent image entrypoint the resolver execs once the
+	// secrets are resolved. Defaults to the upstream hermes-agent entrypoint
+	// ["/init", "/opt/hermes/docker/main-wrapper.sh"]; set it when running a
+	// custom image with a different ENTRYPOINT.
+	// +optional
+	Entrypoint []string `json:"entrypoint,omitempty"`
+}
+
+// SecretsBrokerHeader is one request header for the resolve call.
+type SecretsBrokerHeader struct {
+	// Name of the header.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9-]+$`
+	Name string `json:"name"`
+
+	// Value is a literal header value; ${VAR} placeholders are interpolated
+	// from the agent container env. Mutually exclusive with valueFrom.
+	// +optional
+	Value string `json:"value,omitempty"`
+
+	// ValueFrom reads the header value from a Secret key in the instance
+	// namespace. Mutually exclusive with value.
+	// +optional
+	ValueFrom *SecretsBrokerHeaderSource `json:"valueFrom,omitempty"`
+}
+
+// SecretsBrokerHeaderSource is the source of a header value.
+type SecretsBrokerHeaderSource struct {
+	// SecretKeyRef selects a key of a Secret in the instance namespace.
+	SecretKeyRef corev1.SecretKeySelector `json:"secretKeyRef"`
 }
