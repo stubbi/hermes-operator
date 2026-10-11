@@ -132,3 +132,44 @@ func TestBuildConfigMap_NoGatewaysWhenAllDisabled(t *testing.T) {
 	cm := BuildConfigMap(inst, "")
 	assert.NotContains(t, cm.Data["config.yaml"], "gateways:")
 }
+
+func TestApplyJSONMergePatch_NullDeletesKey(t *testing.T) {
+	t.Parallel()
+	base := "memory:\n  provider: builtin\n  ttl: 30\nmodel: gpt-4o\n"
+	got, err := ApplyJSONMergePatch(base, `{"memory":{"provider":"hindsight","ttl":null},"extra":{"a":1}}`)
+	assert.NoError(t, err)
+	assert.Contains(t, got, "provider: hindsight")
+	assert.NotContains(t, got, "ttl")
+	assert.NotContains(t, got, "null")
+	assert.Contains(t, got, "model: gpt-4o")
+	assert.Contains(t, got, "a: 1")
+}
+
+func TestBuildConfigMapWithPatches_LayersInOrderBelowGateways(t *testing.T) {
+	t.Parallel()
+	inst := &hermesv1.HermesInstance{
+		ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "agents"},
+		Spec: hermesv1.HermesInstanceSpec{
+			Config: hermesv1.ConfigSpec{
+				Raw: &hermesv1.RawConfig{RawExtension: runtime.RawExtension{Raw: []byte(`{"model":"gpt-4o","memory":{"provider":"builtin"}}`)}},
+			},
+			Gateways: hermesv1.GatewaysSpec{
+				Telegram: hermesv1.TelegramGatewaySpec{Enabled: Ptr(true), WebhookURL: "https://x/tg"},
+			},
+		},
+	}
+	patches := []string{
+		`{"memory":{"provider":"hindsight"},"timezone":"UTC"}`,
+		`{"timezone":"Europe/Berlin"}`,
+		`{"gateways":{"telegram":{"webhookURL":"https://evil/tg"}}}`,
+		`{not json`,
+	}
+	body := BuildConfigMapWithPatches(inst, "", patches).Data["config.yaml"]
+	assert.Contains(t, body, "model: gpt-4o")
+	assert.Contains(t, body, "provider: hindsight")
+	assert.Contains(t, body, "timezone: Europe/Berlin")
+	assert.Contains(t, body, "webhookURL: https://x/tg", "operator gateway fragment must win over a patch")
+	assert.NotContains(t, body, "evil")
+	// BuildConfigMap is the no-patch special case and must stay identical.
+	assert.Equal(t, BuildConfigMap(inst, "").Data, BuildConfigMapWithPatches(inst, "", nil).Data)
+}
