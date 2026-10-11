@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
@@ -178,6 +179,12 @@ func (r *HermesInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		logger.Error(err, "status update failed")
 	}
 
+	// Pod-level state (init container failures such as ConfigMigrationFailed)
+	// does not reliably bump StatefulSet status, so poll faster while the
+	// instance is not Ready.
+	if inst.Status.Phase == "Pending" {
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
 	return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
@@ -745,9 +752,65 @@ func (r *HermesInstanceReconciler) updateStatus(ctx context.Context, inst *herme
 		r.setCondition(inst, hermesv1.ConditionTypeReady, metav1.ConditionTrue, "AllSubsystemsReady", "")
 	default:
 		inst.Status.Phase = "Pending"
-		r.setCondition(inst, hermesv1.ConditionTypeReady, metav1.ConditionFalse, "StatefulSetNotReady", "")
+		reason, msg := "StatefulSetNotReady", ""
+		if failed, why := r.configMigrationFailure(ctx, inst); failed {
+			reason, msg = ReasonConfigMigrationFailed, why
+		}
+		r.setCondition(inst, hermesv1.ConditionTypeReady, metav1.ConditionFalse, reason, msg)
 	}
 	return r.Status().Update(ctx, inst)
+}
+
+// ReasonConfigMigrationFailed is the Ready=False reason used when the
+// config-seed init container could not migrate config.yaml to the agent's
+// current schema (#160).
+const ReasonConfigMigrationFailed = "ConfigMigrationFailed"
+
+// configMigrationFailure reports whether the instance pod's config-seed init
+// container last exited non-zero, with the termination message (the tail of its
+// log) as the explanation. Lookup errors are treated as "no failure": this only
+// refines the reason of an already not-Ready condition.
+func (r *HermesInstanceReconciler) configMigrationFailure(ctx context.Context, inst *hermesv1.HermesInstance) (bool, string) {
+	pod := &corev1.Pod{}
+	key := types.NamespacedName{Namespace: inst.Namespace, Name: resources.StatefulSetName(inst) + "-0"}
+	if err := r.Get(ctx, key, pod); err != nil {
+		return false, ""
+	}
+	return ConfigSeedFailure(pod)
+}
+
+// ConfigSeedFailure inspects a pod's init container statuses for a failed
+// config-seed run. The current state covers a pod still waiting to restart it;
+// the last termination state covers CrashLoopBackOff, where the current state
+// is Waiting.
+func ConfigSeedFailure(pod *corev1.Pod) (bool, string) {
+	for _, st := range pod.Status.InitContainerStatuses {
+		if st.Name != resources.ConfigSeedContainerName {
+			continue
+		}
+		// A completed run (current state terminated with 0) wins over an older
+		// failure kept in the last termination state.
+		if cur := st.State.Terminated; cur != nil && cur.ExitCode == 0 {
+			return false, ""
+		}
+		t := st.State.Terminated
+		if t == nil {
+			t = st.LastTerminationState.Terminated
+		}
+		if t == nil || t.ExitCode == 0 {
+			return false, ""
+		}
+		msg := strings.TrimSpace(t.Message)
+		if msg == "" {
+			msg = fmt.Sprintf("%s init container exited with code %d", resources.ConfigSeedContainerName, t.ExitCode)
+		}
+		const maxMsg = 1024
+		if len(msg) > maxMsg {
+			msg = "..." + msg[len(msg)-maxMsg:]
+		}
+		return true, msg
+	}
+	return false, ""
 }
 
 // SetupWithManager wires watches for every owned type.
