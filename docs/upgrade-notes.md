@@ -34,8 +34,9 @@ reconcile, so the patch survives reconciles and is retracted when the
 `config-configmap.data[key=config.yaml]` instead of the old workspace key.
 
 **Action.** None for most users. If you relied on `selfconfig.yaml` in the
-workspace ConfigMap, drop that dependency. The rendered ConfigMap is
-subPath-mounted, so restart the pod after a patch lands.
+workspace ConfigMap, drop that dependency. A patch landing or being retracted
+rolls the pod through the config hash annotation described above, so no manual
+restart is needed.
 
 ## 0.2.0
 
