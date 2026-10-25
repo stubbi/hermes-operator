@@ -31,7 +31,7 @@ func TestDefaulter_FillsNilFromClusterDefaults(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 		Spec: hermesv1.HermesClusterDefaultsSpec{
 			Image: hermesv1.ImageSpec{
-				Repository: "ghcr.io/paperclipinc/hermes-agent",
+				Repository: "ghcr.io/stubbi/hermes-agent",
 				Tag:        "1.4.2",
 			},
 			Storage: hermesv1.StorageSpec{
@@ -47,7 +47,7 @@ func TestDefaulter_FillsNilFromClusterDefaults(t *testing.T) {
 	}
 	assert.NoError(t, d.Default(context.Background(), inst))
 
-	assert.Equal(t, "ghcr.io/paperclipinc/hermes-agent", inst.Spec.Image.Repository)
+	assert.Equal(t, "ghcr.io/stubbi/hermes-agent", inst.Spec.Image.Repository)
 	assert.Equal(t, "1.4.2", inst.Spec.Image.Tag)
 	assert.Equal(t, "10Gi", inst.Spec.Storage.Persistence.Size)
 }

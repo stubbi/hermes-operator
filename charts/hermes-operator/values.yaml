@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/paperclipinc/hermes-operator
+  repository: ghcr.io/stubbi/hermes-operator
   # Leave empty to track the chart's appVersion. The release workflow publishes
   # v-prefixed image tags, so _helpers.tpl falls back to "v<appVersion>".
   # Pinning a bare version here yields an unpullable reference (see #113).

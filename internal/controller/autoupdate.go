@@ -175,7 +175,7 @@ func (a *AutoUpdateReconciler) startRollout(ctx context.Context, inst *hermesv1.
 
 	repo := inst.Spec.Image.Repository
 	if repo == "" {
-		repo = "ghcr.io/paperclipinc/hermes-agent"
+		repo = "ghcr.io/stubbi/hermes-agent"
 	}
 	desiredImage := fmt.Sprintf("%s:%s", repo, targetTag)
 	if len(sts.Spec.Template.Spec.Containers) == 0 {
@@ -296,7 +296,7 @@ func (a *AutoUpdateReconciler) rollback(ctx context.Context, inst *hermesv1.Herm
 	}
 	repo := inst.Spec.Image.Repository
 	if repo == "" {
-		repo = "ghcr.io/paperclipinc/hermes-agent"
+		repo = "ghcr.io/stubbi/hermes-agent"
 	}
 	sts := &appsv1.StatefulSet{}
 	if err := a.Get(ctx, types.NamespacedName{Name: resources.StatefulSetName(inst), Namespace: inst.Namespace}, sts); err != nil {

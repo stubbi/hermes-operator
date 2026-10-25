@@ -66,4 +66,4 @@ jobs:
           fi
           git commit -m "build(agent-image): lock hermes-agent ${v}"
           git push -f origin "${br}"
-          echo "Pushed branch ${br}. Open a PR to main to enable publishing ghcr.io/${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}/hermes-agent:${v}."
+          echo "Pushed branch ${br}. Open a PR to main to enable publishing ghcr.io/${{ vars.IMAGE_NAMESPACE || 'stubbi' }}/hermes-agent:${v}."

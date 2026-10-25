@@ -50,7 +50,7 @@ var _ = Describe("Migration sub-controller", func() {
 			},
 			Spec: hermesv1.HermesInstanceSpec{
 				Image: hermesv1.ImageSpec{
-					Repository: "ghcr.io/paperclipinc/hermes-agent",
+					Repository: "ghcr.io/stubbi/hermes-agent",
 					Tag:        "1.0.0",
 				},
 				Migration: hermesv1.MigrationSpec{

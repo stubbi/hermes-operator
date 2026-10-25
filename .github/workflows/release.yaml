@@ -19,9 +19,10 @@ env:
   # Single source of truth for the GHCR namespace the operator image and the
   # chart are published to. It must match the chart's default
   # image.repository (checked below) and the bundle CSV, so it is pinned
-  # rather than derived from the repository owner, which changed when the
-  # repository moved from paperclipinc to stubbi (see #173).
-  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}
+  # rather than derived from the repository owner. Releases up to v0.2.0 were
+  # published under ghcr.io/paperclipinc, before the repository moved to
+  # stubbi (see #173); GITHUB_TOKEN can push to ghcr.io/stubbi directly.
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'stubbi' }}
 
 jobs:
   release:
@@ -65,7 +66,7 @@ jobs:
           registry: ghcr.io
           # GITHUB_TOKEN can only push to packages in the repository owner's
           # namespace. To publish into a namespace owned by another account
-          # (ghcr.io/paperclipinc after the transfer), set GHCR_PUSH_TOKEN to a
+          # (e.g. IMAGE_NAMESPACE=paperclipinc), set GHCR_PUSH_TOKEN to a
           # PAT with write:packages from a member of that namespace and
           # GHCR_PUSH_USER to its login.
           username: ${{ vars.GHCR_PUSH_USER || github.actor }}
@@ -196,7 +197,7 @@ jobs:
           registry: ghcr.io
           # GITHUB_TOKEN can only push to packages in the repository owner's
           # namespace. To publish into a namespace owned by another account
-          # (ghcr.io/paperclipinc after the transfer), set GHCR_PUSH_TOKEN to a
+          # (e.g. IMAGE_NAMESPACE=paperclipinc), set GHCR_PUSH_TOKEN to a
           # PAT with write:packages from a member of that namespace and
           # GHCR_PUSH_USER to its login.
           username: ${{ vars.GHCR_PUSH_USER || github.actor }}

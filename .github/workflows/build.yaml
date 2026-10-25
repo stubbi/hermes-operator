@@ -13,12 +13,12 @@ jobs:
       packages: write
     env:
       # Same namespace variable and default as release.yaml (#173).
-      IMAGE: ghcr.io/${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}/hermes-operator
+      IMAGE: ghcr.io/${{ vars.IMAGE_NAMESPACE || 'stubbi' }}/hermes-operator
       # The main-branch :dev push needs credentials for that namespace: either
-      # it is owned by the repository owner, or GHCR_PUSH_TOKEN is set. Without
-      # either (e.g. right after the repository transfer), build without
-      # pushing instead of failing the required check on main.
-      CAN_PUSH: ${{ github.event_name == 'push' && (secrets.GHCR_PUSH_TOKEN != '' || vars.IMAGE_NAMESPACE == github.repository_owner) }}
+      # it is owned by the repository owner (GITHUB_TOKEN suffices), or
+      # GHCR_PUSH_TOKEN is set. Without either, build without pushing instead
+      # of failing the required check on main.
+      CAN_PUSH: ${{ github.event_name == 'push' && (secrets.GHCR_PUSH_TOKEN != '' || (vars.IMAGE_NAMESPACE || 'stubbi') == github.repository_owner) }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4

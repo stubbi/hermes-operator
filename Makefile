@@ -154,10 +154,10 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 # -------- hermes-agent image (Plan 3) --------
 
 # GHCR namespace of the published operator, agent, bundle and chart artifacts.
-# The release workflows pass vars.IMAGE_NAMESPACE (default paperclipinc); it is
-# not derived from the repository owner, which changed when the repository
-# moved from paperclipinc to stubbi (#173).
-IMAGE_NAMESPACE     ?= paperclipinc
+# The release workflows pass vars.IMAGE_NAMESPACE (default stubbi). Releases up
+# to v0.2.0 were published under paperclipinc, before the repository moved to
+# stubbi (#173).
+IMAGE_NAMESPACE     ?= stubbi
 
 AGENT_IMAGE         ?= ghcr.io/$(IMAGE_NAMESPACE)/hermes-agent
 HERMES_VERSION      ?= v2026.5.29.2

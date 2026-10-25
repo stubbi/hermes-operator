@@ -61,7 +61,7 @@ annotations:
         name: my-hermes
       spec:
         image:
-          repository: ghcr.io/paperclipinc/hermes-agent
+          repository: ghcr.io/stubbi/hermes-agent
           tag: v2026.5.29.2
         storage:
           persistence:
@@ -69,7 +69,7 @@ annotations:
             size: 10Gi
   artifacthub.io/images: |
     - name: hermes-operator
-      image: ghcr.io/paperclipinc/hermes-operator:v0.2.0 # x-release-please-version
+      image: ghcr.io/stubbi/hermes-operator:v0.2.0 # x-release-please-version
   artifacthub.io/changes: |
     - kind: added
       description: World-class Artifact Hub metadata (logo, keywords, CRDs, images)

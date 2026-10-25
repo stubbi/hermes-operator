@@ -12,7 +12,7 @@ on:
 env:
   # GHCR namespace of the published operator image; same variable and default
   # as release.yaml (see #173).
-  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'stubbi' }}
 
 jobs:
   submit-community-operators:

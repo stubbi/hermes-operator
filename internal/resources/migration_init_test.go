@@ -15,7 +15,7 @@ func migrationInstanceWithOpenClawRef() *hermesv1.HermesInstance {
 	return &hermesv1.HermesInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "agents"},
 		Spec: hermesv1.HermesInstanceSpec{
-			Image: hermesv1.ImageSpec{Repository: "ghcr.io/paperclipinc/hermes-agent", Tag: "1.0.0"},
+			Image: hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent", Tag: "1.0.0"},
 			Migration: hermesv1.MigrationSpec{
 				FromOpenClaw: &hermesv1.MigrationFromOpenClawSpec{
 					Mode: "copy",
@@ -35,7 +35,7 @@ func migrationInstanceWithS3() *hermesv1.HermesInstance {
 	return &hermesv1.HermesInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: "demo", Namespace: "agents"},
 		Spec: hermesv1.HermesInstanceSpec{
-			Image: hermesv1.ImageSpec{Repository: "ghcr.io/paperclipinc/hermes-agent", Tag: "1.0.0"},
+			Image: hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent", Tag: "1.0.0"},
 			Migration: hermesv1.MigrationSpec{
 				FromOpenClaw: &hermesv1.MigrationFromOpenClawSpec{
 					Mode: "copy",
@@ -71,7 +71,7 @@ func TestBuildMigrationInitContainer_OpenClawRef_Name(t *testing.T) {
 	c := BuildMigrationInitContainer(migrationInstanceWithOpenClawRef())
 	require.NotNil(t, c)
 	assert.Equal(t, "init-migrate-from-openclaw", c.Name)
-	assert.Equal(t, "ghcr.io/paperclipinc/hermes-agent:1.0.0", c.Image)
+	assert.Equal(t, "ghcr.io/stubbi/hermes-agent:1.0.0", c.Image)
 }
 
 func TestBuildMigrationInitContainer_OpenClawRef_Args(t *testing.T) {

@@ -1,7 +1,7 @@
 # .github/workflows/agent-image.yaml
 #
 # Builds and publishes ghcr.io/<IMAGE_NAMESPACE>/hermes-agent (vars.IMAGE_NAMESPACE,
-# default paperclipinc, shared with release.yaml). The image is
+# default stubbi, shared with release.yaml). The image is
 # `FROM nousresearch/hermes-agent` (pinned by digest in the Dockerfile) plus
 # operator metadata, so this workflow re-tags + re-labels + signs the upstream
 # runtime; it does not rebuild a Python env. Triggered:
@@ -28,10 +28,10 @@ permissions:
   id-token: write
 
 env:
-  # GHCR namespace to publish into. Pinned (not derived from the repository
-  # owner) because the repository moved from paperclipinc to stubbi while the
-  # published images and the operator defaults stay under paperclipinc (#173).
-  IMAGE: ghcr.io/${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}/hermes-agent
+  # GHCR namespace to publish into; same variable and default as release.yaml.
+  # Releases up to v0.2.0 were published under ghcr.io/paperclipinc, before the
+  # repository moved to stubbi (#173).
+  IMAGE: ghcr.io/${{ vars.IMAGE_NAMESPACE || 'stubbi' }}/hermes-agent
 
 jobs:
   build:

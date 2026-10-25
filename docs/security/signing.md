@@ -7,7 +7,7 @@ the canonical reference; `SECURITY.md` (top-level) points here.
 ## Verify an image signature
 
 ```bash
-cosign verify ghcr.io/paperclipinc/hermes-operator:vX.Y.Z \
+cosign verify ghcr.io/stubbi/hermes-operator:vX.Y.Z \
   --certificate-identity-regexp '^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -19,7 +19,7 @@ tampered.
 ## Verify the SBOM attestation
 
 ```bash
-cosign verify-attestation ghcr.io/paperclipinc/hermes-operator:vX.Y.Z --type spdxjson \
+cosign verify-attestation ghcr.io/stubbi/hermes-operator:vX.Y.Z --type spdxjson \
   --certificate-identity-regexp '^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -27,7 +27,7 @@ cosign verify-attestation ghcr.io/paperclipinc/hermes-operator:vX.Y.Z --type spd
 To extract and inspect the SBOM payload:
 
 ```bash
-cosign download attestation ghcr.io/paperclipinc/hermes-operator:vX.Y.Z --predicate-type spdxjson \
+cosign download attestation ghcr.io/stubbi/hermes-operator:vX.Y.Z --predicate-type spdxjson \
   | jq -r .payload | base64 -d | jq .predicate > sbom.spdx.json
 ```
 

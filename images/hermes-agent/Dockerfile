@@ -1,6 +1,6 @@
 # images/hermes-agent/Dockerfile
 #
-# ghcr.io/paperclipinc/hermes-agent is the operator's published agent image. It
+# ghcr.io/stubbi/hermes-agent is the operator's published agent image. It
 # IS the upstream NousResearch/hermes-agent image — an s6-overlay runtime that
 # bundles the gateway, the dashboard, the OpenAI-compatible API server, a
 # Playwright/Chromium browser, node, and every Python dependency — with operator
@@ -39,6 +39,6 @@ LABEL org.opencontainers.image.title="hermes-agent" \
       org.opencontainers.image.documentation="https://github.com/stubbi/hermes-operator/blob/main/images/hermes-agent/README.md" \
       org.opencontainers.image.description="Operator-published NousResearch/hermes-agent (s6 runtime: gateway + API server + dashboard + browser) for hermes-operator" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.vendor="paperclipinc" \
+      org.opencontainers.image.vendor="stubbi" \
       org.opencontainers.image.base.name="docker.io/nousresearch/hermes-agent" \
       hermes.agent/version="${HERMES_VERSION}"

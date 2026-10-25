@@ -32,7 +32,7 @@ in place from day one: no v0.x grind.
 # 1. Install the CRDs and operator via Helm (OCI chart; Helm 3.8+).
 #    Omit --version for the latest release, or add --version X.Y.Z to pin.
 helm install hermes-operator \
-  oci://ghcr.io/paperclipinc/charts/hermes-operator \
+  oci://ghcr.io/stubbi/charts/hermes-operator \
   -n hermes-operator --create-namespace
 
 # 2. Apply a minimal instance. The agent runs the upstream NousResearch/hermes-agent
@@ -44,7 +44,7 @@ metadata:
   name: my-hermes
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v0.16.0"
   # Point the gateway at an LLM provider and inject the key via spec.env.
   config:
@@ -66,7 +66,7 @@ YAML
 # 3. Watch it converge.
 kubectl get hi -n agents -w
 # NAME        READY   PHASE   IMAGE                                AGE
-# my-hermes   True    Ready   ghcr.io/paperclipinc/hermes-agent:v0.16.0    30s
+# my-hermes   True    Ready   ghcr.io/stubbi/hermes-agent:v0.16.0    30s
 ```
 
 If you omit `spec.config.raw.model`, the operator injects a non-routable placeholder
@@ -160,7 +160,7 @@ fields only: explicit values on the instance always win.
 | **Observable** | [Grafana dashboard](docs/grafana/) | Ships as JSON. Variables: `namespace`, `instance`. |
 | **Observable** | Exhaustive [condition catalogue](docs/conditions.md) | Every condition × every reason code, documented and stable. |
 | **Multi-platform** | Telegram / Discord / Slack / WhatsApp / Signal gateways | First-class `spec.gateways.*` sections, secret-rotation-friendly. |
-| **Upstream runtime** | Ships the supported NousResearch/hermes-agent s6 image | The published `ghcr.io/paperclipinc/hermes-agent` is built `FROM` the upstream image (pinned by digest). It bundles the gateway, dashboard, OpenAI-compatible API server, a Playwright/Chromium browser, node, ffmpeg, and all Python deps. No init-container venv build — the old `uv sync` / `init-apt`/`init-uv`/`init-pip` chain is gone. See [Agent runtime](docs/runtime.md). |
+| **Upstream runtime** | Ships the supported NousResearch/hermes-agent s6 image | The published `ghcr.io/stubbi/hermes-agent` is built `FROM` the upstream image (pinned by digest). It bundles the gateway, dashboard, OpenAI-compatible API server, a Playwright/Chromium browser, node, ffmpeg, and all Python deps. No init-container venv build — the old `uv sync` / `init-apt`/`init-uv`/`init-pip` chain is gone. See [Agent runtime](docs/runtime.md). |
 | **Upstream runtime** | FFmpeg, ripgrep, browser, node available out of the box | Bundled in the upstream hermes-agent image. |
 | **Scalable** | Optional HPA via `spec.availability.hpa` | StatefulSet retained for identity through restarts. |
 | **Scalable** | Optional `topologySpreadConstraints` | Sane defaults plus `spec.availability.topologySpreadConstraints` override. |
@@ -276,10 +276,10 @@ minor release. Patch releases never change the supported matrix.
 
 | Channel | What |
 |---|---|
-| Helm (OCI) | `helm install hermes-operator oci://ghcr.io/paperclipinc/charts/hermes-operator` |
+| Helm (OCI) | `helm install hermes-operator oci://ghcr.io/stubbi/charts/hermes-operator` |
 | OLM / OperatorHub | `kubectl operator install hermes-operator` (pending first OperatorHub release) |
 | Plain manifests | `kubectl apply -f https://github.com/stubbi/hermes-operator/releases/latest/download/install.yaml` |
-| Container image | `ghcr.io/paperclipinc/hermes-operator:v0.1.9` (multi-arch, Cosign-signed, SBOM attested) |
+| Container image | `ghcr.io/stubbi/hermes-operator:v0.1.9` (multi-arch, Cosign-signed, SBOM attested) |
 
 ## Documentation
 

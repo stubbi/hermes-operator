@@ -26,7 +26,7 @@ jobs:
         id: verify
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'paperclipinc' }}
+          IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'stubbi' }}
         run: |
           set +e
           make verify-signing

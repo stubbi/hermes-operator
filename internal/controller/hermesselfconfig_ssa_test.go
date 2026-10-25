@@ -43,7 +43,7 @@ var _ = Describe("HermesSelfConfig: GitOps coexistence (SSA)", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: ssaName, Namespace: ssaNS},
 			Spec: hermesv1.HermesInstanceSpec{
 				Image: hermesv1.ImageSpec{
-					Repository: "ghcr.io/paperclipinc/hermes-agent",
+					Repository: "ghcr.io/stubbi/hermes-agent",
 					Tag:        "v1.0.0",
 				},
 				SelfConfigure: hermesv1.SelfConfigureSpec{

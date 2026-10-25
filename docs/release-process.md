@@ -13,8 +13,8 @@ optional; the workflows degrade gracefully when one is missing.
 | `RELEASE_BOT_APP_ID` | variable | GitHub App ID used by `release-please.yaml` and `release.yaml`. Preferred credential: the tag push and `release: published` then trigger `release.yaml` and `operatorhub-submit.yaml` on their own. |
 | `RELEASE_BOT_PRIVATE_KEY` | secret | Private key of that App. The App must be installed on this repository with Contents, Pull requests and Issues read/write. |
 | `RELEASE_PLEASE_TOKEN` | secret | PAT fallback when the App is not configured (classic `repo` + `workflow`, or fine-grained with the same permissions on this repository). |
-| `IMAGE_NAMESPACE` | variable | GHCR namespace the operator image, the agent image and the chart are published to. Defaults to `paperclipinc`. Must match the chart's default `image.repository` (`release.yaml` fails early otherwise) and the bundle CSV. |
-| `GHCR_PUSH_TOKEN` | secret | PAT with `write:packages` from a member of `IMAGE_NAMESPACE`. Needed whenever that namespace is not owned by the repository owner (the repository moved from `paperclipinc` to `stubbi`; the images still live under `paperclipinc`), because `GITHUB_TOKEN` can only push into the owner's own namespace. |
+| `IMAGE_NAMESPACE` | variable | GHCR namespace the operator image, the agent image and the chart are published to. Defaults to `stubbi`; releases up to v0.2.0 were published under `paperclipinc`. Must match the chart's default `image.repository` (`release.yaml` fails early otherwise) and the bundle CSV. |
+| `GHCR_PUSH_TOKEN` | secret | PAT with `write:packages` from a member of `IMAGE_NAMESPACE`. Needed only when that namespace is not owned by the repository owner, because `GITHUB_TOKEN` can only push into the owner's own namespace. |
 | `GHCR_PUSH_USER` | variable | Login of the `GHCR_PUSH_TOKEN` owner. |
 
 With neither the App nor `RELEASE_PLEASE_TOKEN` set, both workflows fall back
@@ -63,7 +63,7 @@ repository owner) the `docker` job on `main` builds but does not push the
    - SBOM uploaded as a release asset
    - Release is flipped from draft → published (via the PAT, so the
      `release.published` event fires)
-   - Helm chart is packaged and pushed to `oci://ghcr.io/paperclipinc/charts`
+   - Helm chart is packaged and pushed to `oci://ghcr.io/stubbi/charts`
 6. **operatorhub-submit.yaml** fires on the published-release event:
    - Forks `k8s-operatorhub/community-operators`, creates a branch with the
      new bundle, opens a PR
@@ -112,7 +112,7 @@ git push origin vX.Y.Z   # uses your local git creds (not GHA's GITHUB_TOKEN)
 
 ```bash
 make verify-signing       # uses gh release view to find the latest tag
-cosign verify ghcr.io/paperclipinc/hermes-operator:vX.Y.Z \
+cosign verify ghcr.io/stubbi/hermes-operator:vX.Y.Z \
   --certificate-identity-regexp '^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
@@ -122,15 +122,15 @@ See `docs/security/signing.md` for the full verification ritual.
 ## What ships with each release
 
 - Multi-arch (linux/amd64 + linux/arm64) operator image:
-  `ghcr.io/paperclipinc/hermes-operator:vX.Y.Z` and `:X.Y` and `:latest`
+  `ghcr.io/stubbi/hermes-operator:vX.Y.Z` and `:X.Y` and `:latest`
 - Multi-arch agent image:
-  `ghcr.io/paperclipinc/hermes-agent:vX.Y.Z` (built by a separate hermes-agent
+  `ghcr.io/stubbi/hermes-agent:vX.Y.Z` (built by a separate hermes-agent
   release; the operator's `appVersion` doesn't pin agent versions:
   `spec.image.tag` does)
 - OLM bundle image:
-  `ghcr.io/paperclipinc/hermes-operator-bundle:vX.Y.Z`
+  `ghcr.io/stubbi/hermes-operator-bundle:vX.Y.Z`
 - Helm chart (OCI):
-  `oci://ghcr.io/paperclipinc/charts/hermes-operator:X.Y.Z`
+  `oci://ghcr.io/stubbi/charts/hermes-operator:X.Y.Z`
 - Plain manifests:
   `https://github.com/stubbi/hermes-operator/releases/download/vX.Y.Z/install.yaml`
 - SBOM:
