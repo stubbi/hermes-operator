@@ -147,19 +147,19 @@ func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *herme
 		}
 	}
 
-	var cmPatch *corev1.ConfigMap
+	// patchConfig is not written here. Once this request is Applied, the
+	// HermesInstance reconciler (which watches HermesSelfConfig) merges the
+	// patch into the rendered config ConfigMap on every reconcile, so the
+	// result cannot be wiped by a later instance reconcile and is removed
+	// again when this request is deleted. See resolveSelfConfigPatches.
 	if sc.Spec.PatchConfig != nil && len(sc.Spec.PatchConfig.Raw) > 0 {
-		cmPatch = buildPatchConfigPayload(parent, sc)
+		applied = append(applied, AppliedFieldPatchConfig)
 	}
+
 	if len(sc.Spec.AddWorkspaceFiles) > 0 {
-		cmPatch = mergeConfigMapPatches(cmPatch, buildWorkspaceFilesPatch(parent, sc))
-	}
-	if cmPatch != nil {
+		cmPatch := buildWorkspaceFilesPatch(parent, sc)
 		if err := r.applySSA(ctx, cmPatch, sc); err != nil {
 			return applied, fmt.Errorf("workspace CM SSA: %w", err)
-		}
-		if sc.Spec.PatchConfig != nil && len(sc.Spec.PatchConfig.Raw) > 0 {
-			applied = append(applied, "workspace-configmap.data[key=selfconfig.yaml]")
 		}
 		for _, f := range sc.Spec.AddWorkspaceFiles {
 			applied = append(applied, formatAppliedFieldFile(f.Path))

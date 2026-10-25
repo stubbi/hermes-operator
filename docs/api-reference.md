@@ -602,7 +602,7 @@ with field manager `hermes.agent/selfconfig`.
 | `addSkills[]` | list | no | uv-compatible source specifiers appended to `HermesInstance.spec.skills`. SSA list-map key: `source`. |
 | `addSkills[].source` | string | yes (per item) | e.g. `git+https://github.com/foo/skill@v1.2`. |
 | `addSkills[].version` | string | no | Audit-only human label. |
-| `patchConfig` | `apiextensions/v1.JSON` | no | JSON merge patch (RFC 7396) written to the workspace ConfigMap key `selfconfig.yaml`. Layered onto `~/.hermes/config.yaml` at agent startup. |
+| `patchConfig` | `apiextensions/v1.JSON` | no | JSON merge patch (RFC 7396). Once the request is `Applied`, the `HermesInstance` reconciler merges it into the rendered `<instance>-config` ConfigMap (`config.yaml`) on every reconcile, below the operator-owned gateway fragments. Deleting the request retracts the patch. |
 | `addEnvVars[]` | list | no | Environment variables appended to `HermesInstance.spec.env`. SSA list-map key: `name`. |
 | `addEnvVars[].name` | string | yes | C-identifier (`^[A-Za-z_][A-Za-z0-9_]*$`). |
 | `addEnvVars[].value` | string | no | Literal value. Mutually exclusive with `valueFrom`. |
