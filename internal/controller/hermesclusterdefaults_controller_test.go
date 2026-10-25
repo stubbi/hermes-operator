@@ -40,7 +40,7 @@ var _ = Describe("HermesClusterDefaults controller", func() {
 		hcd := &hermesv1.HermesClusterDefaults{
 			ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 			Spec: hermesv1.HermesClusterDefaultsSpec{
-				Image: hermesv1.ImageSpec{Repository: "ghcr.io/paperclipinc/hermes-agent", Tag: "1.0.0"},
+				Image: hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent", Tag: "1.0.0"},
 			},
 		}
 		Expect(k8sClient.Create(ctx, hcd)).To(Succeed())

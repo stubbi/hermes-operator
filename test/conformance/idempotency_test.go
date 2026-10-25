@@ -18,7 +18,7 @@ import (
 // #90: the operator runs the upstream s6 hermes-agent image with `gateway run` +
 // the OpenAI API server, probes HTTPGet /health, and injects a placeholder LLM
 // provider so the gateway comes up without live calls. The fixtures pin
-// `ghcr.io/paperclipinc/hermes-agent:v0.16.0`, which is the upstream-based
+// `ghcr.io/stubbi/hermes-agent:v0.16.0`, which is the upstream-based
 // runtime. Validated end-to-end on kind (an instance reaches Ready=True).
 // waitForInstanceReady dumps pod diagnostics on timeout if anything regresses.
 

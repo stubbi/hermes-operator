@@ -186,7 +186,7 @@ type HermesInstanceSpec struct {
 // ImageSpec selects an OCI image.
 // +kubebuilder:validation:XValidation:rule="(has(self.tag) && size(self.tag) > 0 && self.tag != 'latest') || (has(self.digest) && size(self.digest) > 0)",message="spec.image: one of tag or digest must be set and the tag must not be the floating ':latest' (pick a specific upstream release tag or pin a digest)"
 type ImageSpec struct {
-	// +kubebuilder:default="ghcr.io/paperclipinc/hermes-agent"
+	// +kubebuilder:default="ghcr.io/stubbi/hermes-agent"
 	// +optional
 	Repository string `json:"repository,omitempty"`
 

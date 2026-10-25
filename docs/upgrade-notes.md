@@ -38,6 +38,29 @@ workspace ConfigMap, drop that dependency. A patch landing or being retracted
 rolls the pod through the config hash annotation described above, so no manual
 restart is needed.
 
+### Images and the Helm chart are published under `ghcr.io/stubbi`
+
+**What changed.** The repository moved from `paperclipinc` to `stubbi`, and
+releases after 0.2.0 publish the operator image, the agent image and the Helm
+chart under `ghcr.io/stubbi` instead of `ghcr.io/paperclipinc`:
+
+| Artifact | Up to 0.2.0 | From the next release |
+|---|---|---|
+| Helm chart | `oci://ghcr.io/paperclipinc/charts/hermes-operator` | `oci://ghcr.io/stubbi/charts/hermes-operator` |
+| Operator image | `ghcr.io/paperclipinc/hermes-operator` | `ghcr.io/stubbi/hermes-operator` |
+| Agent image | `ghcr.io/paperclipinc/hermes-agent` | `ghcr.io/stubbi/hermes-agent` |
+
+The CRD default for `spec.image.repository` (HermesInstance and
+HermesClusterDefaults) follows, so an instance that leaves the repository
+unset pulls its tag from `ghcr.io/stubbi/hermes-agent` after the upgrade.
+
+**Who is affected.** Helm users must point `helm upgrade` at the new chart
+location. Instances that set `spec.image.repository` explicitly keep pulling
+from wherever they point; the old `ghcr.io/paperclipinc` images stay
+available. Instances that rely on the default repository need their tag to
+exist under `ghcr.io/stubbi/hermes-agent` (`v0.16.0` and newer agent images are
+published there).
+
 ## 0.2.0
 
 ### The agent container now has default resource requests and limits

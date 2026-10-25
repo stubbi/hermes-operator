@@ -33,7 +33,7 @@ metadata:
   name: %s
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -83,7 +83,7 @@ metadata:
   name: neg-no-storage-size
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -102,7 +102,7 @@ metadata:
   name: neg-selfconfig-no-keys
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -125,7 +125,7 @@ metadata:
   name: neg-selfconfig-no-actions
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -148,7 +148,7 @@ metadata:
   name: neg-selfconfig-bad-action
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -173,7 +173,7 @@ metadata:
   name: neg-pdb-both
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -197,7 +197,7 @@ metadata:
   name: neg-hpa-bad-range
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -221,7 +221,7 @@ metadata:
   name: neg-restore-migration
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -248,7 +248,7 @@ metadata:
   name: neg-migration-both-sources
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -281,7 +281,7 @@ metadata:
   name: neg-migration-no-source
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -305,7 +305,7 @@ metadata:
   name: neg-immutable-sc
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -319,7 +319,7 @@ metadata:
   name: neg-immutable-sc
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -339,7 +339,7 @@ metadata:
   name: neg-telegram-no-secret
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -361,7 +361,7 @@ metadata:
   name: neg-discord-no-secret
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -383,7 +383,7 @@ metadata:
   name: neg-slack-no-secret
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -405,7 +405,7 @@ metadata:
   name: neg-whatsapp-no-secret
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -427,7 +427,7 @@ metadata:
   name: neg-signal-no-phone
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:
@@ -451,7 +451,7 @@ metadata:
   name: neg-config-both-warn
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v1.0.0"
   storage:
     persistence:

@@ -48,7 +48,7 @@ var _ = Describe("HermesSelfConfig controller", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "deny-target", Namespace: ns},
 			Spec: hermesv1.HermesInstanceSpec{
 				Image: hermesv1.ImageSpec{
-					Repository: "ghcr.io/paperclipinc/hermes-agent",
+					Repository: "ghcr.io/stubbi/hermes-agent",
 					Tag:        "test",
 				},
 				// SelfConfigure.Enabled left nil/false on purpose.
@@ -81,7 +81,7 @@ var _ = Describe("HermesSelfConfig controller", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: "happy-target", Namespace: ns},
 			Spec: hermesv1.HermesInstanceSpec{
 				Image: hermesv1.ImageSpec{
-					Repository: "ghcr.io/paperclipinc/hermes-agent",
+					Repository: "ghcr.io/stubbi/hermes-agent",
 					Tag:        "test",
 				},
 				SelfConfigure: hermesv1.SelfConfigureSpec{

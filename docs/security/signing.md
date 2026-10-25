@@ -7,8 +7,8 @@ the canonical reference; `SECURITY.md` (top-level) points here.
 ## Verify an image signature
 
 ```bash
-cosign verify ghcr.io/paperclipinc/hermes-operator:vX.Y.Z \
-  --certificate-identity-regexp 'https://github.com/paperclipinc/hermes-operator/.github/workflows/.*' \
+cosign verify ghcr.io/stubbi/hermes-operator:vX.Y.Z \
+  --certificate-identity-regexp '^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -19,20 +19,20 @@ tampered.
 ## Verify the SBOM attestation
 
 ```bash
-cosign verify-attestation ghcr.io/paperclipinc/hermes-operator:vX.Y.Z --type spdxjson \
-  --certificate-identity-regexp 'https://github.com/paperclipinc/hermes-operator/.github/workflows/.*' \
+cosign verify-attestation ghcr.io/stubbi/hermes-operator:vX.Y.Z --type spdxjson \
+  --certificate-identity-regexp '^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 To extract and inspect the SBOM payload:
 
 ```bash
-cosign download attestation ghcr.io/paperclipinc/hermes-operator:vX.Y.Z --predicate-type spdxjson \
+cosign download attestation ghcr.io/stubbi/hermes-operator:vX.Y.Z --predicate-type spdxjson \
   | jq -r .payload | base64 -d | jq .predicate > sbom.spdx.json
 ```
 
 The SBOM is also uploaded as a release asset at
-`https://github.com/paperclipinc/hermes-operator/releases/download/vX.Y.Z/sbom.spdx.json`
+`https://github.com/stubbi/hermes-operator/releases/download/vX.Y.Z/sbom.spdx.json`
 for users who can't (or won't) hit the registry.
 
 ## What the operator signs

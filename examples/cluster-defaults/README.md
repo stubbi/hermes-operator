@@ -44,14 +44,14 @@ spec:
 YAML
 
 kubectl get hi defaulted -n agents -o jsonpath='{.spec.image}'
-# {"repository":"ghcr.io/paperclipinc/hermes-agent","tag":"v2026.5.29.2"}
+# {"repository":"ghcr.io/stubbi/hermes-agent","tag":"v2026.5.29.2"}
 ```
 
 ## What this defaults
 
 | Spec path | Default |
 |---|---|
-| `spec.image.repository` | `ghcr.io/paperclipinc/hermes-agent` |
+| `spec.image.repository` | `ghcr.io/stubbi/hermes-agent` |
 | `spec.image.tag` | `v2026.5.29.2` |
 | `spec.image.imagePullSecrets[]` | `[{name: ghcr-pull}]` |
 | `spec.storage.persistence.storageClassName` | `gp3` |
@@ -78,5 +78,5 @@ kubectl delete hcd cluster
 
 Existing `HermesInstance` resources are unaffected (their fields are
 already filled). New ones fall back to the operator's built-in fallback
-defaults (`ghcr.io/paperclipinc/hermes-agent:latest`, 10Gi default StorageClass,
+defaults (`ghcr.io/stubbi/hermes-agent:latest`, 10Gi default StorageClass,
 no SA annotations).

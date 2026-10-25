@@ -13,7 +13,7 @@ func TestHermesClusterDefaults_Shape(t *testing.T) {
 	hcd := &HermesClusterDefaults{
 		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 		Spec: HermesClusterDefaultsSpec{
-			Image: ImageSpec{Repository: "ghcr.io/paperclipinc/hermes-agent", Tag: "1.4.2"},
+			Image: ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent", Tag: "1.4.2"},
 			Registry: RegistryDefaults{
 				PullSecretName: "ghcr-pull",
 			},
@@ -34,7 +34,7 @@ func TestHermesClusterDefaults_Shape(t *testing.T) {
 		},
 	}
 	assert.Equal(t, "cluster", hcd.Name)
-	assert.Equal(t, "ghcr.io/paperclipinc/hermes-agent", hcd.Spec.Image.Repository)
+	assert.Equal(t, "ghcr.io/stubbi/hermes-agent", hcd.Spec.Image.Repository)
 	assert.Equal(t, "ghcr-pull", hcd.Spec.Registry.PullSecretName)
 	assert.NotNil(t, hcd.Spec.Storage.Persistence.StorageClassName)
 

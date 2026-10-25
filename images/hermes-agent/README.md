@@ -1,6 +1,6 @@
 # hermes-agent image build context
 
-The operator owns `ghcr.io/paperclipinc/hermes-agent`. It is the **upstream
+The operator owns `ghcr.io/stubbi/hermes-agent`. It is the **upstream
 `nousresearch/hermes-agent` image** (an s6-overlay runtime that bundles the
 gateway, dashboard, OpenAI-compatible API server, a Playwright/Chromium browser,
 node, and every Python dependency) with operator metadata layered on top.

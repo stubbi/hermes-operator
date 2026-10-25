@@ -539,7 +539,7 @@ _Appears in:_
 
 | Field | Description | Default | Validation |
 | --- | --- | --- | --- |
-| `repository` _string_ |  | ghcr.io/paperclipinc/hermes-agent | Optional: \{\} <br /> |
+| `repository` _string_ |  | ghcr.io/stubbi/hermes-agent | Optional: \{\} <br /> |
 | `tag` _string_ | Tag is the container image tag. Either tag or digest must be set; there is<br />no default, because pinning to a mutable tag like :latest can silently pull<br />a broken upstream build. |  | Optional: \{\} <br /> |
 | `digest` _string_ | Digest overrides the tag with an image digest (e.g. sha256:abc...). When set<br />it takes precedence over the tag for the resolved image reference. |  | Optional: \{\} <br /> |
 | `pullPolicy` _string_ |  | IfNotPresent | Enum: [Always IfNotPresent Never] <br />Optional: \{\} <br /> |
