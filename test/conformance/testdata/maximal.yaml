@@ -6,7 +6,7 @@ metadata:
     hermes.agent/test: "conformance-maximal"
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v0.16.0"
     pullPolicy: IfNotPresent
   storage:

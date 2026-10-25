@@ -19,7 +19,7 @@ keywords:
 home: https://paperclip.inc
 icon: https://paperclip.inc/favicon.svg
 sources:
-  - https://github.com/paperclipinc/hermes-operator
+  - https://github.com/stubbi/hermes-operator
 maintainers:
   - name: paperclipinc
     email: jannes@paperclip.inc
@@ -37,7 +37,7 @@ annotations:
     - name: OperatorHub
       url: https://artifacthub.io/packages/olm/community-operators/hermes-operator
     - name: support
-      url: https://github.com/paperclipinc/hermes-operator/issues
+      url: https://github.com/stubbi/hermes-operator/issues
   artifacthub.io/crds: |
     - kind: HermesInstance
       version: v1
@@ -61,7 +61,7 @@ annotations:
         name: my-hermes
       spec:
         image:
-          repository: ghcr.io/paperclipinc/hermes-agent
+          repository: ghcr.io/stubbi/hermes-agent
           tag: v2026.5.29.2
         storage:
           persistence:
@@ -69,7 +69,7 @@ annotations:
             size: 10Gi
   artifacthub.io/images: |
     - name: hermes-operator
-      image: ghcr.io/paperclipinc/hermes-operator:v0.2.0 # x-release-please-version
+      image: ghcr.io/stubbi/hermes-operator:v0.2.0 # x-release-please-version
   artifacthub.io/changes: |
     - kind: added
       description: World-class Artifact Hub metadata (logo, keywords, CRDs, images)

@@ -10,8 +10,8 @@ import (
 
 func TestFakeRegistry_ListTags(t *testing.T) {
 	fake := NewFake()
-	fake.SetTags("ghcr.io/paperclipinc/hermes-agent", []string{"1.0.0", "1.0.1", "1.1.0", "2.0.0-rc1"})
-	tags, err := fake.ListTags(context.Background(), "ghcr.io/paperclipinc/hermes-agent")
+	fake.SetTags("ghcr.io/stubbi/hermes-agent", []string{"1.0.0", "1.0.1", "1.1.0", "2.0.0-rc1"})
+	tags, err := fake.ListTags(context.Background(), "ghcr.io/stubbi/hermes-agent")
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"1.0.0", "1.0.1", "1.1.0", "2.0.0-rc1"}, tags)
 }

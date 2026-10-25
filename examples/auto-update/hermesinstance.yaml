@@ -4,7 +4,7 @@ metadata:
   name: auto-update
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v2026.5.29.2"
   storage:
     persistence:
@@ -22,7 +22,7 @@ spec:
   autoUpdate:
     enabled: true
     source:
-      registry: ghcr.io/paperclipinc/hermes-agent
+      registry: ghcr.io/stubbi/hermes-agent
       channel: "1.x"
     pollInterval: 1h
     rollback:
