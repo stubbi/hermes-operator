@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
@@ -42,7 +43,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // HermesInstanceReconciler reconciles a HermesInstance.
@@ -85,6 +88,7 @@ const (
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;patch
 // +kubebuilder:rbac:groups=openclaw.rocks,resources=openclawinstances,verbs=get;list;watch
+// +kubebuilder:rbac:groups=hermes.agent,resources=hermesselfconfigs,verbs=get;list;watch
 
 func (r *HermesInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
@@ -232,13 +236,69 @@ func (r *HermesInstanceReconciler) reconcileConfigMap(ctx context.Context, inst 
 	obj := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 		Name: resources.ConfigMapName(inst), Namespace: inst.Namespace,
 	}}
+	patches, err := r.resolveSelfConfigPatches(ctx, inst)
+	if err != nil {
+		return err
+	}
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
-		desired := resources.BuildConfigMap(inst, body)
+		desired := resources.BuildConfigMapWithPatches(inst, body, patches)
 		obj.Labels = resources.MergePreservingForeign(obj.Labels, desired.Labels, operatorLabelPrefix)
 		obj.Data = desired.Data
 		return controllerutil.SetControllerReference(inst, obj, r.Scheme)
 	})
 	return err
+}
+
+// resolveSelfConfigPatches returns the patchConfig bodies of every
+// HermesSelfConfig targeting inst that the SelfConfig reconciler has admitted
+// (phase Applied for the current generation). The SelfConfig reconciler owns
+// policy (selfConfigure.enabled, allowedActions, protectedKeys); this
+// reconciler owns the merge, so a patch is re-applied on every reconcile and
+// disappears when its HermesSelfConfig is deleted or denied. Order is
+// creation time, then name, so later requests win on conflict.
+func (r *HermesInstanceReconciler) resolveSelfConfigPatches(ctx context.Context, inst *hermesv1.HermesInstance) ([]string, error) {
+	list := &hermesv1.HermesSelfConfigList{}
+	if err := r.List(ctx, list, client.InNamespace(inst.Namespace)); err != nil {
+		return nil, fmt.Errorf("list HermesSelfConfigs: %w", err)
+	}
+	var admitted []hermesv1.HermesSelfConfig
+	for _, sc := range list.Items {
+		if sc.Spec.InstanceRef != inst.Name || !sc.DeletionTimestamp.IsZero() {
+			continue
+		}
+		if sc.Spec.PatchConfig == nil || len(sc.Spec.PatchConfig.Raw) == 0 {
+			continue
+		}
+		if sc.Status.Phase != hermesv1.SelfConfigPhaseApplied || sc.Status.ObservedGeneration != sc.Generation {
+			continue
+		}
+		admitted = append(admitted, sc)
+	}
+	sort.SliceStable(admitted, func(i, j int) bool {
+		ti, tj := admitted[i].CreationTimestamp, admitted[j].CreationTimestamp
+		if !ti.Equal(&tj) {
+			return ti.Before(&tj)
+		}
+		return admitted[i].Name < admitted[j].Name
+	})
+	patches := make([]string, 0, len(admitted))
+	for _, sc := range admitted {
+		patches = append(patches, string(sc.Spec.PatchConfig.Raw))
+	}
+	return patches, nil
+}
+
+// selfConfigToInstance maps a HermesSelfConfig event to its parent
+// HermesInstance so an admitted patchConfig is merged into the rendered
+// config without waiting for the next periodic instance reconcile.
+func selfConfigToInstance(_ context.Context, obj client.Object) []reconcile.Request {
+	sc, ok := obj.(*hermesv1.HermesSelfConfig)
+	if !ok || sc.Spec.InstanceRef == "" {
+		return nil
+	}
+	return []reconcile.Request{{NamespacedName: types.NamespacedName{
+		Name: sc.Spec.InstanceRef, Namespace: sc.Namespace,
+	}}}
 }
 
 func (r *HermesInstanceReconciler) resolveConfigBody(ctx context.Context, inst *hermesv1.HermesInstance) (string, error) {
@@ -548,7 +608,15 @@ func (r *HermesInstanceReconciler) reconcileStatefulSet(ctx context.Context, ins
 	obj := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{
 		Name: resources.StatefulSetName(inst), Namespace: inst.Namespace,
 	}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
+	configData, err := r.configMapData(ctx, inst.Namespace, resources.ConfigMapName(inst))
+	if err != nil {
+		return err
+	}
+	workspaceData, err := r.configMapData(ctx, inst.Namespace, resources.WorkspaceConfigMapName(inst))
+	if err != nil {
+		return err
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, obj, func() error {
 		extraInits := []corev1.Container{}
 		if c := resources.BuildRestoreInitContainer(inst); c != nil {
 			extraInits = append(extraInits, *c)
@@ -562,11 +630,27 @@ func (r *HermesInstanceReconciler) reconcileStatefulSet(ctx context.Context, ins
 				desired.Spec.Template.Spec.Volumes = append(desired.Spec.Template.Spec.Volumes, *vol)
 			}
 		}
+		resources.SetConfigHashAnnotations(desired, configData, workspaceData)
 		obj.Labels = resources.MergePreservingForeign(obj.Labels, desired.Labels, operatorLabelPrefix)
 		obj.Spec = desired.Spec
 		return controllerutil.SetControllerReference(inst, obj, r.Scheme)
 	})
 	return err
+}
+
+// configMapData returns the Data of the named ConfigMap, or nil when it does
+// not exist. Used to stamp the pod template with content digests so a config
+// change rolls the pod (config.yaml is subPath-mounted and never refreshed
+// in place by kubelet).
+func (r *HermesInstanceReconciler) configMapData(ctx context.Context, namespace, name string) (map[string]string, error) {
+	cm := &corev1.ConfigMap{}
+	if err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, cm); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read ConfigMap %q: %w", name, err)
+	}
+	return cm.Data, nil
 }
 
 func (r *HermesInstanceReconciler) reconcileHoncho(ctx context.Context, inst *hermesv1.HermesInstance) error {
@@ -769,6 +853,7 @@ func (r *HermesInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
 		Owns(&batchv1.Job{}).
 		Owns(&batchv1.CronJob{}).
+		Watches(&hermesv1.HermesSelfConfig{}, handler.EnqueueRequestsFromMapFunc(selfConfigToInstance)).
 		Named("hermesinstance").
 		Complete(r)
 }

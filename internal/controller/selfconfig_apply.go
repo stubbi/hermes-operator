@@ -121,25 +121,10 @@ func buildWorkspaceFilesPatch(parent *hermesv1.HermesInstance, sc *hermesv1.Herm
 	return cm
 }
 
-// buildPatchConfigPayload turns a patchConfig into a partial workspace
-// ConfigMap with key "selfconfig.yaml". The hermes-agent runtime merges
-// this on top of ~/.hermes/config.yaml at startup. JSON is valid YAML, so
-// we store the patch verbatim: the agent normalises at load time.
-func buildPatchConfigPayload(parent *hermesv1.HermesInstance, sc *hermesv1.HermesSelfConfig) *corev1.ConfigMap {
-	cm := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      resources.WorkspaceConfigMapName(parent),
-			Namespace: parent.Namespace,
-		},
-		Data: map[string]string{},
-	}
-	if sc.Spec.PatchConfig == nil || len(sc.Spec.PatchConfig.Raw) == 0 {
-		return cm
-	}
-	cm.Data["selfconfig.yaml"] = string(sc.Spec.PatchConfig.Raw)
-	return cm
-}
+// AppliedFieldPatchConfig is the appliedFields entry recorded for a
+// patchConfig. The patch itself is merged into the config ConfigMap by the
+// HermesInstance reconciler, keyed on this request's Applied status.
+const AppliedFieldPatchConfig = "config-configmap.data[key=config.yaml]"
 
 // buildProfileSnapshotPayload returns the Job that materialises a Honcho
 // profile snapshot. Unlike the HermesInstance / ConfigMap payloads, Jobs are
