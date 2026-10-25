@@ -105,3 +105,4 @@ nav:
       - Conformance: conformance.md
       - Release Process: release-process.md
       - Signing: security/signing.md
+      - Operator RBAC: security/rbac.md
