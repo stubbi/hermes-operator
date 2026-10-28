@@ -60,10 +60,13 @@ func TestBuildRestoreInitContainer_S3CredsViaEnvFromSecret(t *testing.T) {
 
 func TestBuildRestoreInitContainer_VolumeMount(t *testing.T) {
 	c := BuildRestoreInitContainer(restoreInstance())
-	require.Len(t, c.VolumeMounts, 1)
+	require.Len(t, c.VolumeMounts, 2)
 	vm := c.VolumeMounts[0]
 	assert.Equal(t, "data", vm.Name)
 	assert.Equal(t, "/home/hermes/.hermes", vm.MountPath)
+	// The pod-level tmp emptyDir keeps /tmp writable under a read-only rootfs (#165).
+	assert.Equal(t, "tmp", c.VolumeMounts[1].Name)
+	assert.Equal(t, "/tmp", c.VolumeMounts[1].MountPath)
 }
 
 func TestBuildRestoreInitContainer_NilWhenNoRestore(t *testing.T) {

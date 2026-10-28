@@ -15,7 +15,7 @@ adjust as needed.
 | [`multi-platform/`](multi-platform/) | Telegram + Discord + Slack + WhatsApp + Signal all enabled. |
 | [`honcho/`](honcho/) | Honcho profile store enabled with persistence. |
 | [`auto-update/`](auto-update/) | OCI-registry-driven auto-update with rollback. |
-| [`backup-s3/`](backup-s3/) | S3 backups against a kind-local MinIO. |
+| [`backup-s3/`](backup-s3/) | S3 backups against a kind-local S3-compatible server. |
 | [`migration-from-openclaw/`](migration-from-openclaw/) | One-shot OpenClaw → Hermes migration, both source modes. |
 | [`gitops-fluxcd/`](gitops-fluxcd/) | FluxCD owns the `HermesInstance`; agent self-mutates via SSA without flap. |
 | [`cluster-defaults/`](cluster-defaults/) | `HermesClusterDefaults` singleton with image/storage/observability defaults. |
