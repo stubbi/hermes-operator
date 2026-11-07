@@ -20,6 +20,7 @@
   - [spec.initContainers, spec.sidecars, spec.extraVolumes, spec.extraVolumeMounts](#specextras)
   - [spec.env, spec.envFrom, spec.skills](#specenv)
   - [spec.suspended](#specsuspended)
+  - [spec.secretsBroker](#specsecretsbroker)
   - [status](#hermesinstance-status)
 - [HermesClusterDefaults](#hermesclusterdefaults)
   - [spec.image](#hcd-specimage)
@@ -377,6 +378,22 @@ The allowlist policy for `HermesSelfConfig` mutations (Plan 4). Declares here so
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `spec.suspended` | `bool` | `false` | When true, scales the StatefulSet to zero replicas. State (PVC, ConfigMap, etc.) is preserved. The instance `status.phase` transitions to `Suspended`. |
+
+### spec.secretsBroker
+
+Resolves short-lived secrets from an external broker at every agent container start and exports them into the agent environment. Fails closed; nothing is written to the PVC. See [Secrets broker](secrets-broker.md) for the broker contract, failure behavior and an example.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `spec.secretsBroker.url` | `string` | required | Resolve endpoint; `${VAR}` placeholders interpolate from the container env. `https://` unless `allowInsecureHTTP`. |
+| `spec.secretsBroker.method` | `string` (enum) | `GET` | `GET` or `POST`. |
+| `spec.secretsBroker.headers` | `[]SecretsBrokerHeader` (listType=map, listMapKey=name) | `[]` | Each header sets exactly one of `value` or `valueFrom.secretKeyRef`. A literal `Authorization` value is rejected. |
+| `spec.secretsBroker.timeoutSeconds` | `*int32` | `10` | Per-attempt timeout, 1 to 300. |
+| `spec.secretsBroker.maxAttempts` | `*int32` | `3` | Attempts on transient failures, 1 to 10. 401/403/404 are never retried. |
+| `spec.secretsBroker.envPrefix` | `string` | `""` | Prefix added to every exported secret name. |
+| `spec.secretsBroker.allowInsecureHTTP` | `bool` | `false` | Permit a plain `http://` URL. |
+| `spec.secretsBroker.resolverImage` | `string` | operator image | Image the resolver binary is copied from. |
+| `spec.secretsBroker.entrypoint` | `[]string` | `["/init", "/opt/hermes/docker/main-wrapper.sh"]` | Entrypoint exec'd after resolving. |
 
 ### `spec.runtime`
 

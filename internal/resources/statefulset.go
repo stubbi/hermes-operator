@@ -193,6 +193,10 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance, extraInits []corev1.Contain
 	c.Env = append(c.Env, inst.Spec.Env...)
 	c.EnvFrom = append(c.EnvFrom, inst.Spec.EnvFrom...)
 
+	// Secrets broker: wraps the entrypoint and adds its env last so the
+	// operator-rendered config wins over a same-named user env var.
+	brokerInit, brokerVol := applySecretsBroker(inst, &c)
+
 	// Build PodSpec with scheduling and service account
 	podSpec := corev1.PodSpec{
 		RestartPolicy:                 corev1.RestartPolicyAlways,
@@ -283,6 +287,9 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance, extraInits []corev1.Contain
 	// Append sidecars and extra volumes (init containers assembled below)
 	podSpec.Containers = append(podSpec.Containers, inst.Spec.Sidecars...)
 	podSpec.Volumes = append(podSpec.Volumes, inst.Spec.ExtraVolumes...)
+	if brokerVol != nil {
+		podSpec.Volumes = append(podSpec.Volumes, *brokerVol)
+	}
 
 	// Determine replicas based on suspended state
 	replicas := int32(1)
@@ -327,6 +334,9 @@ func BuildStatefulSet(inst *hermesv1.HermesInstance, extraInits []corev1.Contain
 	// the env onto the PVC) is gone — the agent's runtime lives in the image, only
 	// mutable state lives on /opt/data.
 	inits := append([]corev1.Container{}, extraInits...)
+	if brokerInit != nil {
+		inits = append(inits, *brokerInit)
+	}
 	inits = append(inits, inst.Spec.InitContainers...)
 	sts.Spec.Template.Spec.InitContainers = inits
 

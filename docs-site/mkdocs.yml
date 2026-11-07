@@ -94,6 +94,7 @@ nav:
       - Backup Format: backup-format.md
       - Auto-Update: autoupdate.md
       - Self-Configuration: selfconfig.md
+      - Secrets Broker: secrets-broker.md
       - Platform Gateways Runbook: runbook-platform-gateways.md
   - Migration and Compatibility:
       - Upgrade Notes: upgrade-notes.md
