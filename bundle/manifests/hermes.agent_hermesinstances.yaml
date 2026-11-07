@@ -7134,7 +7134,7 @@ spec:
                       allowedEgressCIDRs:
                         description: |-
                           AllowedEgressCIDRs is the set of CIDRs the agent may connect to in addition
-                          to the operator-built defaults (DNS + 443).
+                          to the operator-built defaults (DNS, plus TCP/443 under egressPolicy Open).
                         items:
                           type: string
                         type: array
@@ -7155,6 +7155,19 @@ spec:
                           type: string
                         type: array
                         x-kubernetes-list-type: set
+                      egressPolicy:
+                        description: |-
+                          EgressPolicy selects the egress baseline. Open (the default when unset)
+                          allows TCP/443 to any destination, which the agent relies on for model
+                          APIs, chat gateways and the Tailscale control plane. Allowlist removes
+                          that any-destination rule; only DNS, allowedEgressCIDRs, additionalEgress
+                          and in-cluster sibling rules remain, so every external endpoint the agent
+                          needs must be listed explicitly. When unset, inherits from
+                          HermesClusterDefaults spec.security.networkPolicy.egressPolicy.
+                        enum:
+                        - Open
+                        - Allowlist
+                        type: string
                       enabled:
                         default: true
                         description: |-

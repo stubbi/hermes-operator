@@ -135,6 +135,11 @@ type NetworkPolicyDefaults struct {
 
 	// +optional
 	AllowDNS *bool `json:"allowDNS,omitempty"`
+
+	// EgressPolicy defaults spec.security.networkPolicy.egressPolicy for
+	// instances that leave it unset.
+	// +optional
+	EgressPolicy EgressPolicy `json:"egressPolicy,omitempty"`
 }
 
 // NetworkingDefaults mirrors the defaultable subset of NetworkingSpec.
