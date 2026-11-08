@@ -44,7 +44,7 @@ Three independent versions, all semver:
 | Surface | Version | Stability |
 |---|---|---|
 | API group `hermes.agent` | `v1` | This document. Stable for v1.x. |
-| Operator image | `vX.Y.Z` (e.g. `ghcr.io/paperclipinc/hermes-operator:v1.0.0`) | Semver. Breaking ops-surface changes (RBAC removals, metric renames) require a major bump. |
+| Operator image | `vX.Y.Z` (e.g. `ghcr.io/stubbi/hermes-operator:v1.0.0`) | Semver. Breaking ops-surface changes (RBAC removals, metric renames) require a major bump. |
 | Helm chart | `vX.Y.Z` (chart `version`) | Semver of the chart itself, decoupled from `appVersion`. |
 
 `appVersion` in the chart tracks the operator image version. The chart can

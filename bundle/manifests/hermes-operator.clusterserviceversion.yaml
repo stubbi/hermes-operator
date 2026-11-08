@@ -6,10 +6,10 @@ metadata:
   annotations:
     capabilities: Auto Pilot
     categories: AI/Machine Learning, Developer Tools, Application Runtime
-    containerImage: ghcr.io/paperclipinc/hermes-operator:v0.2.0 # x-release-please-version
+    containerImage: ghcr.io/stubbi/hermes-operator:v0.2.0 # x-release-please-version
     createdAt: '2026-05-12T00:00:00Z'
     support: paperclipinc
-    repository: https://github.com/paperclipinc/hermes-operator
+    repository: https://github.com/stubbi/hermes-operator
     description: >-
       A production-grade Kubernetes operator for deploying and managing
       nousresearch/hermes-agent: a Python-based self-improving multi-platform AI
@@ -21,7 +21,7 @@ metadata:
           "kind": "HermesInstance",
           "metadata": { "name": "demo", "namespace": "default" },
           "spec": {
-            "image": { "repository": "ghcr.io/paperclipinc/hermes-agent", "tag": "1.0.0" },
+            "image": { "repository": "ghcr.io/stubbi/hermes-agent", "tag": "1.0.0" },
             "storage": { "persistence": { "enabled": true, "size": "10Gi" } },
             "envFrom": [{ "secretRef": { "name": "hermes-api-keys" } }]
           }
@@ -31,7 +31,7 @@ metadata:
           "kind": "HermesInstance",
           "metadata": { "name": "production", "namespace": "hermes" },
           "spec": {
-            "image": { "repository": "ghcr.io/paperclipinc/hermes-agent", "tag": "1.0.0" },
+            "image": { "repository": "ghcr.io/stubbi/hermes-agent", "tag": "1.0.0" },
             "resources": {
               "requests": { "cpu": "500m", "memory": "1Gi" },
               "limits":   { "cpu": "2",    "memory": "4Gi" }
@@ -60,7 +60,7 @@ metadata:
             },
             "autoUpdate": {
               "enabled": true,
-              "source": { "registry": "ghcr.io/paperclipinc/hermes-agent", "channel": "1.x" },
+              "source": { "registry": "ghcr.io/stubbi/hermes-agent", "channel": "1.x" },
               "rollback": { "enabled": true, "probeFailureThreshold": 3 }
             }
           }
@@ -81,7 +81,7 @@ metadata:
           "kind": "HermesClusterDefaults",
           "metadata": { "name": "cluster" },
           "spec": {
-            "image": { "repository": "ghcr.io/paperclipinc/hermes-agent", "tag": "1.0.0" },
+            "image": { "repository": "ghcr.io/stubbi/hermes-agent", "tag": "1.0.0" },
             "storage": { "storageClassName": "gp3", "size": "10Gi" },
             "observability": { "serviceMonitor": { "enabled": true } },
             "networking": { "networkPolicy": { "enabled": true } }
@@ -230,15 +230,15 @@ spec:
       email: jannes@paperclip.inc
   provider:
     name: paperclipinc
-    url: https://github.com/paperclipinc/hermes-operator
+    url: https://github.com/stubbi/hermes-operator
   links:
     - name: GitHub Repository
-      url: https://github.com/paperclipinc/hermes-operator
+      url: https://github.com/stubbi/hermes-operator
     - name: API Reference
       url: >-
-        https://github.com/paperclipinc/hermes-operator/blob/main/docs/api-reference.md
+        https://github.com/stubbi/hermes-operator/blob/main/docs/api-reference.md
     - name: Changelog
-      url: https://github.com/paperclipinc/hermes-operator/blob/main/CHANGELOG.md
+      url: https://github.com/stubbi/hermes-operator/blob/main/CHANGELOG.md
   installModes:
     - type: OwnNamespace
       supported: true
@@ -250,9 +250,9 @@ spec:
       supported: true
   relatedImages:
     - name: hermes-operator
-      image: ghcr.io/paperclipinc/hermes-operator:v0.2.0 # x-release-please-version
+      image: ghcr.io/stubbi/hermes-operator:v0.2.0 # x-release-please-version
     - name: hermes-agent
-      image: ghcr.io/paperclipinc/hermes-agent:v2026.5.29.2
+      image: ghcr.io/stubbi/hermes-agent:v2026.5.29.2
   customresourcedefinitions:
     owned:
       - name: hermesinstances.hermes.agent
@@ -647,7 +647,7 @@ spec:
                 terminationGracePeriodSeconds: 10
                 containers:
                   - name: manager
-                    image: ghcr.io/paperclipinc/hermes-operator:v0.2.0 # x-release-please-version
+                    image: ghcr.io/stubbi/hermes-operator:v0.2.0 # x-release-please-version
                     command:
                       - /manager
                     args:

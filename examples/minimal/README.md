@@ -16,7 +16,7 @@ kubectl apply -n agents -f hermesinstance.yaml
 ```bash
 kubectl get hi -n agents
 # NAME        READY   PHASE   IMAGE                                AGE
-# minimal     True    Ready   ghcr.io/paperclipinc/hermes-agent:v2026.5.29.2    30s
+# minimal     True    Ready   ghcr.io/stubbi/hermes-agent:v2026.5.29.2    30s
 
 kubectl describe hi minimal -n agents | grep -A1 "Ready"
 # Type:   Ready
