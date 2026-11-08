@@ -16,7 +16,6 @@ spec:
       endpoint: http://minio:9000
       region: us-east-1
       pathPrefix: agents/
-      forcePathStyle: true
       credentialsSecretRef:
         name: hermes-s3-creds
     schedule: "*/10 * * * *"

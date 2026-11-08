@@ -67,7 +67,7 @@ func TestBuildBackupOneShotJob_PVCRef(t *testing.T) {
 	inst := backupInstance()
 	job := BuildBackupOneShotJob(inst, BackupJobOpts{Name: "demo-backup-final", SnapshotKey: "k", Kind: "onDelete"})
 	volumes := job.Spec.Template.Spec.Volumes
-	require.Len(t, volumes, 1)
+	require.Len(t, volumes, 2)
 	assert.Equal(t, "data", volumes[0].Name)
 	require.NotNil(t, volumes[0].PersistentVolumeClaim)
 	assert.Equal(t, PVCName(inst), volumes[0].PersistentVolumeClaim.ClaimName)
