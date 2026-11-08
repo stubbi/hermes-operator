@@ -45,9 +45,10 @@ func newPartialInstance(parent *hermesv1.HermesInstance) *hermesv1.HermesInstanc
 			Kind:       "HermesInstance",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      parent.Name,
-			Namespace: parent.Namespace,
-			UID:       parent.UID,
+			Name:            parent.Name,
+			Namespace:       parent.Namespace,
+			UID:             parent.UID,
+			ResourceVersion: parent.ResourceVersion,
 		},
 	}
 }

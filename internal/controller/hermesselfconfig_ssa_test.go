@@ -70,6 +70,83 @@ var _ = Describe("HermesSelfConfig: GitOps coexistence (SSA)", func() {
 		Expect(replacement.Spec.Env).NotTo(ContainElement(corev1.EnvVar{Name: "STALE_AUTHORIZATION", Value: "must-not-land"}))
 	})
 
+	It("rejects an SSA mutation after the same parent's policy was revoked", func() {
+		ctx := context.Background()
+		name := "ssa-policy-revoked-parent"
+		key := types.NamespacedName{Name: name, Namespace: ssaNS}
+		enabled := true
+		parent := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ssaNS},
+			Spec: hermesv1.HermesInstanceSpec{
+				Image: hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent", Tag: "test"},
+				SelfConfigure: hermesv1.SelfConfigureSpec{
+					Enabled: &enabled, AllowedActions: []hermesv1.SelfConfigAction{hermesv1.ActionEnvVars},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, parent)).To(Succeed())
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ssaNS}})
+			_ = k8sClient.Delete(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name + "-config", Namespace: ssaNS}})
+		})
+		authorizedParent := parent.DeepCopy()
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, key, parent)).To(Succeed())
+			disabled := false
+			parent.Spec.SelfConfigure.Enabled = &disabled
+			g.Expect(k8sClient.Update(ctx, parent)).To(Succeed())
+		}).Within(ssaTimeout).WithPolling(ssaPoll).Should(Succeed())
+		Expect(parent.UID).To(Equal(authorizedParent.UID))
+		Expect(parent.ResourceVersion).NotTo(Equal(authorizedParent.ResourceVersion))
+		sc := &hermesv1.HermesSelfConfig{Spec: hermesv1.HermesSelfConfigSpec{
+			AddEnvVars: []hermesv1.SelfConfigEnvVar{{Name: "REVOKED_AUTHORIZATION", Value: "must-not-land"}},
+		}}
+		patch := buildEnvVarsPatch(authorizedParent, sc)
+		Expect(k8sClient.Patch(ctx, patch, client.Apply, client.FieldOwner(SelfConfigFieldManager))).
+			NotTo(Succeed(), "the API must reject a write authorized against a stale parent policy")
+		Expect(k8sClient.Get(ctx, key, parent)).To(Succeed())
+		Expect(parent.Spec.Env).NotTo(ContainElement(corev1.EnvVar{Name: "REVOKED_AUTHORIZATION", Value: "must-not-land"}))
+	})
+
+	// Confirmed qualification hold: the env partial's shared SSA field manager
+	// prunes the skill added by the preceding skills partial. Keep this case
+	// pending until parent field-ownership semantics retain both mutations.
+	PIt("retains both skills and environment from a multi-action request", func() {
+		ctx := context.Background()
+		name := "ssa-multiple-actions-parent"
+		key := types.NamespacedName{Name: name, Namespace: ssaNS}
+		enabled := true
+		parent := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ssaNS},
+			Spec: hermesv1.HermesInstanceSpec{
+				Image: hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent", Tag: "test"},
+				SelfConfigure: hermesv1.SelfConfigureSpec{
+					Enabled: &enabled, AllowedActions: []hermesv1.SelfConfigAction{hermesv1.ActionSkills, hermesv1.ActionEnvVars},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, parent)).To(Succeed())
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ssaNS}})
+			_ = k8sClient.Delete(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name + "-config", Namespace: ssaNS}})
+		})
+		sc := &hermesv1.HermesSelfConfig{Spec: hermesv1.HermesSelfConfigSpec{
+			AddSkills:  []hermesv1.SelfConfigSkill{{Source: "git+https://example.test/skill"}},
+			AddEnvVars: []hermesv1.SelfConfigEnvVar{{Name: "TZ", Value: "UTC"}},
+		}}
+		r := &HermesSelfConfigReconciler{Client: k8sClient, Scheme: k8sClient.Scheme()}
+		Eventually(func() error {
+			if err := k8sClient.Get(ctx, key, parent); err != nil {
+				return err
+			}
+			_, err := r.applyAll(ctx, parent, sc)
+			return err
+		}).Within(ssaTimeout).WithPolling(ssaPoll).Should(Succeed())
+		Expect(k8sClient.Get(ctx, key, parent)).To(Succeed())
+		Expect(parent.Spec.Env).To(ContainElement(corev1.EnvVar{Name: "TZ", Value: "UTC"}))
+		Expect(parent.Spec.Skills).To(ContainElement(hermesv1.InstanceSkill{Source: "git+https://example.test/skill"}))
+	})
+
 	It("preserves Flux-owned fields while applying SelfConfig-owned fields", func() {
 		ctx := context.Background()
 		trueP := true

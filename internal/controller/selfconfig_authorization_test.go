@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,6 +20,90 @@ import (
 
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
 )
+
+func TestSelfConfigAuthorization_OptimisticParentConflictRequeuesButOwnershipConflictIsDenied(t *testing.T) {
+	for _, ownership := range []bool{false, true} {
+		t.Run(fmt.Sprintf("fieldOwnership=%t", ownership), func(t *testing.T) {
+			ctx := context.Background()
+			scheme, parent, sc := authorizationFixture(t)
+			parent.Spec.SelfConfigure.AllowedActions = []hermesv1.SelfConfigAction{hermesv1.ActionEnvVars}
+			sc.Spec.PatchConfig = nil
+			sc.Spec.AddEnvVars = []hermesv1.SelfConfigEnvVar{{Name: "TZ", Value: "UTC"}}
+			sc.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(parent, hermesv1.GroupVersion.WithKind("HermesInstance"))}
+			c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(sc).WithObjects(parent, sc).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Patch: func(ctx context.Context, underlying client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+						if _, ok := obj.(*hermesv1.HermesInstance); ok {
+							err := apierrors.NewConflict(schema.GroupResource{Group: "hermes.agent", Resource: "hermesinstances"}, parent.Name, fmt.Errorf("object changed"))
+							if ownership {
+								err.ErrStatus.Details.Causes = []metav1.StatusCause{{Type: metav1.CauseTypeFieldManagerConflict, Field: "spec.env"}}
+							}
+							return err
+						}
+						return underlying.Patch(ctx, obj, patch, opts...)
+					},
+				}).Build()
+			r := &HermesSelfConfigReconciler{Client: c, Scheme: scheme}
+			key := types.NamespacedName{Name: sc.Name, Namespace: sc.Namespace}
+			_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: key})
+			got := &hermesv1.HermesSelfConfig{}
+			require.NoError(t, c.Get(ctx, key, got))
+			if ownership {
+				require.NoError(t, err)
+				assert.Equal(t, hermesv1.SelfConfigPhaseDenied, got.Status.Phase)
+			} else {
+				assert.True(t, apierrors.IsConflict(err), "requeue to read the current parent policy")
+				assert.NotEqual(t, hermesv1.SelfConfigPhaseDenied, got.Status.Phase, "a status-only parent update must not permanently deny the request")
+			}
+		})
+	}
+}
+
+func TestSelfConfigAuthorization_SequentialParentWritesUseTheLastSuccessfulRevision(t *testing.T) {
+	ctx := context.Background()
+	scheme, parent, sc := authorizationFixture(t)
+	parent.Spec.SelfConfigure.AllowedActions = []hermesv1.SelfConfigAction{hermesv1.ActionSkills, hermesv1.ActionEnvVars}
+	sc.Spec.PatchConfig = nil
+	sc.Spec.AddSkills = []hermesv1.SelfConfigSkill{{Source: "git+fixture"}}
+	sc.Spec.AddEnvVars = []hermesv1.SelfConfigEnvVar{{Name: "TZ", Value: "UTC"}}
+	sc.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(parent, hermesv1.GroupVersion.WithKind("HermesInstance"))}
+	// The fake client has no SSA engine. This models only revision preconditions
+	// and responses, and does not qualify real SSA field-ownership persistence.
+	var revisions []string
+	c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(sc).WithObjects(parent, sc).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, underlying client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				p, ok := obj.(*hermesv1.HermesInstance)
+				if !ok {
+					return underlying.Patch(ctx, obj, patch, opts...)
+				}
+				current := &hermesv1.HermesInstance{}
+				if err := underlying.Get(ctx, client.ObjectKeyFromObject(p), current); err != nil {
+					return err
+				}
+				if p.ResourceVersion != current.ResourceVersion {
+					return apierrors.NewConflict(schema.GroupResource{Group: "hermes.agent", Resource: "hermesinstances"}, p.Name, fmt.Errorf("stale parent revision"))
+				}
+				revisions = append(revisions, p.ResourceVersion)
+				if len(p.Spec.Skills) > 0 {
+					current.Spec.Skills = p.Spec.Skills
+				}
+				if len(p.Spec.Env) > 0 {
+					current.Spec.Env = p.Spec.Env
+				}
+				if err := underlying.Update(ctx, current); err != nil {
+					return err
+				}
+				p.ResourceVersion = current.ResourceVersion
+				return nil
+			},
+		}).Build()
+	r := &HermesSelfConfigReconciler{Client: c, Scheme: scheme}
+	_, err := r.Reconcile(ctx, ctrl.Request{NamespacedName: client.ObjectKeyFromObject(sc)})
+	require.NoError(t, err)
+	require.Len(t, revisions, 2)
+	assert.NotEqual(t, revisions[0], revisions[1], "each write must use the previous successful response revision")
+}
 
 func authorizationFixture(t *testing.T) (*runtime.Scheme, *hermesv1.HermesInstance, *hermesv1.HermesSelfConfig) {
 	t.Helper()

@@ -115,6 +115,11 @@ func (r *HermesSelfConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	applied, err := r.applyAll(ctx, parent, &sc)
 	if err != nil {
+		if apierrors.IsConflict(err) && !apierrors.HasStatusCause(err, metav1.CauseTypeFieldManagerConflict) {
+			// The parent changed after authorization. Read and validate it
+			// again; this is distinct from an SSA field ownership denial.
+			return ctrl.Result{}, err
+		}
 		logger.Error(err, "SSA apply failed")
 		return r.deny(ctx, &sc, parent, fmt.Sprintf("apply failed: %v", err))
 	}
@@ -132,6 +137,7 @@ func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *herme
 		if err := r.applySSA(ctx, patch, sc); err != nil {
 			return applied, fmt.Errorf("skills SSA: %w", err)
 		}
+		parent.ResourceVersion = patch.ResourceVersion
 		for _, s := range sc.Spec.AddSkills {
 			applied = append(applied, formatAppliedFieldSkill(s.Source))
 		}
@@ -142,6 +148,7 @@ func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *herme
 		if err := r.applySSA(ctx, patch, sc); err != nil {
 			return applied, fmt.Errorf("envVars SSA: %w", err)
 		}
+		parent.ResourceVersion = patch.ResourceVersion
 		for _, ev := range sc.Spec.AddEnvVars {
 			applied = append(applied, formatAppliedFieldEnv(ev.Name))
 		}
