@@ -69,18 +69,27 @@ var _ = Describe("Backup sub-controller", func() {
 	}
 
 	AfterEach(func() {
-		inst := &hermesv1.HermesInstance{}
-		if err := k8sClient.Get(ctx, types.NamespacedName{Name: bName, Namespace: namespace}, inst); err == nil {
-			// Strip any finalizers so deletion isn't blocked by the backup-on-delete finalizer
-			if len(inst.Finalizers) > 0 {
-				original := inst.DeepCopy()
-				inst.Finalizers = nil
-				_ = k8sClient.Patch(ctx, inst, client.MergeFrom(original))
-			}
-			_ = k8sClient.Delete(ctx, inst)
-		}
+		key := types.NamespacedName{Name: bName, Namespace: namespace}
 		Eventually(func() error {
-			return k8sClient.Get(ctx, types.NamespacedName{Name: bName, Namespace: namespace}, inst)
+			inst := &hermesv1.HermesInstance{}
+			if err := k8sClient.Get(ctx, key, inst); err != nil {
+				return client.IgnoreNotFound(err)
+			}
+			// Envtest has no Job controller to finish a final backup. Use the
+			// supported skip path instead of racing EnsureFinalizer by stripping
+			// a finalizer while backup.onDelete is still true.
+			original := inst.DeepCopy()
+			if inst.Annotations == nil {
+				inst.Annotations = make(map[string]string)
+			}
+			inst.Annotations[hermesv1.AnnotationSkipFinalBackup] = "true"
+			if err := k8sClient.Patch(ctx, inst, client.MergeFrom(original)); err != nil {
+				return err
+			}
+			return client.IgnoreNotFound(k8sClient.Delete(ctx, inst))
+		}, timeout, interval).Should(Succeed())
+		Eventually(func() error {
+			return k8sClient.Get(ctx, key, &hermesv1.HermesInstance{})
 		}, timeout, interval).Should(Satisfy(apierrors.IsNotFound))
 	})
 
@@ -136,16 +145,14 @@ var _ = Describe("Backup sub-controller", func() {
 			}
 			Expect(k8sClient.Create(ctx, inst)).To(Succeed())
 
-			// Wait for the controller to settle and possibly add a finalizer
-			time.Sleep(1 * time.Second)
-
-			// Verify that after reconcile the generation hasn't been bumped
-			// by a spurious Update on metadata (only Status and Spec updates bump generation)
-			fetched := &hermesv1.HermesInstance{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: bName, Namespace: namespace}, fetched)).To(Succeed())
-			// generation should remain at 1 (created): a Patch on finalizers only does NOT bump generation
-			Expect(fetched.Generation).To(Equal(int64(1)),
-				"lesson #437: finalizer patch must NOT use Update which bumps metadata.generation")
+			// Observe the finalizer before checking its metadata-only write.
+			Eventually(func(g Gomega) {
+				fetched := &hermesv1.HermesInstance{}
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: bName, Namespace: namespace}, fetched)).To(Succeed())
+				g.Expect(fetched.Finalizers).To(ContainElement(hermesv1.FinalizerBackupOnDelete))
+				g.Expect(fetched.Generation).To(Equal(int64(1)),
+					"lesson #437: finalizer patch must not bump metadata.generation")
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 })
