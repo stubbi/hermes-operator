@@ -206,6 +206,26 @@ _Appears in:_
 | `guildIDs` _string array_ | GuildIDs scopes slash-command registration to specific guilds. |  | Optional: \{\} <br /> |
 
 
+#### EgressPolicy
+
+_Underlying type:_ _string_
+
+EgressPolicy selects how permissive the generated NetworkPolicy's egress
+baseline is.
+
+_Validation:_
+- Enum: [Open Allowlist]
+
+_Appears in:_
+- [NetworkPolicyDefaults](#networkpolicydefaults)
+- [NetworkPolicySpec](#networkpolicyspec)
+
+| Field | Description |
+| --- | --- |
+| `Open` | EgressPolicyOpen keeps the baseline rule that allows TCP/443 to any<br />destination. This is the default and matches pre-egressPolicy behavior.<br /> |
+| `Allowlist` | EgressPolicyAllowlist drops the TCP/443 any-destination baseline (and the<br />equivalent per-gateway any-destination rule). Egress is then limited to<br />DNS (when allowDNS), allowedEgressCIDRs, additionalEgress, and the<br />operator's in-cluster sibling rules (Honcho). Model APIs, gateway<br />platforms and the Tailscale control plane/DERP relays must be allowed<br />explicitly.<br /> |
+
+
 #### FFmpegSpec
 
 
@@ -817,6 +837,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ |  |  | Optional: \{\} <br /> |
 | `allowDNS` _boolean_ |  |  | Optional: \{\} <br /> |
+| `egressPolicy` _[EgressPolicy](#egresspolicy)_ | EgressPolicy defaults spec.security.networkPolicy.egressPolicy for<br />instances that leave it unset. |  | Enum: [Open Allowlist] <br />Optional: \{\} <br /> |
 
 
 #### NetworkPolicySpec
@@ -834,9 +855,10 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `enabled` _boolean_ | Enabled: when true (the default), the operator creates a deny-all<br />NetworkPolicy plus selective allow rules (DNS + 443 egress + Service ingress<br />from the same namespace). | true | Optional: \{\} <br /> |
 | `allowDNS` _boolean_ | AllowDNS: emit the standard DNS egress rule (UDP+TCP 53 to any peer).<br />Default true. Disable only when CoreDNS is reachable via a different<br />transport (e.g. node-local DNS via hostNetwork). | true | Optional: \{\} <br /> |
+| `egressPolicy` _[EgressPolicy](#egresspolicy)_ | EgressPolicy selects the egress baseline. Open (the default when unset)<br />allows TCP/443 to any destination, which the agent relies on for model<br />APIs, chat gateways and the Tailscale control plane. Allowlist removes<br />that any-destination rule; only DNS, allowedEgressCIDRs, additionalEgress<br />and in-cluster sibling rules remain, so every external endpoint the agent<br />needs must be listed explicitly. When unset, inherits from<br />HermesClusterDefaults spec.security.networkPolicy.egressPolicy. |  | Enum: [Open Allowlist] <br />Optional: \{\} <br /> |
 | `allowedIngressNamespaces` _string array_ | AllowedIngressNamespaces is the set of additional namespaces (beyond the<br />instance's own) whose pods may connect to the agent's exposed ports. |  | Optional: \{\} <br /> |
 | `allowedIngressCIDRs` _string array_ | AllowedIngressCIDRs is the set of CIDRs that may connect to the agent's<br />exposed ports. |  | Optional: \{\} <br /> |
-| `allowedEgressCIDRs` _string array_ | AllowedEgressCIDRs is the set of CIDRs the agent may connect to in addition<br />to the operator-built defaults (DNS + 443). |  | Optional: \{\} <br /> |
+| `allowedEgressCIDRs` _string array_ | AllowedEgressCIDRs is the set of CIDRs the agent may connect to in addition<br />to the operator-built defaults (DNS, plus TCP/443 under egressPolicy Open). |  | Optional: \{\} <br /> |
 | `additionalEgress` _[NetworkPolicyEgressRule](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#networkpolicyegressrule-v1-networking) array_ | AdditionalEgress is a list of user-supplied egress rules appended verbatim<br />to the generated NetworkPolicy. |  | Optional: \{\} <br /> |
 
 
