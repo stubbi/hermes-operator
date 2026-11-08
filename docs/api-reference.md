@@ -50,7 +50,7 @@ Selects the OCI image for the hermes-agent container.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `spec.image.repository` | `string` | `ghcr.io/paperclipinc/hermes-agent` | Container image repository. |
+| `spec.image.repository` | `string` | `ghcr.io/stubbi/hermes-agent` | Container image repository. |
 | `spec.image.tag` | `string` | `latest` | Image tag. |
 | `spec.image.pullPolicy` | `string` (enum) | `IfNotPresent` | Image pull policy. Allowed values: `Always`, `IfNotPresent`, `Never`. |
 
@@ -506,7 +506,7 @@ Same schema as `HermesInstance.spec.image`. Used as the cluster-wide default ima
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `spec.image.repository` | `string` | `ghcr.io/paperclipinc/hermes-agent` | Default container image repository for all instances. |
+| `spec.image.repository` | `string` | `ghcr.io/stubbi/hermes-agent` | Default container image repository for all instances. |
 | `spec.image.tag` | `string` | `latest` | Default image tag. |
 | `spec.image.pullPolicy` | `string` (enum) | `IfNotPresent` | Default pull policy. Allowed: `Always`, `IfNotPresent`, `Never`. |
 

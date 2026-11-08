@@ -4,7 +4,7 @@ metadata:
   name: full-featured
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v2026.5.29.2"
     imagePullPolicy: IfNotPresent
     imagePullSecrets:
@@ -167,7 +167,7 @@ spec:
   autoUpdate:
     enabled: true
     source:
-      registry: ghcr.io/paperclipinc/hermes-agent
+      registry: ghcr.io/stubbi/hermes-agent
       channel: "1.x"
     pollInterval: 1h
     rollback:
@@ -193,7 +193,7 @@ spec:
         effect: NoSchedule
   initContainers:
     - name: warm-cache
-      image: ghcr.io/paperclipinc/hermes-agent:v2026.5.29.2
+      image: ghcr.io/stubbi/hermes-agent:v2026.5.29.2
       command: ["sh", "-c", "echo warming cache && sleep 2"]
   sidecars:
     - name: log-shipper
