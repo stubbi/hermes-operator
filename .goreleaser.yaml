@@ -59,7 +59,7 @@ release:
   draft: true
   replace_existing_artifacts: true
   github:
-    owner: paperclipinc
+    owner: stubbi
     name: hermes-operator
   extra_files:
     - glob: release-assets/install.yaml

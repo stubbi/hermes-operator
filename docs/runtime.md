@@ -1,7 +1,7 @@
 # Agent runtime
 
 The operator runs the agent on the **upstream NousResearch/hermes-agent
-container image**. The published `ghcr.io/paperclipinc/hermes-agent` image is
+container image**. The published `ghcr.io/stubbi/hermes-agent` image is
 built `FROM` that upstream image (pinned by digest) with only operator metadata
 layered on top — there is no hand-rolled venv build any more.
 

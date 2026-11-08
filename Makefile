@@ -153,7 +153,13 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 
 # -------- hermes-agent image (Plan 3) --------
 
-AGENT_IMAGE         ?= ghcr.io/paperclipinc/hermes-agent
+# GHCR namespace of the published operator, agent, bundle and chart artifacts.
+# The release workflows pass vars.IMAGE_NAMESPACE (default stubbi). Releases up
+# to v0.2.0 were published under paperclipinc, before the repository moved to
+# stubbi (#173).
+IMAGE_NAMESPACE     ?= stubbi
+
+AGENT_IMAGE         ?= ghcr.io/$(IMAGE_NAMESPACE)/hermes-agent
 HERMES_VERSION      ?= v2026.5.29.2
 AGENT_IMAGE_PLATFORMS ?= linux/amd64,linux/arm64
 
@@ -200,7 +206,7 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 .PHONY: installer
 installer: manifests generate kustomize ## Emit dist/install.yaml for plain kubectl apply.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=ghcr.io/paperclipinc/hermes-operator:$${VERSION:-latest}
+	cd config/manager && $(KUSTOMIZE) edit set image controller=ghcr.io/$(IMAGE_NAMESPACE)/hermes-operator:$${VERSION:-latest}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 	@echo "Wrote dist/install.yaml ($$(wc -l < dist/install.yaml) lines)"
 
@@ -389,8 +395,8 @@ sync-bundle-rbac-check: ## Verify the bundle CSV RBAC is in sync (CI use).
 
 ##@ Bundle
 
-BUNDLE_IMG ?= ghcr.io/paperclipinc/hermes-operator-bundle:$(shell git describe --tags --always)
-CATALOG_IMG ?= ghcr.io/paperclipinc/hermes-operator-catalog:$(shell git describe --tags --always)
+BUNDLE_IMG ?= ghcr.io/$(IMAGE_NAMESPACE)/hermes-operator-bundle:$(shell git describe --tags --always)
+CATALOG_IMG ?= ghcr.io/$(IMAGE_NAMESPACE)/hermes-operator-catalog:$(shell git describe --tags --always)
 
 OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
 OPERATOR_SDK_VERSION ?= v1.38.0
@@ -446,16 +452,20 @@ catalog-push: ## Push the catalog image.
 scorecard: operator-sdk ## Run operator-sdk scorecard tests (requires a kind cluster).
 	$(OPERATOR_SDK) scorecard bundle --wait-time 120s
 
+# Releases signed before the repository moved from paperclipinc to stubbi carry
+# the old workflow identity, later ones the new one; accept both.
+SIGNING_IDENTITY_REGEXP ?= ^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*
+
 .PHONY: verify-signing
 verify-signing: ## Verify the latest published release is Cosign-signed and SBOM-attested.
-	@VERSION=$$(gh release view --repo paperclipinc/hermes-operator --json tagName --jq .tagName); \
-	IMAGE="ghcr.io/paperclipinc/hermes-operator:$${VERSION}"; \
+	@VERSION=$$(gh release view --repo stubbi/hermes-operator --json tagName --jq .tagName); \
+	IMAGE="ghcr.io/$(IMAGE_NAMESPACE)/hermes-operator:$${VERSION}"; \
 	echo "Verifying $${IMAGE}..."; \
 	cosign verify "$${IMAGE}" \
-	  --certificate-identity-regexp 'https://github.com/paperclipinc/hermes-operator/.github/workflows/.*' \
+	  --certificate-identity-regexp '$(SIGNING_IDENTITY_REGEXP)' \
 	  --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null || { echo "::error::signature verification failed for $${IMAGE}"; exit 1; }; \
 	echo "Verifying SBOM attestation..."; \
 	cosign verify-attestation "$${IMAGE}" --type spdxjson \
-	  --certificate-identity-regexp 'https://github.com/paperclipinc/hermes-operator/.github/workflows/.*' \
+	  --certificate-identity-regexp '$(SIGNING_IDENTITY_REGEXP)' \
 	  --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null || { echo "::error::SBOM attestation verification failed for $${IMAGE}"; exit 1; }; \
 	echo "OK: $${IMAGE} is signed and SBOM-attested."

@@ -7,14 +7,14 @@ The `hermes-operator` can poll an OCI registry and roll the StatefulSet's image 
 ```yaml
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "1.4.0"                          # MUST be a concrete semver; do not use `latest`
   autoUpdate:
     enabled: true
     pollInterval: 1h                       # min 15m, max 168h
     backupBeforeUpdate: true              # default true; requires spec.backup.s3 set
     source:
-      registry: ghcr.io/paperclipinc/hermes-agent  # defaults to spec.image.repository
+      registry: ghcr.io/stubbi/hermes-agent  # defaults to spec.image.repository
       channel: "1.x"                       # Masterminds/semver constraint; defaults to "<major>.x"
     rollback:
       enabled: true
