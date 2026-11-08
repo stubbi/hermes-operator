@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
@@ -25,26 +23,8 @@ func BuildRestoreInitContainer(inst *hermesv1.HermesInstance) *corev1.Container 
 	if image == "" {
 		image = ResticImage
 	}
-	region := inst.Spec.Backup.S3.Region
 
-	args := []string{
-		"-c",
-		fmt.Sprintf(
-			`set -euo pipefail
-SNAPSHOT_KEY=%q
-DEST=/home/hermes/.hermes
-if [ -n "$(ls -A "$DEST" 2>/dev/null)" ] && [ -z "${HERMES_RESTORE_FORCE:-}" ]; then
-  echo "ERROR: restore destination $DEST is not empty; refusing to overwrite. Set HERMES_RESTORE_FORCE=1 to override." >&2
-  exit 1
-fi
-restic --repo "$RESTIC_REPOSITORY" --no-cache dump latest "$SNAPSHOT_KEY" \
-  | zstd -d \
-  | tar -xf - -C "$DEST"
-echo "restore complete: $SNAPSHOT_KEY -> $DEST" >&2
-`,
-			inst.Spec.RestoreFrom,
-		),
-	}
+	args := []string{"-c", restoreScript(inst.Spec.RestoreFrom)}
 
 	return &corev1.Container{
 		Name:                     "init-restore",
@@ -54,17 +34,16 @@ echo "restore complete: $SNAPSHOT_KEY -> $DEST" >&2
 		Args:                     args,
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: corev1.TerminationMessageReadFile,
-		Env: []corev1.EnvVar{
-			{Name: "RESTIC_REPOSITORY", Value: resticRepo(inst.Spec.Backup.S3)},
-			{Name: "AWS_DEFAULT_REGION", Value: region},
-		},
+		Env:                      resticEnv(inst.Spec.Backup.S3, s3CredsSecretName(inst)),
 		EnvFrom: []corev1.EnvFromSource{{
 			SecretRef: &corev1.SecretEnvSource{
 				LocalObjectReference: corev1.LocalObjectReference{Name: s3CredsSecretName(inst)},
 			},
 		}},
 		VolumeMounts: []corev1.VolumeMount{
-			{Name: "data", MountPath: "/home/hermes/.hermes"},
+			{Name: "data", MountPath: backupDataDir},
+			// The pod-level "tmp" emptyDir: the root filesystem stays read-only.
+			{Name: "tmp", MountPath: "/tmp"},
 		},
 		SecurityContext: &corev1.SecurityContext{
 			AllowPrivilegeEscalation: Ptr(false),

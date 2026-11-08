@@ -47,8 +47,8 @@ func TestSnapshotKey_Format(t *testing.T) {
 			},
 		},
 	}
-	assert.Equal(t, "prod/agents/demo/2026-05-10T03-00-00Z.tar.zst",
+	assert.Equal(t, "prod/agents/demo/2026-05-10T03-00-00Z.tar",
 		SnapshotKey(inst, "scheduled", "2026-05-10T03-00-00Z"))
-	assert.Equal(t, "prod/agents/demo/failed/2026-05-10T03-00-00Z.tar.zst",
+	assert.Equal(t, "prod/agents/demo/failed/2026-05-10T03-00-00Z.tar",
 		SnapshotKey(inst, "failed", "2026-05-10T03-00-00Z"))
 }

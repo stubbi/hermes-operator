@@ -53,7 +53,7 @@ func TestBuildBackupCronJob_HistoryLimitsFromSpec(t *testing.T) {
 func TestBuildBackupCronJob_TemplateUsesPVC(t *testing.T) {
 	cj := BuildBackupCronJob(cronInstance())
 	vols := cj.Spec.JobTemplate.Spec.Template.Spec.Volumes
-	require.Len(t, vols, 1)
+	require.Len(t, vols, 2)
 	require.NotNil(t, vols[0].PersistentVolumeClaim)
 	assert.Equal(t, PVCName(cronInstance()), vols[0].PersistentVolumeClaim.ClaimName)
 }
