@@ -90,6 +90,7 @@ nav:
       - Conditions: conditions.md
   - Operations:
       - Agent Runtime: runtime.md
+      - Pod Security Posture: security/pod-security.md
       - Backup and Restore: backup-restore.md
       - Backup Format: backup-format.md
       - Auto-Update: autoupdate.md
