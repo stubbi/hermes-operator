@@ -119,13 +119,13 @@ Bundles pod/container security contexts, per-instance RBAC, NetworkPolicy, and o
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `spec.security.podSecurityContext` | `*corev1.PodSecurityContext` | `nil` (operator default applied) | Overrides the operator's default hardened pod security context. Operator default when nil: `runAsNonRoot=true`, `runAsUser=1000`, `fsGroup=1000`, `seccompProfile=RuntimeDefault`. |
+| `spec.security.podSecurityContext` | `*corev1.PodSecurityContext` | `nil` (operator default applied) | Replaces (does not merge with) the operator's default pod security context. Operator default when nil: `fsGroup=1000`, `seccompProfile=RuntimeDefault`; `runAsNonRoot`/`runAsUser` are not set because the s6 `/init` must start as root. See [Pod security posture](security/pod-security.md). |
 
 #### spec.security.containerSecurityContext
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `spec.security.containerSecurityContext` | `*corev1.SecurityContext` | `nil` (operator default applied) | Overrides the operator's default hardened container context. Operator default when nil: `readOnlyRootFilesystem=true`, `allowPrivilegeEscalation=false`, drop ALL capabilities. |
+| `spec.security.containerSecurityContext` | `*corev1.SecurityContext` | `nil` (operator default applied) | Replaces (does not merge with) the operator's default container security context. Operator default when nil: `allowPrivilegeEscalation=false`; the root filesystem stays writable and the runtime default capabilities are kept for the s6 uid remap. See [Pod security posture](security/pod-security.md). |
 
 #### spec.security.rbac
 
