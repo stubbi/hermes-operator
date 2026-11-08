@@ -45,7 +45,8 @@ func ReadS3CredsFromSecret(ctx context.Context, c client.Client, namespace, name
 	return &S3Creds{AccessKeyID: id, SecretAccessKey: sec}, nil
 }
 
-// SnapshotKey returns the canonical S3 key for a snapshot of inst.
+// SnapshotKey returns the canonical key (the restic --stdin-filename) for a
+// snapshot of inst. Format 2 snapshots end in ".tar"; restic compresses them.
 // kind is "scheduled" | "preUpdate" | "onDelete" | "failed".
 func SnapshotKey(inst *hermesv1.HermesInstance, kind, timestamp string) string {
 	prefix := ""
@@ -56,9 +57,9 @@ func SnapshotKey(inst *hermesv1.HermesInstance, kind, timestamp string) string {
 		}
 	}
 	if kind == "failed" {
-		return fmt.Sprintf("%s%s/%s/failed/%s.tar.zst", prefix, inst.Namespace, inst.Name, timestamp)
+		return fmt.Sprintf("%s%s/%s/failed/%s.tar", prefix, inst.Namespace, inst.Name, timestamp)
 	}
-	return fmt.Sprintf("%s%s/%s/%s.tar.zst", prefix, inst.Namespace, inst.Name, timestamp)
+	return fmt.Sprintf("%s%s/%s/%s.tar", prefix, inst.Namespace, inst.Name, timestamp)
 }
 
 // S3EnvVars returns the env vars that the restic container expects.

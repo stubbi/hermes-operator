@@ -6,7 +6,9 @@ The `hermes-operator` ships an S3-compatible backup subsystem with three trigger
 2. **On delete**: via `spec.backup.onDelete = true` (`hermes.agent/backup-on-delete` finalizer).
 3. **Pre-update**: automatic when `spec.autoUpdate.backupBeforeUpdate = true` (default).
 
-All three paths produce a `tar.zst` snapshot of `/home/hermes/.hermes/` plus a `meta.json` sidecar, written to S3 under a deterministic key. The format is documented in [`docs/backup-format.md`](backup-format.md).
+All three paths stream a `tar` of the agent data directory into a [restic](https://restic.net) repository at the root of the bucket, under a deterministic snapshot key. restic deduplicates, compresses and encrypts the data. The format is documented in [`docs/backup-format.md`](backup-format.md).
+
+The backup, prune and restore containers run in the default `restic/restic` image (Alpine, busybox `tar`) with a read-only root filesystem and an `emptyDir` at `/tmp` for restic's scratch files. No GNU tar, `zstd` or `jq` is required.
 
 ## Configuration
 
@@ -30,26 +32,40 @@ The Secret must live in the same namespace as the `HermesInstance` and contain:
 
 | Key | Value |
 |---|---|
-| `S3_ACCESS_KEY_ID` | Access key |
-| `S3_SECRET_ACCESS_KEY` | Secret key |
+| `S3_ACCESS_KEY_ID` | Access key (passed to restic as `AWS_ACCESS_KEY_ID`) |
+| `S3_SECRET_ACCESS_KEY` | Secret key (passed to restic as `AWS_SECRET_ACCESS_KEY`) |
+| `RESTIC_PASSWORD` | Recommended. Password of the restic repository. |
 
+Every key of the Secret is also injected into the backup containers, so other restic settings (for example `RESTIC_PASSWORD_FILE` or `AWS_SESSION_TOKEN`) pass straight through.
+
+The repository is created (`restic init`) by the first backup. restic always encrypts with a repository password. **If the Secret has no `RESTIC_PASSWORD`, the operator uses a fixed default password that is public in this repository**, logs a warning, and confidentiality then rests on bucket access control alone. Set `RESTIC_PASSWORD` before the first backup and keep it safe: without it the snapshots cannot be restored. To switch an existing repository from the default password, add a key with `restic key add` and then set `RESTIC_PASSWORD`.
+
+For a plain HTTP endpoint (for example an in-cluster S3 server), put the scheme into `endpoint` (`http://minio.minio.svc:9000`); without a scheme restic uses HTTPS.
 ## Snapshot keys
 
 ```
-<pathPrefix><namespace>/<instance-name>/<timestamp>.tar.zst             (success)
-<pathPrefix><namespace>/<instance-name>/failed/<timestamp>.tar.zst       (failed)
+<pathPrefix><namespace>/<instance-name>/<timestamp>.tar             (success)
+<pathPrefix><namespace>/<instance-name>/failed/<timestamp>.tar       (failed)
 ```
 
-`<timestamp>` is RFC 3339 with colons and dots replaced by `-` for filesystem safety: `2026-05-10T03-00-00Z`.
+The key is the file name of the snapshot inside the restic repository (`restic backup --stdin-filename`), not a raw S3 object. `<timestamp>` is RFC 3339 with colons and dots replaced by `-` for filesystem safety: `2026-05-10T03-00-00Z`. Each snapshot also carries the restic host `<pathPrefix><namespace>/<instance-name>` and the tags `<kind>` (`scheduled`, `onDelete`, `preUpdate`), `hermes-format=2`, `instance-uid=<uid>` and `timestamp=<timestamp>`.
+
+List the snapshots of an instance with:
+
+```bash
+restic -r s3:<endpoint>/<bucket> snapshots --host <pathPrefix><namespace>/<instance-name>
+```
+
+Format 1 snapshots (`.tar.zst`, written by custom backup images before this format) stay restorable when `spec.backup.image` contains `zstd`.
 
 ## Manual restore
 
 ```yaml
 spec:
-  restoreFrom: "prod/agents/my-hermes/2026-05-10T03-00-00Z.tar.zst"
+  restoreFrom: "prod/agents/my-hermes/2026-05-10T03-00-00Z.tar"
 ```
 
-On the next reconcile, the operator injects an `init-restore` init container into the StatefulSet PodTemplate. It downloads + extracts the snapshot to the PVC at `/home/hermes/.hermes/`. When the init container exits 0, `status.restoredFrom` is latched. The field becomes immutable thereafter: see [API stability](#api-stability).
+On the next reconcile, the operator injects an `init-restore` init container into the StatefulSet PodTemplate. It runs `restic dump` for the snapshot with that key and extracts it onto the PVC. When the init container exits 0, `status.restoredFrom` is latched. The field becomes immutable thereafter: see [API stability](#api-stability).
 
 ### Empty-PVC guard
 
@@ -82,7 +98,7 @@ When `spec.backup.onDelete = true`, the operator adds the `hermes.agent/backup-o
 
 ### Bounded grace window
 
-A failing or stuck final backup must not make the instance **permanently undeletable** (#93). The operator blocks deletion for at most a grace window (`finalBackupDeadline`, **30 minutes** from `deletionTimestamp`); after that it gives up — records `status.backup.lastFailureReason = FinalBackupDeadlineExceeded`, emits a `Warning FinalBackupAbandoned` event, and **releases the finalizer so deletion proceeds**. The final snapshot will not have been taken, so PVC data may be lost — the event makes this visible for post-mortems.
+A failing or stuck final backup must not make the instance **permanently undeletable** (#93). The operator blocks deletion for at most a grace window (`finalBackupDeadline`, **30 minutes** from `deletionTimestamp`); after that it gives up: it records `status.backup.lastFailureReason = FinalBackupDeadlineExceeded`, emits a `Warning FinalBackupAbandoned` event, and **releases the finalizer so deletion proceeds**. The final snapshot will not have been taken, so PVC data may be lost; the event makes this visible for post-mortems.
 
 ### Skipping the final backup
 
@@ -96,7 +112,7 @@ A `Warning` event is recorded so post-mortem reviewers see it. **Use this only i
 
 ## History pruning
 
-A second CronJob (`<name>-backup-prune`) runs daily at 04:17 UTC and runs `restic forget --keep-last <historyLimit>` on the successful snapshot tags, and `--keep-last <failedHistoryLimit>` on the `failed/` prefix.
+A second CronJob (`<name>-backup-prune`) runs daily at 04:17 UTC and runs `restic forget --prune --keep-last <historyLimit>` on the instance's `scheduled`, `onDelete` and `preUpdate` snapshots, and `--keep-last <failedHistoryLimit>` on its `failed` snapshots. Retention is scoped to the instance by the restic host, so instances sharing a bucket never prune each other's snapshots.
 
 ## Common pitfalls
 

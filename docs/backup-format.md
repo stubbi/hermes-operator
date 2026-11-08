@@ -1,47 +1,39 @@
 # Snapshot Format
 
-Every hermes-operator snapshot is a `tar.zst` archive of `/home/hermes/.hermes/` plus a `meta.json` sidecar. The format is stable across v1.x.
+Every hermes-operator snapshot is a single file in a [restic](https://restic.net) repository at the root of the configured bucket: a `tar` of the agent data directory, streamed in with `restic backup --stdin --stdin-filename <key>`. restic handles deduplication, compression and encryption.
+
+The current format is **2**.
 
 ## Layout (inside the tar)
 
 ```
-./                        # everything under /home/hermes/.hermes
+./                        # everything on the agent data PVC
 ./skills/
 ./profiles/
 ./config.yaml
 ./db/...                  # FTS5 session memory
-meta.json                 # sidecar (not under ./)
 ```
 
-## `meta.json`
+## Metadata
 
-```json
-{
-  "instance_uid": "9d3d8a7b-91a7-4c2e-8e3a-7c2e8b1d8a91",
-  "hermes_agent_version": "1.4.2",
-  "k8s_version": "1.32",
-  "timestamp": "2026-05-10T03-00-00Z",
-  "format_version": 1
-}
-```
+Metadata is stored on the restic snapshot, not inside the archive:
 
-| Field | Meaning |
-|---|---|
-| `instance_uid` | The HermesInstance's `metadata.uid` at backup time. Used by the operator to detect cross-instance restores. |
-| `hermes_agent_version` | The running `hermes-agent` version. Read from the container env `HERMES_AGENT_VERSION` (Plan 3 sets this). |
-| `k8s_version` | The host cluster's k8s minor version. Informational. |
-| `timestamp` | RFC 3339 with `:` and `.` replaced by `-` for filesystem safety. |
-| `format_version` | Currently `1`. Bumped when the layout changes incompatibly. |
+| Field | Where | Meaning |
+|---|---|---|
+| key | snapshot path | `<pathPrefix><namespace>/<name>/<timestamp>.tar`. This is the value for `spec.restoreFrom`. |
+| instance | `host` | `<pathPrefix><namespace>/<name>`. Scopes retention to one instance. |
+| kind | tag | `scheduled`, `onDelete`, `preUpdate` or `failed`. |
+| `hermes-format=2` | tag | The snapshot format version. |
+| `instance-uid=<uid>` | tag | The HermesInstance's `metadata.uid` at backup time. |
+| `timestamp=<ts>` | tag | RFC 3339 with `:` and `.` replaced by `-`. |
 
 ## Compression
 
-`zstd -T0 -19` (long-range, max compression, all cores). Typical compression ratio on hermes data is 5-8× (FTS5 indexes compress especially well).
+restic compresses with zstd (repository format 2, `--compression auto`). No compressor is needed in the backup image.
 
 ## Encryption
 
-Encryption is **not** built into the snapshot format. Two options:
-1. **Bucket-side encryption** (SSE-S3, SSE-KMS): recommended.
-2. **Restic native encryption**: set `RESTIC_PASSWORD` in the credentials Secret. The operator passes it through. The default builders do not enable this; opt in by adding the env var.
+restic always encrypts the repository with a password. Set `RESTIC_PASSWORD` in the credentials Secret; without it the operator falls back to a fixed default password that is public, so confidentiality then rests on bucket access control. Bucket side encryption (SSE-S3, SSE-KMS) can be layered on top.
 
 ## Cross-instance restore
 
@@ -52,12 +44,13 @@ spec:
   restoreFrom: "<source-snapshot-key>"
 ```
 
-The operator does **not** rewrite `meta.json.instance_uid`. The hermes-agent runtime will see a new UID on the running instance and treat the imported data as foreign. This is intentional: if you don't want that, do the restore manually with `mc cp` + extract + manual edit.
+Both instances must use the same bucket and the same `RESTIC_PASSWORD`.
 
-## Format evolution
+## Format history
 
-When `format_version` is bumped:
+| Version | Key suffix | Contents |
+|---|---|---|
+| 1 | `.tar.zst` | zstd compressed tar plus a `meta.json` sidecar. Required GNU tar and `zstd` in the backup image, so it never ran in the default `restic/restic` image. |
+| 2 | `.tar` | Plain tar compressed by restic, metadata in restic tags. Runs in the default image. |
 
-- Old snapshots remain restorable (backward compatibility is a v1.x stability commitment).
-- The operator's init container at runtime version N can read all `format_version` ≤ N.
-- Cross-version downgrades (newer snapshot, older operator) are unsupported.
+Format 1 snapshots remain restorable: the restore container pipes `.tar.zst` keys through `zstd -d`, which requires `spec.backup.image` to contain `zstd`.
