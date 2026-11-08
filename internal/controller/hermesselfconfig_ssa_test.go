@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +32,42 @@ var _ = Describe("HermesSelfConfig: GitOps coexistence (SSA)", func() {
 		for i := range scs.Items {
 			_ = k8sClient.Delete(ctx, &scs.Items[i])
 		}
+	})
+
+	It("rejects an SSA mutation authorized for a deleted parent UID", func() {
+		ctx := context.Background()
+		name := "ssa-replaced-parent"
+		key := types.NamespacedName{Name: name, Namespace: ssaNS}
+		image := hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent", Tag: "test"}
+		parent := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ssaNS},
+			Spec:       hermesv1.HermesInstanceSpec{Image: image},
+		}
+		Expect(k8sClient.Create(ctx, parent)).To(Succeed())
+		DeferCleanup(func() {
+			_ = k8sClient.Delete(ctx, &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ssaNS}})
+			_ = k8sClient.Delete(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name + "-config", Namespace: ssaNS}})
+		})
+		oldParent := parent.DeepCopy()
+		Expect(oldParent.UID).NotTo(BeEmpty())
+		Expect(k8sClient.Delete(ctx, parent)).To(Succeed())
+		Eventually(func() bool {
+			return apierrors.IsNotFound(k8sClient.Get(ctx, key, &hermesv1.HermesInstance{}))
+		}).Within(ssaTimeout).WithPolling(ssaPoll).Should(BeTrue())
+		replacement := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ssaNS},
+			Spec:       hermesv1.HermesInstanceSpec{Image: image},
+		}
+		Expect(k8sClient.Create(ctx, replacement)).To(Succeed())
+		Expect(replacement.UID).NotTo(Equal(oldParent.UID))
+		sc := &hermesv1.HermesSelfConfig{Spec: hermesv1.HermesSelfConfigSpec{
+			AddEnvVars: []hermesv1.SelfConfigEnvVar{{Name: "STALE_AUTHORIZATION", Value: "must-not-land"}},
+		}}
+		patch := buildEnvVarsPatch(oldParent, sc)
+		Expect(k8sClient.Patch(ctx, patch, client.Apply, client.FieldOwner(SelfConfigFieldManager))).
+			NotTo(Succeed(), "the API must reject a write bound to the deleted parent UID")
+		Expect(k8sClient.Get(ctx, key, replacement)).To(Succeed())
+		Expect(replacement.Spec.Env).NotTo(ContainElement(corev1.EnvVar{Name: "STALE_AUTHORIZATION", Value: "must-not-land"}))
 	})
 
 	It("preserves Flux-owned fields while applying SelfConfig-owned fields", func() {
