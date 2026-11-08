@@ -85,6 +85,65 @@ func TestResolve_POSTAndPrefix(t *testing.T) {
 	assert.Equal(t, map[string]string{"BROKER_KEY": "v"}, got)
 }
 
+func TestResolve_RejectsRedirectsWithoutForwardingCredentials(t *testing.T) {
+	for _, scenario := range []struct {
+		name      string
+		targetTLS bool
+		allowHTTP bool
+		status    int
+	}{
+		{name: "HTTPS to HTTP", status: http.StatusFound},
+		{name: "HTTPS to HTTPS", targetTLS: true, status: http.StatusTemporaryRedirect},
+		{name: "HTTP opt-in still refuses redirects", allowHTTP: true, status: http.StatusPermanentRedirect},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			var targetCalls, brokerCalls atomic.Int32
+			targetHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				targetCalls.Add(1)
+				_, _ = w.Write([]byte(`{"OPENAI_API_KEY":"` + testSecret + `"}`))
+			})
+			var target *httptest.Server
+			if scenario.targetTLS {
+				target = httptest.NewTLSServer(targetHandler)
+			} else {
+				target = httptest.NewServer(targetHandler)
+			}
+			defer target.Close()
+			brokerHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				brokerCalls.Add(1)
+				http.Redirect(w, req, target.URL+"?token="+testToken, scenario.status)
+			})
+			var broker *httptest.Server
+			if scenario.allowHTTP {
+				broker = httptest.NewServer(brokerHandler)
+			} else {
+				broker = httptest.NewTLSServer(brokerHandler)
+			}
+			defer broker.Close()
+
+			var logs bytes.Buffer
+			var waits []time.Duration
+			r := newResolver(t, &logs, &waits)
+			r.Client = broker.Client()
+			got, err := r.Resolve(context.Background(), &Config{
+				URL: broker.URL, Method: http.MethodGet, MaxAttempts: 3,
+				AllowInsecureHTTP: scenario.allowHTTP,
+				Headers:           map[string]string{"Authorization": "Bearer ${TOKEN}", "X-Broker-Token": "${TOKEN}"},
+			}, envLookup(map[string]string{"TOKEN": testToken}))
+			require.Error(t, err)
+			assert.Nil(t, got)
+			var status *StatusError
+			require.ErrorAs(t, err, &status)
+			assert.Equal(t, scenario.status, status.Code)
+			assert.Equal(t, int32(0), targetCalls.Load(), "no credential-bearing redirected request may be sent")
+			assert.Equal(t, int32(1), brokerCalls.Load(), "redirects are not transient failures")
+			assert.Empty(t, waits)
+			assert.Nil(t, r.Client.CheckRedirect, "do not change a caller's shared client")
+			assertNoLeak(t, err.Error()+logs.String())
+		})
+	}
+}
+
 func TestResolve_FailClosedNotRetried(t *testing.T) {
 	for _, code := range []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusBadRequest} {
 		t.Run(http.StatusText(code), func(t *testing.T) {

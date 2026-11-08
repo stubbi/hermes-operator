@@ -225,6 +225,13 @@ func (r *Resolver) Resolve(ctx context.Context, c *Config, lookup func(string) (
 	if client == nil {
 		client = &http.Client{}
 	}
+	// Credentials belong only to the configured endpoint. Refuse redirects,
+	// including HTTPS-to-HTTP downgrades, without changing a shared client.
+	clientCopy := *client
+	clientCopy.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	client = &clientCopy
 	sleep := r.Sleep
 	if sleep == nil {
 		sleep = sleepCtx

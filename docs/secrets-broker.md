@@ -98,6 +98,9 @@ environment before the entrypoint runs.
 
 The agent never starts on stale or empty secrets:
 
+- Redirects (`3xx`) fail without following the new URL or forwarding broker
+  credentials. Configure the final resolve endpoint, including when
+  `allowInsecureHTTP` is enabled.
 - `401`/`403` (bad broker credentials), `404` (no active secrets for this
   identity), any other `4xx`, a malformed body, or a refused secret name fail
   the container immediately with an actionable message in its log.
