@@ -21,7 +21,8 @@ set -euo pipefail
 
 CHART_DIR="${CHART_DIR:-charts/hermes-operator}"
 CHART_NAME="$(basename "${CHART_DIR}")"
-OPERATOR_REPO="paperclipinc/hermes-operator"
+# Same variable and default as the release workflows (#173).
+OPERATOR_REPO="${IMAGE_NAMESPACE:-stubbi}/hermes-operator"
 
 # Bare version, however Chart.yaml happens to spell it.
 APP_VERSION="$(sed -nE 's/^appVersion:[[:space:]]*"?v?([^"[:space:]]+)"?/\1/p' "${CHART_DIR}/Chart.yaml")"
@@ -171,7 +172,7 @@ if [[ ! -f "$CSV" ]]; then
 fi
 
 # Every line naming the operator image, plus the CSV name line.
-csv_lines="$(grep -nE "ghcr\.io/paperclipinc/hermes-operator:|^  name: hermes-operator\.|^  version: [0-9]" "$CSV" || true)"
+csv_lines="$(grep -nE "ghcr\.io/[a-z0-9._-]*/hermes-operator:|^  name: hermes-operator\.|^  version: [0-9]" "$CSV" || true)"
 
 if [[ -z "$csv_lines" ]]; then
   echo "ERROR: no operator image or CSV name lines found in ${CSV}. Check the grep." >&2
@@ -212,7 +213,7 @@ while IFS= read -r line; do
     continue
   fi
 
-  ref="$(sed -E 's/.*(ghcr\.io\/paperclipinc\/hermes-operator:[^[:space:]#]+).*/\1/' <<<"$body")"
+  ref="$(sed -E 's/.*(ghcr\.io\/[a-z0-9._-]*\/hermes-operator:[^[:space:]#]+).*/\1/' <<<"$body")"
   if [[ "$ref" == "$body" ]]; then
     echo "  FAIL ${CSV}:${lineno} could not parse an image reference"
     fail=1
@@ -232,7 +233,7 @@ fi
 # operatorhub-submit.yaml rewrites the CSV with these two patterns. If the
 # in-tree spelling ever stops matching them, the submitted bundle silently
 # keeps the in-tree version instead of the released one.
-for pat in "hermes-operator\.v[0-9]\+\.[0-9]\+\.[0-9]\+" "ghcr.io/paperclipinc/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+"; do
+for pat in "hermes-operator\.v[0-9]\+\.[0-9]\+\.[0-9]\+" "ghcr.io/[a-z0-9._-]*/hermes-operator:v[0-9]\+\.[0-9]\+\.[0-9]\+"; do
   if ! grep -q "$pat" "$CSV"; then
     echo "  FAIL no line in ${CSV} matches the operatorhub-submit sed pattern: ${pat}"
     fail=1

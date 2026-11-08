@@ -4,23 +4,44 @@ on:
   push:
     tags:
       - 'v*'
+  # Release Please dispatches this with --ref <tag> when it had to fall back to
+  # GITHUB_TOKEN, whose tag pushes do not fire the push trigger above. Run it
+  # manually the same way: gh workflow run release.yaml --ref vX.Y.Z
+  workflow_dispatch:
 
 permissions:
   contents: write
   packages: write
   id-token: write
+  actions: write  # GITHUB_TOKEN fallback dispatches operatorhub-submit.yaml
+
+env:
+  # Single source of truth for the GHCR namespace the operator image and the
+  # chart are published to. It must match the chart's default
+  # image.repository (checked below) and the bundle CSV, so it is pinned
+  # rather than derived from the repository owner. Releases up to v0.2.0 were
+  # published under ghcr.io/paperclipinc, before the repository moved to
+  # stubbi (see #173); GITHUB_TOKEN can push to ghcr.io/stubbi directly.
+  IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'stubbi' }}
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      HAS_APP: ${{ vars.RELEASE_BOT_APP_ID != '' }}
+      HAS_PAT: ${{ secrets.RELEASE_PLEASE_TOKEN != '' }}
     steps:
       # Mint a short-lived App installation token. Required for the
       # release-undraft and SBOM-upload steps: GITHUB_TOKEN-issued events
       # don't fan out to downstream workflows. Replaces the long-lived
-      # RELEASE_PLEASE_TOKEN PAT.
+      # RELEASE_PLEASE_TOKEN PAT. Skipped when the App is not configured
+      # (see #173); the publish steps then fall back to RELEASE_PLEASE_TOKEN
+      # or GITHUB_TOKEN.
       - uses: actions/create-github-app-token@v3
         id: app-token
+        if: vars.RELEASE_BOT_APP_ID != ''
         with:
           app-id: ${{ vars.RELEASE_BOT_APP_ID }}
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
@@ -43,11 +64,24 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN can only push to packages in the repository owner's
+          # namespace. To publish into a namespace owned by another account
+          # (e.g. IMAGE_NAMESPACE=paperclipinc), set GHCR_PUSH_TOKEN to a
+          # PAT with write:packages from a member of that namespace and
+          # GHCR_PUSH_USER to its login.
+          username: ${{ vars.GHCR_PUSH_USER || github.actor }}
+          password: ${{ secrets.GHCR_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
+
+      - name: Check image namespace matches the chart default
+        run: |
+          CHART_REPO=$(grep -E '^  repository:' charts/hermes-operator/values.yaml | head -n1 | awk '{print $2}')
+          if [ "${CHART_REPO}" != "ghcr.io/${IMAGE_NAMESPACE}/hermes-operator" ]; then
+            echo "::error::IMAGE_NAMESPACE=${IMAGE_NAMESPACE} but the chart defaults to ${CHART_REPO}; publishing would ship a chart pointing at an image that was never pushed."
+            exit 1
+          fi
 
       - name: Install Syft
         uses: anchore/sbom-action/download-syft@v0
@@ -70,7 +104,7 @@ jobs:
         run: |
           TAG="${{ github.ref_name }}"
           MAJOR_MINOR=$(echo "$TAG" | sed 's/^v//' | cut -d. -f1,2)
-          IMAGE="ghcr.io/paperclipinc/hermes-operator"
+          IMAGE="ghcr.io/${IMAGE_NAMESPACE}/hermes-operator"
           {
             echo "image=${IMAGE}"
             echo "major_minor=${MAJOR_MINOR}"
@@ -100,7 +134,7 @@ jobs:
             org.opencontainers.image.title=hermes-operator
             org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=https://github.com/paperclipinc/hermes-operator
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=Apache-2.0
 
       - name: Sign container image with cosign (keyless OIDC)
@@ -113,7 +147,7 @@ jobs:
       - name: Generate SBOM for container image
         uses: anchore/sbom-action@v0
         with:
-          image: ghcr.io/paperclipinc/hermes-operator:${{ github.ref_name }}
+          image: ghcr.io/${{ env.IMAGE_NAMESPACE }}/hermes-operator:${{ github.ref_name }}
           artifact-name: sbom-${{ github.ref_name }}.spdx.json
           output-file: sbom-${{ github.ref_name }}.spdx.json
 
@@ -129,18 +163,30 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: sbom-${{ github.ref_name }}.spdx.json
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.app-token.outputs.token || secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
+      # Events from GITHUB_TOKEN do not trigger other workflows. The App token
+      # (or PAT) makes release:published fire operatorhub-submit.yaml; with the
+      # GITHUB_TOKEN fallback it is dispatched explicitly in the next step.
       - name: Publish release (undraft)
         uses: softprops/action-gh-release@v3
         with:
           draft: false
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.app-token.outputs.token || secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Dispatch OperatorHub submission (GITHUB_TOKEN fallback)
+        if: env.HAS_APP != 'true' && env.HAS_PAT != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::warning::Published with GITHUB_TOKEN; dispatching operatorhub-submit.yaml explicitly."
+          gh workflow run operatorhub-submit.yaml --repo "${{ github.repository }}" -f tag="${{ github.ref_name }}"
 
   helm-release:
     name: Helm OCI Release
     runs-on: ubuntu-latest
     needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -149,8 +195,13 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN can only push to packages in the repository owner's
+          # namespace. To publish into a namespace owned by another account
+          # (e.g. IMAGE_NAMESPACE=paperclipinc), set GHCR_PUSH_TOKEN to a
+          # PAT with write:packages from a member of that namespace and
+          # GHCR_PUSH_USER to its login.
+          username: ${{ vars.GHCR_PUSH_USER || github.actor }}
+          password: ${{ secrets.GHCR_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Install Helm
         uses: azure/setup-helm@v5
@@ -171,8 +222,8 @@ jobs:
           helm package charts/hermes-operator \
             --version "${CHART_VERSION}" \
             --app-version "${CHART_VERSION}"
-          PUSH_OUT=$(helm push "hermes-operator-${CHART_VERSION}.tgz" oci://ghcr.io/paperclipinc/charts 2>&1)
+          PUSH_OUT=$(helm push "hermes-operator-${CHART_VERSION}.tgz" "oci://ghcr.io/${IMAGE_NAMESPACE}/charts" 2>&1)
           echo "${PUSH_OUT}"
           DIGEST=$(echo "${PUSH_OUT}" | awk '/Digest:/ {print $2}')
           if [ -z "${DIGEST}" ]; then echo "::error::could not parse chart digest"; exit 1; fi
-          cosign sign --yes "ghcr.io/paperclipinc/charts/hermes-operator@${DIGEST}"
+          cosign sign --yes "ghcr.io/${IMAGE_NAMESPACE}/charts/hermes-operator@${DIGEST}"

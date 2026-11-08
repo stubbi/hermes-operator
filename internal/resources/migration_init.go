@@ -28,7 +28,7 @@ func BuildMigrationInitContainer(inst *hermesv1.HermesInstance) *corev1.Containe
 	if image == "" {
 		repo := inst.Spec.Image.Repository
 		if repo == "" {
-			repo = "ghcr.io/paperclipinc/hermes-agent"
+			repo = "ghcr.io/stubbi/hermes-agent"
 		}
 		tag := inst.Spec.Image.Tag
 		if tag == "" {

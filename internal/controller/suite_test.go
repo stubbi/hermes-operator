@@ -111,7 +111,7 @@ var _ = BeforeSuite(func() {
 		Recorder: k8sManager.GetEventRecorderFor("hermes-operator"),
 	}
 	fakeReg := oci.NewFake()
-	fakeReg.SetTags("ghcr.io/paperclipinc/hermes-agent", []string{"1.0.0", "1.0.1", "1.1.0"})
+	fakeReg.SetTags("ghcr.io/stubbi/hermes-agent", []string{"1.0.0", "1.0.1", "1.1.0"})
 	autoUpdateSub := &AutoUpdateReconciler{
 		Client:   k8sManager.GetClient(),
 		Scheme:   k8sManager.GetScheme(),

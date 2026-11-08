@@ -3029,7 +3029,7 @@ spec:
                     - Never
                     type: string
                   repository:
-                    default: ghcr.io/paperclipinc/hermes-agent
+                    default: ghcr.io/stubbi/hermes-agent
                     type: string
                   tag:
                     description: |-

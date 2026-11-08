@@ -4,7 +4,7 @@ metadata:
   name: gitops-hermes
 spec:
   image:
-    repository: ghcr.io/paperclipinc/hermes-agent
+    repository: ghcr.io/stubbi/hermes-agent
     tag: "v2026.5.29.2"
   storage:
     persistence:

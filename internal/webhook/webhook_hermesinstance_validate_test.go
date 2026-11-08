@@ -147,7 +147,7 @@ func TestValidator_AllowHappyPath(t *testing.T) {
 	inst := &hermesv1.HermesInstance{
 		ObjectMeta: metav1.ObjectMeta{Name: "demo"},
 		Spec: hermesv1.HermesInstanceSpec{
-			Image:   hermesv1.ImageSpec{Repository: "ghcr.io/paperclipinc/hermes-agent"},
+			Image:   hermesv1.ImageSpec{Repository: "ghcr.io/stubbi/hermes-agent"},
 			Storage: hermesv1.StorageSpec{Persistence: hermesv1.PersistenceSpec{Size: "1Gi"}},
 		},
 	}
