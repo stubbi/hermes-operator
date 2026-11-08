@@ -1,0 +1,34 @@
+{{- /*
+With watchNamespaces set, namespaced permissions are granted per namespace
+instead of cluster-wide, so narrowing the watch also narrows the blast radius
+(#126). The manager cache is restricted to the same namespaces via
+--watch-namespaces, so it never needs access outside them.
+*/ -}}
+{{- if .Values.createRBAC }}
+{{- range $ns := .Values.watchNamespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "hermes-operator.fullname" $ }}
+  namespace: {{ $ns }}
+  labels: {{- include "hermes-operator.labels" $ | nindent 4 }}
+rules:
+  {{- include "hermes-operator.namespacedRules" $ | nindent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "hermes-operator.fullname" $ }}
+  namespace: {{ $ns }}
+  labels: {{- include "hermes-operator.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "hermes-operator.fullname" $ }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "hermes-operator.fullname" $ }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+{{- end }}

@@ -7,6 +7,12 @@ image:
   pullPolicy: IfNotPresent
 logLevel: info
 createRBAC: true
+# Namespaces the operator reconciles. Empty watches every namespace and binds
+# the manager permissions cluster-wide. When set, the manager cache, the
+# namespaced admission webhooks and the RBAC grant are all narrowed to these
+# namespaces: each gets a Role and RoleBinding, and the ClusterRole keeps only
+# cluster-scoped access (HermesClusterDefaults). The namespaces must exist
+# before install. See docs/security/rbac.md.
 watchNamespaces: []
 metrics:
   secure: true

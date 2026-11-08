@@ -26,11 +26,7 @@ spec:
             - --metrics-secure={{ .Values.metrics.secure }}
             - --zap-log-level={{ .Values.logLevel }}
             {{- with .Values.watchNamespaces }}
-            {{- /*
-              TODO(v1.1): wire spec.watchNamespaces into manager cache.Options.DefaultNamespaces.
-              The operator currently watches all namespaces; explicit scoping is on the v1.1 roadmap.
-              Leaving the value in values.yaml so chart consumers can adopt it once supported.
-            */ -}}
+            - --watch-namespaces={{ join "," . }}
             {{- end }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
