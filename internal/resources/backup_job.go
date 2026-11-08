@@ -43,7 +43,7 @@ func BuildBackupOneShotJob(inst *hermesv1.HermesInstance, opts BackupJobOpts) *b
 
 	args := []string{
 		"-c",
-		backupScript(inst, fmt.Sprintf("KEY=%q", opts.SnapshotKey), opts.Kind),
+		backupScript(inst, fmt.Sprintf("KEY=%s", shellQuote(opts.SnapshotKey)), opts.Kind),
 	}
 
 	return &batchv1.Job{

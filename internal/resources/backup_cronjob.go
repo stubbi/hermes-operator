@@ -50,7 +50,7 @@ func BuildBackupCronJob(inst *hermesv1.HermesInstance) *batchv1.CronJob {
 	args := []string{
 		"-c",
 		backupScript(inst,
-			fmt.Sprintf(`KEY=%q"${TIMESTAMP}.tar"`, normalizedPathPrefix(inst)+inst.Namespace+"/"+inst.Name+"/"),
+			fmt.Sprintf(`KEY=%s"${TIMESTAMP}.tar"`, shellQuote(normalizedPathPrefix(inst)+inst.Namespace+"/"+inst.Name+"/")),
 			"scheduled"),
 	}
 

@@ -50,6 +50,11 @@ fi
 `
 }
 
+// shellQuote returns a POSIX shell literal, including for quotes and substitutions.
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
+}
+
 // backupHost is the restic --host recorded on every snapshot of inst. It
 // scopes retention to one instance, because all instances backing up to the
 // same bucket share one restic repository.
@@ -79,14 +84,14 @@ if ! restic --no-cache cat config >/dev/null 2>&1; then
   restic --no-cache init
 fi
 tar -cf - -C %s . \
-  | restic --no-cache backup --stdin --stdin-filename "$KEY" --host %q \
+  | restic --no-cache backup --stdin --stdin-filename "$KEY" --host %s \
       --tag %q --tag %q --tag %q --tag "timestamp=$TIMESTAMP" \
   || { echo "BACKUP FAILED: $KEY" >&2; exit 1; }
 echo "backup complete: $KEY" >&2
 `,
 		keyAssign,
 		backupDataDir,
-		backupHost(inst),
+		shellQuote(backupHost(inst)),
 		kind,
 		fmt.Sprintf("hermes-format=%d", BackupFormatVersion),
 		"instance-uid="+string(inst.UID),
@@ -100,16 +105,16 @@ func pruneScript(inst *hermesv1.HermesInstance, historyLimit, failedHistoryLimit
   echo "no restic repository at $RESTIC_REPOSITORY yet; nothing to prune" >&2
   exit 0
 fi
-restic --no-cache forget --host %q --group-by host --keep-last %d --prune --tag scheduled --tag onDelete --tag preUpdate
-restic --no-cache forget --host %q --group-by host --keep-last %d --prune --tag failed
-`, host, historyLimit, host, failedHistoryLimit)
+restic --no-cache forget --host %s --group-by host --keep-last %d --prune --tag scheduled --tag onDelete --tag preUpdate
+restic --no-cache forget --host %s --group-by host --keep-last %d --prune --tag failed
+`, shellQuote(host), historyLimit, shellQuote(host), failedHistoryLimit)
 }
 
 // restoreScript returns the script that extracts snapshot key into backupDataDir.
 // Format 2 snapshots (".tar") need only busybox tar; legacy format 1
 // snapshots (".tar.zst") additionally need zstd in the image.
 func restoreScript(key string) string {
-	return resticPreamble() + fmt.Sprintf(`SNAPSHOT_KEY=%q
+	return resticPreamble() + fmt.Sprintf(`SNAPSHOT_KEY=%s
 DEST=%s
 if [ -n "$(ls -A "$DEST" 2>/dev/null)" ] && [ -z "${HERMES_RESTORE_FORCE:-}" ]; then
   echo "ERROR: restore destination $DEST is not empty; refusing to overwrite. Set HERMES_RESTORE_FORCE=1 to override." >&2
@@ -132,7 +137,7 @@ case "$SNAPSHOT_KEY" in
     ;;
 esac
 echo "restore complete: $SNAPSHOT_KEY -> $DEST" >&2
-`, key, backupDataDir)
+`, shellQuote(key), backupDataDir)
 }
 
 // resticEnv returns the env shared by every restic container. The documented

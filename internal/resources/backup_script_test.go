@@ -129,9 +129,9 @@ func TestResticScripts_OnlyUseToolsInTheDefaultImage(t *testing.T) {
 func TestBackupScript_TagsHostAndInit(t *testing.T) {
 	inst := backupInstance()
 	cron := scriptOf(BuildBackupCronJob(inst).Spec.JobTemplate.Spec.Template.Spec.Containers[0])
-	assert.Contains(t, cron, `KEY="prod/agents/demo/""${TIMESTAMP}.tar"`)
+	assert.Contains(t, cron, `KEY='prod/agents/demo/'"${TIMESTAMP}.tar"`)
 	assert.Contains(t, cron, `--tag "scheduled"`)
-	assert.Contains(t, cron, `--host "prod/agents/demo"`)
+	assert.Contains(t, cron, `--host 'prod/agents/demo'`)
 	assert.Contains(t, cron, `--tag "hermes-format=2"`)
 	assert.Contains(t, cron, `--tag "instance-uid=uid-1"`)
 	assert.Contains(t, cron, "restic --no-cache init")
@@ -139,7 +139,7 @@ func TestBackupScript_TagsHostAndInit(t *testing.T) {
 	job := scriptOf(BuildBackupOneShotJob(inst, BackupJobOpts{
 		Name: "x", SnapshotKey: "prod/agents/demo/2026-05-10T03-00-00Z.tar", Kind: "preUpdate",
 	}).Spec.Template.Spec.Containers[0])
-	assert.Contains(t, job, `KEY="prod/agents/demo/2026-05-10T03-00-00Z.tar"`)
+	assert.Contains(t, job, `KEY='prod/agents/demo/2026-05-10T03-00-00Z.tar'`)
 	assert.Contains(t, job, `--tag "preUpdate"`)
 }
 
@@ -147,13 +147,13 @@ func TestBackupScript_PathPrefixWithoutTrailingSlash(t *testing.T) {
 	inst := backupInstance()
 	inst.Spec.Backup.S3.PathPrefix = "prod"
 	cron := scriptOf(BuildBackupCronJob(inst).Spec.JobTemplate.Spec.Template.Spec.Containers[0])
-	assert.Contains(t, cron, `KEY="prod/agents/demo/""${TIMESTAMP}.tar"`)
+	assert.Contains(t, cron, `KEY='prod/agents/demo/'"${TIMESTAMP}.tar"`)
 }
 
 func TestPruneScript_ScopedToInstance(t *testing.T) {
 	s := scriptOf(BuildBackupPruneCronJob(backupInstance()).Spec.JobTemplate.Spec.Template.Spec.Containers[0])
-	assert.Contains(t, s, `forget --host "prod/agents/demo" --group-by host --keep-last 30 --prune --tag scheduled --tag onDelete --tag preUpdate`)
-	assert.Contains(t, s, `forget --host "prod/agents/demo" --group-by host --keep-last 3 --prune --tag failed`)
+	assert.Contains(t, s, `forget --host 'prod/agents/demo' --group-by host --keep-last 30 --prune --tag scheduled --tag onDelete --tag preUpdate`)
+	assert.Contains(t, s, `forget --host 'prod/agents/demo' --group-by host --keep-last 3 --prune --tag failed`)
 }
 
 func TestRestoreScript_LegacyZstdOnlyForZstKeys(t *testing.T) {
@@ -234,4 +234,37 @@ func TestResticScripts_BackupRestoreRoundTrip(t *testing.T) {
 	got, err = os.ReadFile(filepath.Join(dest, "config.yaml"))
 	require.NoError(t, err)
 	assert.Equal(t, "model: x\n", string(got))
+}
+
+func TestResticScripts_TreatUserValuesAsLiteral(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "executed")
+	capture := filepath.Join(dir, "args")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "restic"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" >> \"$CAPTURE\"\n"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "tar"), []byte("#!/bin/sh\nexit 0\n"), 0o755))
+	value := "prefix-'\"$(touch " + marker + ")`touch " + marker + "`"
+	inst := backupInstance()
+	inst.Spec.Backup.S3.PathPrefix = value
+	scripts := map[string]string{
+		"scheduled": scriptOf(BuildBackupCronJob(inst).Spec.JobTemplate.Spec.Template.Spec.Containers[0]),
+		"prune":     scriptOf(BuildBackupPruneCronJob(inst).Spec.JobTemplate.Spec.Template.Spec.Containers[0]),
+		"one-shot":  scriptOf(BuildBackupOneShotJob(inst, BackupJobOpts{Name: "test", SnapshotKey: value, Kind: "onDelete"}).Spec.Template.Spec.Containers[0]),
+		"restore":   restoreScript(value),
+	}
+	for name, script := range scripts {
+		t.Run(name, func(t *testing.T) {
+			_ = os.Remove(marker)
+			_ = os.Remove(capture)
+			script = strings.ReplaceAll(script, backupDataDir, dir)
+			cmd := exec.Command("/bin/sh", "-c", script)
+			cmd.Env = append(os.Environ(), "PATH="+dir+":"+os.Getenv("PATH"), "CAPTURE="+capture, "RESTIC_PASSWORD=test", "RESTIC_REPOSITORY=test", "HERMES_RESTORE_FORCE=1")
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", output)
+			_, err = os.Stat(marker)
+			assert.True(t, os.IsNotExist(err), "shell executed a substitution from the input")
+			args, err := os.ReadFile(capture)
+			require.NoError(t, err)
+			assert.Contains(t, string(args), value, "restic must receive the input literally")
+		})
+	}
 }
