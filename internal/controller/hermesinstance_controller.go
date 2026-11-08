@@ -251,8 +251,8 @@ func (r *HermesInstanceReconciler) reconcileConfigMap(ctx context.Context, inst 
 
 // resolveSelfConfigPatches returns the patchConfig bodies of every
 // HermesSelfConfig targeting inst that the SelfConfig reconciler has admitted
-// (phase Applied for the current generation). The SelfConfig reconciler owns
-// policy (selfConfigure.enabled, allowedActions, protectedKeys); this
+// (phase Applied for the current generation). Replay also checks the bound
+// parent UID and current policy (enabled, allowedActions, protectedKeys). This
 // reconciler owns the merge, so a patch is re-applied on every reconcile and
 // disappears when its HermesSelfConfig is deleted or denied. Order is
 // creation time, then name, so later requests win on conflict.
@@ -270,6 +270,9 @@ func (r *HermesInstanceReconciler) resolveSelfConfigPatches(ctx context.Context,
 			continue
 		}
 		if sc.Status.Phase != hermesv1.SelfConfigPhaseApplied || sc.Status.ObservedGeneration != sc.Generation {
+			continue
+		}
+		if !selfConfigBoundToParent(&sc, inst) || selfConfigPolicyError(&sc, inst) != nil {
 			continue
 		}
 		admitted = append(admitted, sc)

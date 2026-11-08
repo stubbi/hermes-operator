@@ -38,6 +38,13 @@ workspace ConfigMap, drop that dependency. A patch landing or being retracted
 rolls the pod through the config hash annotation described above, so no manual
 restart is needed.
 
+**Authorization.** Admitted requests now carry a controller owner reference to
+the parent UID, and every replay rechecks the current parent policy. Applied
+requests from an earlier operator that have no parent binding are denied and
+excluded from the rendered config. Recreate any such requests you still want
+after checking the parent's current policy. A replacement instance with the
+same name never inherits the old instance's patches.
+
 ### Images and the Helm chart are published under `ghcr.io/stubbi`
 
 **What changed.** The repository moved from `paperclipinc` to `stubbi`, and

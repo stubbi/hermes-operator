@@ -70,6 +70,15 @@ spec:
 
 `patchConfig` is a JSON merge patch (RFC 7396). The SelfConfig controller checks policy (`allowedActions`, `protectedKeys`) and marks the request `Applied`; the `HermesInstance` reconciler then merges every `Applied` patch for the instance into the rendered `<instance>-config` ConfigMap (`config.yaml`) on each reconcile. The merge order is: user config (`spec.config`), then patches by creation time (later wins), then the operator-owned gateway fragments, which a patch can never override. A `null` value deletes the key. Deleting the `HermesSelfConfig` retracts the patch on the next instance reconcile.
 
+Authorization belongs to one parent lifetime. The controller binds an admitted
+request to the parent's UID through a controller owner reference. A same-name
+replacement instance cannot inherit that authorization. Every config replay
+also rechecks the current `enabled`, `allowedActions` and `protectedKeys`
+policy. Revoking permission retracts the patch and marks the request `Denied`;
+it does not undo earlier SSA changes to skills, environment or workspace files.
+Requests are normally garbage-collected with their parent. An orphaned request
+cannot be rebound to a replacement parent; create a new request instead.
+
 The rendered ConfigMap is subPath-mounted, so kubelet never refreshes it in a running pod. The operator stamps the pod template with a `hermes.agent/config-hash` digest of the rendered config, so a patch landing (or being retracted) rolls the StatefulSet and the agent restarts on the new config.
 
 ### Inject environment variables
