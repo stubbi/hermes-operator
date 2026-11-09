@@ -458,10 +458,18 @@ scorecard: operator-sdk ## Run operator-sdk scorecard tests (requires a kind clu
 # the old workflow identity, later ones the new one; accept both.
 SIGNING_IDENTITY_REGEXP ?= ^https://github.com/(paperclipinc|stubbi)/hermes-operator/.github/workflows/.*
 
+# v0.2.0 is the last published legacy release. Resolve its default namespace
+# before verification; later releases and explicit custom namespaces use the
+# configured destination. Never retry a failed verification in another namespace.
 .PHONY: verify-signing
 verify-signing: ## Verify the latest published release is Cosign-signed and SBOM-attested.
-	@VERSION=$$(gh release view --repo stubbi/hermes-operator --json tagName --jq .tagName); \
-	IMAGE="ghcr.io/$(IMAGE_NAMESPACE)/hermes-operator:$${VERSION}"; \
+	@VERSION=$$(gh release view --repo stubbi/hermes-operator --json tagName --jq .tagName) || { echo "::error::failed to resolve the latest release tag"; exit 1; }; \
+	[ -n "$${VERSION}" ] || { echo "::error::latest release tag is empty"; exit 1; }; \
+	RELEASE_NAMESPACE="$(IMAGE_NAMESPACE)"; \
+	if [ "$${VERSION}" = "v0.2.0" ] && [ "$${RELEASE_NAMESPACE}" = "stubbi" ]; then \
+	  RELEASE_NAMESPACE=paperclipinc; \
+	fi; \
+	IMAGE="ghcr.io/$${RELEASE_NAMESPACE}/hermes-operator:$${VERSION}"; \
 	echo "Verifying $${IMAGE}..."; \
 	cosign verify "$${IMAGE}" \
 	  --certificate-identity-regexp '$(SIGNING_IDENTITY_REGEXP)' \
@@ -471,3 +479,7 @@ verify-signing: ## Verify the latest published release is Cosign-signed and SBOM
 	  --certificate-identity-regexp '$(SIGNING_IDENTITY_REGEXP)' \
 	  --certificate-oidc-issuer https://token.actions.githubusercontent.com >/dev/null || { echo "::error::SBOM attestation verification failed for $${IMAGE}"; exit 1; }; \
 	echo "OK: $${IMAGE} is signed and SBOM-attested."
+
+.PHONY: test-verify-signing
+test-verify-signing: ## Test release lookup and workflow failure handling (requires PyYAML).
+	python3 hack/test-verify-signing.py
