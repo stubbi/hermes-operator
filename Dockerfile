@@ -1,7 +1,7 @@
 # Build the manager binary. Use BUILDPLATFORM so Go cross-compiles natively
 # rather than running the whole compile under QEMU emulation, which is
 # pathologically slow for Go.
-FROM --platform=$BUILDPLATFORM golang:1.27 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.4 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
