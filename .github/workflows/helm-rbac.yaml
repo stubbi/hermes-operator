@@ -9,11 +9,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
-        with: { go-version: "1.27" }
+        with: { go-version: "1.27.4" }
       - uses: azure/setup-helm@v5
       - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
-      - run: sudo snap install yq
+      - name: Install yq v4.54.3
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64 \
+            -o "$RUNNER_TEMP/yq"
+          echo "129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973  $RUNNER_TEMP/yq" | sha256sum --check
+          sudo install -m 0755 "$RUNNER_TEMP/yq" /usr/local/bin/yq
       - run: bash hack/check-helm-rbac.sh
       - run: python3 hack/test-helm-rbac.py
   bundle-rbac:
@@ -21,7 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: sudo snap install yq
+      - name: Install yq v4.54.3
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/mikefarah/yq/releases/download/v4.54.3/yq_linux_amd64 \
+            -o "$RUNNER_TEMP/yq"
+          echo "129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973  $RUNNER_TEMP/yq" | sha256sum --check
+          sudo install -m 0755 "$RUNNER_TEMP/yq" /usr/local/bin/yq
       - run: make sync-bundle-rbac-check
 
   chart-image-tags:

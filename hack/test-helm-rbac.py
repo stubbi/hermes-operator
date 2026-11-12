@@ -22,8 +22,7 @@ class HelmRBACCheckTests(unittest.TestCase):
             ["yq", "-o=json", ".", str(ROOT / "config/rbac/role.yaml")], text=True))
 
     def setUp(self):
-        # CI installs yq as a Snap with its own /tmp mount namespace.
-        # Keep private fixtures under the checkout so the real CLI can read them.
+        # Keep private fixtures under the checkout, together with the copied chart.
         self.temp = tempfile.TemporaryDirectory(prefix="hermes-rbac-check-", dir=ROOT)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
