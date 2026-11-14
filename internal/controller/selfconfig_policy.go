@@ -22,9 +22,47 @@ import (
 	"sort"
 
 	"github.com/gobwas/glob"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
 )
+
+// selfConfigBoundToParent matches the identity recorded when the request was
+// admitted. A same-name replacement instance is a different authorization.
+func selfConfigBoundToParent(sc *hermesv1.HermesSelfConfig, parent *hermesv1.HermesInstance) bool {
+	owner := metav1.GetControllerOf(sc)
+	return owner != nil && parent.UID != "" && sc.Namespace == parent.Namespace &&
+		owner.APIVersion == hermesv1.GroupVersion.String() && owner.Kind == "HermesInstance" &&
+		owner.Name == parent.Name && owner.UID == parent.UID
+}
+
+// selfConfigPolicyError is shared by authorization and replay: an Applied status
+// is not a permanent exemption from the current parent's policy.
+func selfConfigPolicyError(sc *hermesv1.HermesSelfConfig, parent *hermesv1.HermesInstance) error {
+	if sc.Spec.InstanceRef != parent.Name || sc.Namespace != parent.Namespace || parent.UID == "" || !parent.DeletionTimestamp.IsZero() {
+		return fmt.Errorf("parent HermesInstance identity is missing or being deleted")
+	}
+	if !boolValue(parent.Spec.SelfConfigure.Enabled) {
+		return fmt.Errorf("selfconfig disabled on parent")
+	}
+	requested := DetermineActions(sc)
+	if len(requested) == 0 {
+		return fmt.Errorf("request contains no mutations")
+	}
+	if denied := CheckAllowedActions(requested, parent.Spec.SelfConfigure.AllowedActions); len(denied) > 0 {
+		return fmt.Errorf("actions %v not in allowedActions=%v", denied, parent.Spec.SelfConfigure.AllowedActions)
+	}
+	if sc.Spec.PatchConfig != nil && len(sc.Spec.PatchConfig.Raw) > 0 {
+		hit, err := CheckProtectedPaths(sc.Spec.PatchConfig.Raw, parent.Spec.SelfConfigure.ProtectedKeys)
+		if err != nil {
+			return fmt.Errorf("invalid patchConfig: %w", err)
+		}
+		if hit != "" {
+			return fmt.Errorf("patchConfig path %q is protected", hit)
+		}
+	}
+	return nil
+}
 
 // DetermineActions inspects a HermesSelfConfig and returns the set of action
 // categories it requests. Used to compare against the parent's allowlist.

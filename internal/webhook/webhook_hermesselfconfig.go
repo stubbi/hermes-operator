@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,7 +35,17 @@ func (v *HermesSelfConfigValidator) ValidateCreate(ctx context.Context, obj runt
 	return v.validate(ctx, obj)
 }
 
-func (v *HermesSelfConfigValidator) ValidateUpdate(ctx context.Context, _, obj runtime.Object) (admission.Warnings, error) {
+func (v *HermesSelfConfigValidator) ValidateUpdate(ctx context.Context, oldObj, obj runtime.Object) (admission.Warnings, error) {
+	old, oldOK := oldObj.(*hermesv1.HermesSelfConfig)
+	updated, newOK := obj.(*hermesv1.HermesSelfConfig)
+	if oldOK && newOK && old.Status.Phase == hermesv1.SelfConfigPhaseApplied {
+		before, after := metav1.GetControllerOf(old), metav1.GetControllerOf(updated)
+		// Removal is needed for orphaning/GC, but leaves the request unbound
+		// and therefore ineligible for replay. It must not then be rebound.
+		if after != nil && (before == nil || before.UID != after.UID || before.Name != after.Name || before.Kind != after.Kind || before.APIVersion != after.APIVersion) {
+			return nil, fmt.Errorf("an Applied HermesSelfConfig cannot be rebound to a different parent identity; create a new request")
+		}
+	}
 	return v.validate(ctx, obj)
 }
 

@@ -35,6 +35,11 @@ the PVC) is **gone**. Only mutable state lives on the volume.
 Persistent state lives at **`/opt/data`**, the PVC mount, and `HERMES_HOME` is
 set to `/opt/data`. (The previous runtime used `/home/hermes/.hermes`.) The
 rendered `config.yaml` is mounted read-only at `/opt/data/config.yaml`.
+Because that is a subPath mount, kubelet never refreshes it inside a running
+pod. The operator stamps the pod template with `hermes.agent/config-hash` (a
+digest of the rendered ConfigMap) and `hermes.agent/workspace-hash` (the
+workspace seed ConfigMap), so any change to either rolls the StatefulSet and
+the agent restarts on the new content.
 
 ## Security posture and the SCC tradeoff
 
