@@ -653,6 +653,9 @@ spec:
                     args:
                       - '--leader-elect'
                       - '--health-probe-bind-address=:8081'
+                    env:
+                      - name: HERMES_OPERATOR_IMAGE
+                        value: ghcr.io/paperclipinc/hermes-operator:v0.2.0 # x-release-please-version
                     ports:
                       - containerPort: 9443
                         name: webhook-server
