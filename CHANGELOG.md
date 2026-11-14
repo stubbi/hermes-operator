@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1](https://github.com/stubbi/hermes-operator/compare/v0.2.0...v0.2.1) (2026-11-14)
+
+
+### Features
+
+* **networkpolicy:** add egressPolicy to make the TCP/443 baseline restrictable ([#179](https://github.com/stubbi/hermes-operator/issues/179)) ([4ed75da](https://github.com/stubbi/hermes-operator/commit/4ed75da9f685a1fca189e465e7ce3239aadb4db7))
+
+
+### Bug Fixes
+
+* **backup:** make backup jobs run in the default restic image ([#182](https://github.com/stubbi/hermes-operator/issues/182)) ([d29171c](https://github.com/stubbi/hermes-operator/commit/d29171c89a4b18a4a6252ad5603faa0a97287919))
+* **ci:** resolve envtest assets before running tests ([#194](https://github.com/stubbi/hermes-operator/issues/194)) ([e9a1c7e](https://github.com/stubbi/hermes-operator/commit/e9a1c7e32a247379baa161e1b263d30fbcfa0f5c))
+* **ci:** validate Helm RBAC permission comparisons ([#198](https://github.com/stubbi/hermes-operator/issues/198)) ([b226b80](https://github.com/stubbi/hermes-operator/commit/b226b806b7bc8226ee01bc317b18295b6308ca44))
+* **ci:** verify legacy release artifacts and preserve signing failures ([#201](https://github.com/stubbi/hermes-operator/issues/201)) ([aed77f4](https://github.com/stubbi/hermes-operator/commit/aed77f455489821a177394ecb6400ed19d1b82be))
+* **deps:** align built artifacts with Go 1.27.4 ([#204](https://github.com/stubbi/hermes-operator/issues/204)) ([a1ed60a](https://github.com/stubbi/hermes-operator/commit/a1ed60a341ecc89d87406106d3cda1dee17ccc53))
+* **deps:** resolve Go advisory findings and check shipped targets ([#200](https://github.com/stubbi/hermes-operator/issues/200)) ([10acdb7](https://github.com/stubbi/hermes-operator/commit/10acdb7c5d839cfc5e344f3d630bba118f8db12f))
+
 ## [0.2.0](https://github.com/paperclipinc/hermes-operator/compare/v0.1.20...v0.2.0) (2026-09-06)
 
 
