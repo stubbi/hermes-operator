@@ -24,7 +24,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
 )
@@ -70,11 +73,10 @@ func (r *HermesSelfConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// Idempotency canary: if we've already processed this generation and the
-	// request is in a terminal phase, requeue for cleanup only.
+	// Denied requests need a spec change before they can be reconsidered.
+	// Applied requests must first recheck their parent identity and policy.
 	if sc.Status.ObservedGeneration == sc.Generation &&
-		(sc.Status.Phase == hermesv1.SelfConfigPhaseApplied ||
-			sc.Status.Phase == hermesv1.SelfConfigPhaseDenied) {
+		sc.Status.Phase == hermesv1.SelfConfigPhaseDenied {
 		return ctrl.Result{RequeueAfter: 1 * time.Hour}, nil
 	}
 
@@ -87,34 +89,37 @@ func (r *HermesSelfConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	// Gate 1: selfConfigure must be enabled on the parent.
-	if !boolValue(parent.Spec.SelfConfigure.Enabled) {
-		return r.deny(ctx, &sc, parent, "selfconfig disabled on parent")
+	if err := selfConfigPolicyError(&sc, parent); err != nil {
+		return r.deny(ctx, &sc, parent, err.Error())
 	}
 
-	// Gate 2: every requested action must be in allowedActions.
-	requested := DetermineActions(&sc)
-	if len(requested) == 0 {
-		return r.deny(ctx, &sc, parent, "request contains no mutations")
+	owner := metav1.GetControllerOf(&sc)
+	if owner != nil && !selfConfigBoundToParent(&sc, parent) {
+		return r.deny(ctx, &sc, parent, "request belongs to a different parent identity; create a new HermesSelfConfig")
 	}
-	if denied := CheckAllowedActions(requested, parent.Spec.SelfConfigure.AllowedActions); len(denied) > 0 {
-		msg := fmt.Sprintf("actions %v not in allowedActions=%v", denied, parent.Spec.SelfConfigure.AllowedActions)
-		return r.deny(ctx, &sc, parent, msg)
+	if owner == nil && sc.Status.Phase == hermesv1.SelfConfigPhaseApplied {
+		return r.deny(ctx, &sc, parent, "Applied request has no parent identity binding; create a new HermesSelfConfig")
 	}
-
-	// Gate 3: protected paths.
-	if sc.Spec.PatchConfig != nil && len(sc.Spec.PatchConfig.Raw) > 0 {
-		hit, err := CheckProtectedPaths(sc.Spec.PatchConfig.Raw, parent.Spec.SelfConfigure.ProtectedKeys)
-		if err != nil {
-			return r.deny(ctx, &sc, parent, fmt.Sprintf("invalid patchConfig: %v", err))
+	if sc.Status.ObservedGeneration == sc.Generation && sc.Status.Phase == hermesv1.SelfConfigPhaseApplied {
+		return ctrl.Result{RequeueAfter: 1 * time.Hour}, nil
+	}
+	if owner == nil {
+		original := sc.DeepCopy()
+		if err := controllerutil.SetControllerReference(parent, &sc, r.Scheme); err != nil {
+			return ctrl.Result{}, err
 		}
-		if hit != "" {
-			return r.deny(ctx, &sc, parent, fmt.Sprintf("patchConfig path %q is protected", hit))
+		if err := r.Patch(ctx, &sc, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
+			return ctrl.Result{}, err
 		}
 	}
 
 	applied, err := r.applyAll(ctx, parent, &sc)
 	if err != nil {
+		if apierrors.IsConflict(err) && !apierrors.HasStatusCause(err, metav1.CauseTypeFieldManagerConflict) {
+			// The parent changed after authorization. Read and validate it
+			// again; this is distinct from an SSA field ownership denial.
+			return ctrl.Result{}, err
+		}
 		logger.Error(err, "SSA apply failed")
 		return r.deny(ctx, &sc, parent, fmt.Sprintf("apply failed: %v", err))
 	}
@@ -132,6 +137,7 @@ func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *herme
 		if err := r.applySSA(ctx, patch, sc); err != nil {
 			return applied, fmt.Errorf("skills SSA: %w", err)
 		}
+		parent.ResourceVersion = patch.ResourceVersion
 		for _, s := range sc.Spec.AddSkills {
 			applied = append(applied, formatAppliedFieldSkill(s.Source))
 		}
@@ -142,24 +148,25 @@ func (r *HermesSelfConfigReconciler) applyAll(ctx context.Context, parent *herme
 		if err := r.applySSA(ctx, patch, sc); err != nil {
 			return applied, fmt.Errorf("envVars SSA: %w", err)
 		}
+		parent.ResourceVersion = patch.ResourceVersion
 		for _, ev := range sc.Spec.AddEnvVars {
 			applied = append(applied, formatAppliedFieldEnv(ev.Name))
 		}
 	}
 
-	var cmPatch *corev1.ConfigMap
+	// patchConfig is not written here. Once this request is Applied, the
+	// HermesInstance reconciler (which watches HermesSelfConfig) merges the
+	// patch into the rendered config ConfigMap on every reconcile, so the
+	// result cannot be wiped by a later instance reconcile and is removed
+	// again when this request is deleted. See resolveSelfConfigPatches.
 	if sc.Spec.PatchConfig != nil && len(sc.Spec.PatchConfig.Raw) > 0 {
-		cmPatch = buildPatchConfigPayload(parent, sc)
+		applied = append(applied, AppliedFieldPatchConfig)
 	}
+
 	if len(sc.Spec.AddWorkspaceFiles) > 0 {
-		cmPatch = mergeConfigMapPatches(cmPatch, buildWorkspaceFilesPatch(parent, sc))
-	}
-	if cmPatch != nil {
+		cmPatch := buildWorkspaceFilesPatch(parent, sc)
 		if err := r.applySSA(ctx, cmPatch, sc); err != nil {
 			return applied, fmt.Errorf("workspace CM SSA: %w", err)
-		}
-		if sc.Spec.PatchConfig != nil && len(sc.Spec.PatchConfig.Raw) > 0 {
-			applied = append(applied, "workspace-configmap.data[key=selfconfig.yaml]")
 		}
 		for _, f := range sc.Spec.AddWorkspaceFiles {
 			applied = append(applied, formatAppliedFieldFile(f.Path))
@@ -197,6 +204,13 @@ func (r *HermesSelfConfigReconciler) deny(ctx context.Context, sc *hermesv1.Herm
 	sc.Status.DenyReason = reason
 	sc.Status.ObservedGeneration = sc.Generation
 	now := metav1.Now()
+	meta.SetStatusCondition(&sc.Status.Conditions, metav1.Condition{
+		Type:               string(hermesv1.SelfConfigConditionApplied),
+		Status:             metav1.ConditionFalse,
+		Reason:             "PolicyViolation",
+		Message:            reason,
+		LastTransitionTime: now,
+	})
 	meta.SetStatusCondition(&sc.Status.Conditions, metav1.Condition{
 		Type:               string(hermesv1.SelfConfigConditionDenied),
 		Status:             metav1.ConditionTrue,
@@ -239,8 +253,25 @@ func (r *HermesSelfConfigReconciler) markApplied(ctx context.Context, sc *hermes
 func (r *HermesSelfConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&hermesv1.HermesSelfConfig{}).
+		Watches(&hermesv1.HermesInstance{}, handler.EnqueueRequestsFromMapFunc(r.parentToSelfConfigs)).
 		Named("hermesselfconfig").
 		Complete(r)
+}
+
+// Parent policy changes must reauthorize terminal Applied requests promptly.
+func (r *HermesSelfConfigReconciler) parentToSelfConfigs(ctx context.Context, obj client.Object) []reconcile.Request {
+	list := &hermesv1.HermesSelfConfigList{}
+	if err := r.List(ctx, list, client.InNamespace(obj.GetNamespace())); err != nil {
+		log.FromContext(ctx).Error(err, "list selfconfigs for parent policy change")
+		return nil
+	}
+	var requests []reconcile.Request
+	for _, sc := range list.Items {
+		if sc.Spec.InstanceRef == obj.GetName() {
+			requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&sc)})
+		}
+	}
+	return requests
 }
 
 func boolValue(p *bool) bool {

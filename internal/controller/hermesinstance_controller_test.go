@@ -32,10 +32,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
+	"github.com/paperclipinc/hermes-operator/internal/resources"
 )
 
 // Ptr returns a pointer to v. Local test helper: mirrors resources.Ptr but
@@ -613,3 +615,66 @@ func maximalInstance(name, namespace string) *hermesv1.HermesInstance {
 		},
 	}
 }
+
+var _ = Describe("HermesInstance reconciler: config hash", func() {
+	const (
+		instName = "confighash-it"
+		ns       = "default"
+	)
+
+	AfterEach(func() {
+		ctx := context.Background()
+		_ = k8sClient.Delete(ctx, &hermesv1.HermesInstance{ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns}})
+		_ = k8sClient.Delete(ctx, &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns}})
+		_ = k8sClient.Delete(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: instName + "-config", Namespace: ns}})
+		_ = k8sClient.Delete(ctx, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: instName + "-workspace", Namespace: ns}})
+	})
+
+	It("rolls the pod template when spec.config changes", func() {
+		ctx := context.Background()
+		inst := &hermesv1.HermesInstance{
+			ObjectMeta: metav1.ObjectMeta{Name: instName, Namespace: ns},
+			Spec: hermesv1.HermesInstanceSpec{
+				Image: hermesv1.ImageSpec{Repository: "ghcr.io/paperclipinc/hermes-agent", Tag: "v1.0.0"},
+				Config: hermesv1.ConfigSpec{
+					Raw: &hermesv1.RawConfig{RawExtension: runtime.RawExtension{Raw: []byte(`{"model":"gpt-4o"}`)}},
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, inst)).To(Succeed())
+
+		var firstHash string
+		Eventually(func(g Gomega) {
+			var sts appsv1.StatefulSet
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &sts)).To(Succeed())
+			ann := sts.Spec.Template.Annotations
+			g.Expect(ann).To(HaveKey(resources.ConfigHashAnnotation))
+			g.Expect(ann).To(HaveKey(resources.WorkspaceHashAnnotation))
+			var cm corev1.ConfigMap
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-config", Namespace: ns}, &cm)).To(Succeed())
+			g.Expect(ann[resources.ConfigHashAnnotation]).To(Equal(resources.HashConfigMapData(cm.Data)),
+				"template hash must match the rendered ConfigMap")
+			firstHash = ann[resources.ConfigHashAnnotation]
+		}, "30s", "250ms").Should(Succeed())
+
+		Eventually(func() error {
+			var cur hermesv1.HermesInstance
+			if err := k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &cur); err != nil {
+				return err
+			}
+			cur.Spec.Config.Raw = &hermesv1.RawConfig{RawExtension: runtime.RawExtension{Raw: []byte(`{"model":"gpt-4o-mini"}`)}}
+			return k8sClient.Update(ctx, &cur)
+		}, "30s", "250ms").Should(Succeed())
+
+		Eventually(func(g Gomega) {
+			var sts appsv1.StatefulSet
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName, Namespace: ns}, &sts)).To(Succeed())
+			got := sts.Spec.Template.Annotations[resources.ConfigHashAnnotation]
+			g.Expect(got).NotTo(Equal(firstHash), "config change must change the pod template hash")
+			var cm corev1.ConfigMap
+			g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: instName + "-config", Namespace: ns}, &cm)).To(Succeed())
+			g.Expect(cm.Data["config.yaml"]).To(ContainSubstring("gpt-4o-mini"))
+			g.Expect(got).To(Equal(resources.HashConfigMapData(cm.Data)))
+		}, "30s", "250ms").Should(Succeed())
+	})
+})
