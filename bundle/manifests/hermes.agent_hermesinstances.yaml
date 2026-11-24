@@ -6711,6 +6711,135 @@ spec:
                       type: object
                     type: array
                 type: object
+              secretsBroker:
+                description: |-
+                  SecretsBroker resolves short-lived secret material (API keys, tokens)
+                  from an external broker every time the agent container starts, and
+                  exports it into the agent's environment. Secrets live in process memory
+                  only: nothing is written to the PVC, so they never reach snapshots or
+                  backups. A failed resolve fails the container start (fail closed). See
+                  docs/secrets-broker.md.
+                properties:
+                  allowInsecureHTTP:
+                    description: |-
+                      AllowInsecureHTTP permits a plain http:// URL, for an in-cluster broker
+                      reached over a trusted network.
+                    type: boolean
+                  entrypoint:
+                    description: |-
+                      Entrypoint is the agent image entrypoint the resolver execs once the
+                      secrets are resolved. Defaults to the upstream hermes-agent entrypoint
+                      ["/init", "/opt/hermes/docker/main-wrapper.sh"]; set it when running a
+                      custom image with a different ENTRYPOINT.
+                    items:
+                      type: string
+                    type: array
+                  envPrefix:
+                    description: |-
+                      EnvPrefix is prepended to every resolved secret name before it is
+                      exported (for example BROKER_).
+                    pattern: ^[A-Za-z_][A-Za-z0-9_]*$
+                    type: string
+                  headers:
+                    description: |-
+                      Headers sent with the resolve call. Use valueFrom for credentials so the
+                      token never sits in the HermesInstance; value may contain ${VAR}
+                      placeholders. A literal Authorization value is rejected.
+                    items:
+                      description: SecretsBrokerHeader is one request header for the
+                        resolve call.
+                      properties:
+                        name:
+                          description: Name of the header.
+                          minLength: 1
+                          pattern: ^[A-Za-z0-9-]+$
+                          type: string
+                        value:
+                          description: |-
+                            Value is a literal header value; ${VAR} placeholders are interpolated
+                            from the agent container env. Mutually exclusive with valueFrom.
+                          type: string
+                        valueFrom:
+                          description: |-
+                            ValueFrom reads the header value from a Secret key in the instance
+                            namespace. Mutually exclusive with value.
+                          properties:
+                            secretKeyRef:
+                              description: SecretKeyRef selects a key of a Secret
+                                in the instance namespace.
+                              properties:
+                                key:
+                                  description: The key of the secret to select from.  Must
+                                    be a valid secret key.
+                                  type: string
+                                name:
+                                  default: ""
+                                  description: |-
+                                    Name of the referent.
+                                    This field is effectively required, but due to backwards compatibility is
+                                    allowed to be empty. Instances of this type with an empty value here are
+                                    almost certainly wrong.
+                                    More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret or its key
+                                    must be defined
+                                  type: boolean
+                              required:
+                              - key
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          required:
+                          - secretKeyRef
+                          type: object
+                      required:
+                      - name
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
+                  maxAttempts:
+                    default: 3
+                    description: |-
+                      MaxAttempts bounds retries on transient failures (network errors,
+                      timeouts, HTTP 429 and 5xx). 401, 403 and 404 are never retried.
+                    format: int32
+                    maximum: 10
+                    minimum: 1
+                    type: integer
+                  method:
+                    default: GET
+                    description: Method is the HTTP method used for the resolve call.
+                    enum:
+                    - GET
+                    - POST
+                    type: string
+                  resolverImage:
+                    description: |-
+                      ResolverImage overrides the image the resolver binary is copied from.
+                      Defaults to the running operator image.
+                    type: string
+                  timeoutSeconds:
+                    default: 10
+                    description: TimeoutSeconds bounds each resolve attempt.
+                    format: int32
+                    maximum: 300
+                    minimum: 1
+                    type: integer
+                  url:
+                    description: |-
+                      URL of the resolve endpoint. It must answer 2xx with a JSON object of
+                      secret name to plaintext value. ${VAR} placeholders are interpolated from
+                      the agent container env at resolve time (for example
+                      https://broker.example/secrets/resolve/${EMPLOYEE_ID}). Must be https
+                      unless allowInsecureHTTP is set.
+                    minLength: 1
+                    pattern: ^https?://
+                    type: string
+                required:
+                - url
+                type: object
               security:
                 description: |-
                   Security configures pod/container security contexts, RBAC, NetworkPolicy,

@@ -37,6 +37,11 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities: { drop: [ALL] }
+          env:
+            # The operator copies its own binary into agent pods that set
+            # spec.secretsBroker; a pod cannot read its own image otherwise.
+            - name: HERMES_OPERATOR_IMAGE
+              value: {{ include "hermes-operator.image" . | quote }}
           ports:
             - name: metrics
               containerPort: 8443

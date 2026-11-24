@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -297,6 +298,10 @@ func validateCommon(inst *hermesv1.HermesInstance) (admission.Warnings, error) {
 		return warns, fmt.Errorf("spec.availability.horizontalPodAutoscaler: MinReplicas > MaxReplicas")
 	}
 
+	if err := validateSecretsBroker(inst.Spec.SecretsBroker); err != nil {
+		return warns, err
+	}
+
 	return warns, nil
 }
 
@@ -395,3 +400,42 @@ func (v *HermesInstanceValidator) crossCheckSecrets(ctx context.Context, inst *h
 }
 
 var _ = webhook.Admission{}
+
+// validateSecretsBroker enforces the spec.secretsBroker rules the CRD schema
+// cannot express: https unless explicitly waived, exactly one value source per
+// header, and no plaintext credential in the CR.
+func validateSecretsBroker(sb *hermesv1.SecretsBrokerSpec) error {
+	if sb == nil {
+		return nil
+	}
+	const p = "spec.secretsBroker"
+	switch {
+	case strings.HasPrefix(sb.URL, "https://"):
+	case strings.HasPrefix(sb.URL, "http://"):
+		if !sb.AllowInsecureHTTP {
+			return fmt.Errorf("%s.url must use https (set %s.allowInsecureHTTP=true for an in-cluster broker on a trusted network)", p, p)
+		}
+	default:
+		return fmt.Errorf("%s.url must be an absolute https:// URL", p)
+	}
+	seen := map[string]struct{}{}
+	for i, h := range sb.Headers {
+		hp := fmt.Sprintf("%s.headers[%d]", p, i)
+		key := strings.ToLower(h.Name)
+		if _, dup := seen[key]; dup {
+			return fmt.Errorf("%s: header %q is set more than once", hp, h.Name)
+		}
+		seen[key] = struct{}{}
+		hasValue, hasFrom := h.Value != "", h.ValueFrom != nil
+		if hasValue == hasFrom {
+			return fmt.Errorf("%s: set exactly one of value or valueFrom", hp)
+		}
+		if hasFrom && (h.ValueFrom.SecretKeyRef.Name == "" || h.ValueFrom.SecretKeyRef.Key == "") {
+			return fmt.Errorf("%s.valueFrom.secretKeyRef needs both name and key", hp)
+		}
+		if hasValue && (key == "authorization" || key == "proxy-authorization") && !strings.Contains(h.Value, "${") {
+			return fmt.Errorf("%s: a literal %s value would store a credential in the HermesInstance; use valueFrom.secretKeyRef or a ${VAR} placeholder backed by a Secret", hp, h.Name)
+		}
+	}
+	return nil
+}

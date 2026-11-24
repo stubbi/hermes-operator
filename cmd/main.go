@@ -42,6 +42,8 @@ import (
 	hermesv1 "github.com/paperclipinc/hermes-operator/api/v1"
 	"github.com/paperclipinc/hermes-operator/internal/controller"
 	"github.com/paperclipinc/hermes-operator/internal/oci"
+	"github.com/paperclipinc/hermes-operator/internal/resources"
+	"github.com/paperclipinc/hermes-operator/internal/secretsbroker"
 	internalwebhook "github.com/paperclipinc/hermes-operator/internal/webhook"
 	// +kubebuilder:scaffold:imports
 )
@@ -78,6 +80,16 @@ func prometheusOperatorCRDsPresent(_ context.Context, cfg *rest.Config) bool {
 }
 
 func main() {
+	// The agent pod runs this same binary as its secrets broker entrypoint
+	// wrapper (spec.secretsBroker); route that before any manager setup.
+	if len(os.Args) > 1 && os.Args[1] == secretsbroker.Subcommand {
+		os.Exit(secretsbroker.Main(os.Args[2:], os.Stderr))
+	}
+	// The operator injects its own image into agent pods that use
+	// spec.secretsBroker. A pod cannot read its own image from the downward
+	// API, so the deployment passes it in as HERMES_OPERATOR_IMAGE.
+	resources.OperatorImage = os.Getenv("HERMES_OPERATOR_IMAGE")
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
